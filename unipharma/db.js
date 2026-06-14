@@ -1,0 +1,162 @@
+// ============================================================
+// UNIPHARMA — Cloud data layer (Supabase)  [plain JS, no JSX]
+// ------------------------------------------------------------
+// Exposes a small async API on window.UNI_DB. If Supabase is not
+// configured (config.js empty) or the library failed to load, every
+// method is a safe no-op and `enabled` is false — the app then runs
+// exactly as before, on localStorage only.
+//
+// Storage strategy: each entity row keeps its FULL app object in a
+// `data` jsonb column, so what we read back is the exact shape the UI
+// already uses. We only map a few flat columns for indexing on write.
+// ============================================================
+(function () {
+  var cfg = window.UNI_CONFIG || {};
+  var url = (cfg.SUPABASE_URL || "").trim();
+  var key = (cfg.SUPABASE_ANON_KEY || "").trim();
+  var lib = window.supabase; // supabase-js UMD global
+  var client = null;
+
+  if (url && key && lib && typeof lib.createClient === "function") {
+    try {
+      client = lib.createClient(url, key);
+    } catch (e) {
+      console.warn("[UNI_DB] Supabase init failed:", e);
+      client = null;
+    }
+  }
+
+  var enabled = !!client;
+
+  // ---- write mappers: app object -> table row ----
+  function drugRow(d) {
+    return {
+      code: d.code, name_th: d.nameTH, name_en: d.nameEN,
+      cat_id: d.catId, sub_id: d.subId, supplier_id: d.supplierId,
+      has_vat: !!d.hasVat, cost_ex: d.costEx, sell_ex: d.sellEx,
+      total_stock: d.totalStock, data: d,
+    };
+  }
+  function supplierRow(s) {
+    return {
+      id: s.id, code: s.code, name: s.name, name_en: s.nameEN,
+      category: s.category, data: s,
+    };
+  }
+  function poRow(p) {
+    return {
+      id: p.id, po_number: p.poNumber, branch: p.branch,
+      supplier_id: p.supplierId, status: p.status, po_date: p.poDate,
+      grand_total: p.grandTotal, is_non_po: !!p.isNonPO, data: p,
+    };
+  }
+
+  // chunk helper for large bulk upserts (10k+ drugs)
+  function chunk(arr, n) {
+    var out = [];
+    for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+    return out;
+  }
+
+  async function selectAll(table) {
+    // paginate to bypass the 1000-row default cap
+    var page = 0, size = 1000, all = [];
+    while (true) {
+      var res = await client.from(table)
+        .select("data").range(page * size, page * size + size - 1);
+      if (res.error) throw res.error;
+      var rows = res.data || [];
+      all = all.concat(rows.map(function (r) { return r.data; }));
+      if (rows.length < size) break;
+      page++;
+    }
+    return all;
+  }
+
+  window.UNI_DB = {
+    enabled: enabled,
+
+    // Returns {drugs,suppliers,orders} from the cloud, or null if not
+    // enabled / nothing stored yet.
+    async loadAll() {
+      if (!enabled) return null;
+      try {
+        var drugs = await selectAll("drugs");
+        var suppliers = await selectAll("suppliers");
+        var orders = await selectAll("purchase_orders");
+        if (!drugs.length && !suppliers.length && !orders.length) return null;
+        // newest POs first
+        orders.sort(function (a, b) {
+          return (b.poDate || "").localeCompare(a.poDate || "");
+        });
+        return { drugs: drugs, suppliers: suppliers, orders: orders };
+      } catch (e) {
+        console.warn("[UNI_DB] loadAll failed:", e);
+        return null;
+      }
+    },
+
+    async isEmpty() {
+      if (!enabled) return true;
+      try {
+        var res = await client.from("drugs").select("code", { count: "exact", head: true });
+        return !res.count;
+      } catch (e) { return true; }
+    },
+
+    async saveDrug(d) {
+      if (!enabled) return;
+      try { await client.from("drugs").upsert(drugRow(d)); }
+      catch (e) { console.warn("[UNI_DB] saveDrug:", e); }
+    },
+    async saveSupplier(s) {
+      if (!enabled) return;
+      try { await client.from("suppliers").upsert(supplierRow(s)); }
+      catch (e) { console.warn("[UNI_DB] saveSupplier:", e); }
+    },
+    async savePO(p) {
+      if (!enabled) return;
+      try { await client.from("purchase_orders").upsert(poRow(p)); }
+      catch (e) { console.warn("[UNI_DB] savePO:", e); }
+    },
+    async deleteDrug(code) {
+      if (!enabled) return;
+      try { await client.from("drugs").delete().eq("code", code); }
+      catch (e) { console.warn("[UNI_DB] deleteDrug:", e); }
+    },
+
+    // Bulk push — used by Data Sync import & first-time seed.
+    async saveDrugsBulk(arr) {
+      if (!enabled || !arr || !arr.length) return;
+      for (var c of chunk(arr.map(drugRow), 500)) {
+        var res = await client.from("drugs").upsert(c);
+        if (res.error) throw res.error;
+      }
+    },
+    async saveSuppliersBulk(arr) {
+      if (!enabled || !arr || !arr.length) return;
+      for (var c of chunk(arr.map(supplierRow), 500)) {
+        var res = await client.from("suppliers").upsert(c);
+        if (res.error) throw res.error;
+      }
+    },
+    async saveOrdersBulk(arr) {
+      if (!enabled || !arr || !arr.length) return;
+      for (var c of chunk(arr.map(poRow), 500)) {
+        var res = await client.from("purchase_orders").upsert(c);
+        if (res.error) throw res.error;
+      }
+    },
+
+    async logSync(source, kind, count) {
+      if (!enabled) return;
+      try { await client.from("sync_history").insert({ source: source, kind: kind, count: count }); }
+      catch (e) { /* non-critical */ }
+    },
+
+    _client: client,
+  };
+
+  if (enabled) console.info("[UNI_DB] Supabase cloud sync ENABLED.");
+  else console.info("[UNI_DB] Running offline (localStorage only).");
+})();

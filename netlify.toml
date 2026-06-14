@@ -1,0 +1,16 @@
+# Netlify deploy config for UNIPHARMA Purchasing Management
+# The app is a static site (no build step) living in the unipharma/ folder.
+[build]
+  publish = "unipharma"
+  command = ""
+
+# Long-cache the static assets; always re-check the HTML.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"

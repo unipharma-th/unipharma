@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "unipharma",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8001"],
+      "cwd": "unipharma",
+      "port": 8001
+    }
+  ]
+}

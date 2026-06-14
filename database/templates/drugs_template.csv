@@ -1,0 +1,4 @@
+code,name_th,name_en,unit,cat_id,sub_id,has_vat,cost_ex,sell_ex,stock_ptn,stock_ram,stock_cnx,min_stock,supplier_id
+AMX001,อะม็อกซิซิลลิน 500มก.,Amoxicillin 500mg,เม็ด,CAT01,S0101,0,18,38,2400,1800,1200,500,SUP001
+PAR001,พาราเซตามอล 500มก.,Paracetamol 500mg,เม็ด,CAT02,S0201,0,1.5,5,8000,6000,4000,2000,SUP001
+VTC001,วิตามินซี 500มก.,Vitamin C 500mg,เม็ด,CAT07,S0702,1,4,12,3000,2000,1500,800,SUP005

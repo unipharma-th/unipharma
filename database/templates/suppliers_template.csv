@@ -1,0 +1,3 @@
+id,code,name,name_en,contact,phone,email,tax_id,credit_term,delivery_days,rating,min_order,address,category
+SUP001,S01,บริษัท ยา-สยาม ฟาร์มาซี จำกัด,Yah-Siam Pharmacy Co. Ltd.,คุณสมชาย ใจดี,02-234-5678,order@yahsiam.co.th,0105562001001,30,2,4.7,5000,45/12 ถนนพระรามสี่ กรุงเทพ 10500,ยาทั่วไป
+SUP002,S02,บริษัท ดีเคเอสเอช (ประเทศไทย) จำกัด,DKSH (Thailand) Ltd.,คุณวรรณา พานิช,02-345-6789,pharma@dksh.co.th,0105562002002,45,3,4.5,10000,1 อาคารเอ็มไพร์ทาวเวอร์ กรุงเทพ 10120,ยาระดับพรีเมียม
