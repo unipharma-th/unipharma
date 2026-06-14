@@ -118,7 +118,7 @@ function App() {
     { id: 'stock', icon: '📦', th: 'ติดตามสินค้า', en: 'Stock Tracking' },
     { id: 'reports', icon: '📊', th: 'รายงาน', en: 'Reports' },
     { id: 'help', icon: '📖', th: 'คู่มือ', en: 'Guide' },
-    { id: 'sync', icon: '🔄', th: 'ซิงค์ข้อมูล', en: 'Data Sync' },
+    { id: 'sync', icon: '🔄', th: 'ซิงค์ข้อมูล', en: 'Data Sync', adminOnly: true },
   ];
 
   const lowStockCount = drugs.filter(d => Object.values(d.stock).some(v => v <= d.minStock)).length;
@@ -169,7 +169,7 @@ function App() {
         </a>
 
         <div className="topnav-nav">
-          {NAV.map(n => (
+          {NAV.filter(n => !n.adminOnly || perm.role === 'admin').map(n => (
             <button key={n.id} className={`nav-btn${page === n.id ? ' active' : ''}`} onClick={() => setPage(n.id)}>
               <span style={{ fontSize: 14 }}>{n.icon}</span>
               {L(n.th, n.en)}
@@ -209,7 +209,7 @@ function App() {
 
       {/* MAIN CONTENT */}
       <div className="main-layout">
-        {page === 'dashboard' && <DashboardPage {...sharedProps} />}
+        {(page === 'dashboard' || (page === 'sync' && perm.role !== 'admin')) && <DashboardPage {...sharedProps} />}
         {page === 'drugs' && <DrugsPage {...sharedProps} />}
         {page === 'orders' && <OrdersPage {...sharedProps} />}
         {page === 'suppliers' && <SuppliersPage {...sharedProps} />}
@@ -217,7 +217,7 @@ function App() {
         {page === 'stock' && <StockPage {...sharedProps} />}
         {page === 'reports' && <ReportsPage {...sharedProps} />}
         {page === 'help' && <HelpPage lang={lang} L={L} perm={perm} />}
-        {page === 'sync' && <DataSyncPage lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} suppliers={suppliers} setSuppliers={setSuppliers} notify={notify} perm={perm} />}
+        {page === 'sync' && perm.role === 'admin' && <DataSyncPage lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} suppliers={suppliers} setSuppliers={setSuppliers} notify={notify} perm={perm} />}
       </div>
 
       {/* CREATE PO MODAL */}

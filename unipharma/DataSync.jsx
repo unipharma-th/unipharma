@@ -395,9 +395,9 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
           </div>
           <div style={{display:'flex',gap:10}}>
             <button className="btn btn-ghost" onClick={()=>setStep(2)}>{L('← แก้ Mapping','← Fix Mapping')}</button>
-            {perm.canWrite
+            {perm.role === 'admin'
               ? <button className="btn btn-primary" onClick={commitImport}>✅ {L('นำเข้าข้อมูล','Import Data')}</button>
-              : <span className="text-muted" style={{fontSize:12,alignSelf:'center'}}>{L('คุณไม่มีสิทธิ์นำเข้าข้อมูล','You do not have import permission')}</span>}
+              : <span className="text-muted" style={{fontSize:12,alignSelf:'center'}}>{L('เฉพาะผู้ดูแลระบบเท่านั้นที่นำเข้าข้อมูลได้','Only admins can import data')}</span>}
           </div>
         </div>
       )}
