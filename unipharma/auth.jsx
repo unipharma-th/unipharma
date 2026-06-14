@@ -1,7 +1,10 @@
 // auth.jsx — Login screen (shown only when cloud is enabled & no session)
+// Users log in with a USERNAME; we append a fixed internal domain so the
+// Supabase email/password provider works without anyone typing an email.
+const LOGIN_DOMAIN = 'unipharma.local';
 function LoginScreen({ L, onSignedIn }) {
   const { useState } = React;
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -9,7 +12,9 @@ function LoginScreen({ L, onSignedIn }) {
   const submit = async (e) => {
     e.preventDefault();
     setErr(''); setBusy(true);
-    const res = await window.UNI_DB.signIn(email.trim(), password);
+    const u = username.trim();
+    const loginId = u.includes('@') ? u : `${u}@${LOGIN_DOMAIN}`;
+    const res = await window.UNI_DB.signIn(loginId, password);
     setBusy(false);
     if (res.error) { setErr(res.error); return; }
     onSignedIn();
@@ -25,9 +30,9 @@ function LoginScreen({ L, onSignedIn }) {
         </div>
 
         <div className="form-group">
-          <label className="label">{L('อีเมล', 'Email')}</label>
-          <input className="input" type="email" autoComplete="username" value={email}
-            onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
+          <label className="label">{L('ชื่อผู้ใช้', 'Username')}</label>
+          <input className="input" type="text" autoComplete="username" value={username}
+            onChange={e => setUsername(e.target.value)} placeholder={L('เช่น admin', 'e.g. admin')} required />
         </div>
         <div className="form-group">
           <label className="label">{L('รหัสผ่าน', 'Password')}</label>
