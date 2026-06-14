@@ -1,7 +1,7 @@
 // Orders.jsx — Purchase Orders Management
 const { useState, useMemo } = React;
 
-function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setViewPO, setShowCreate }) {
+function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setViewPO, setShowCreate, perm = { canApprove: true, canDelete: true } }) {
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -147,17 +147,17 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
                         <button className="btn btn-ghost btn-xs" onClick={() => setViewPO(po)}>
                           📄 {L('ดูเอกสาร', 'View')}
                         </button>
-                        {next && (
+                        {next && perm.canApprove && (
                           <button className="btn btn-outline btn-xs" onClick={() => updateStatus(po.id, next)}>
                             {statusNextLabel[po.status]}
                           </button>
                         )}
-                        {po.status === 'draft' && (
+                        {po.status === 'draft' && perm.canDelete && (
                           <button className="btn btn-danger btn-xs" onClick={() => setConfirmId(po.id)}>
                             {L('ลบ', 'Delete')}
                           </button>
                         )}
-                        {po.status === 'pending' && (
+                        {po.status === 'pending' && perm.canApprove && (
                           <button className="btn btn-danger btn-xs" onClick={() => updateStatus(po.id, 'cancelled')}>
                             {L('ยกเลิก', 'Cancel')}
                           </button>

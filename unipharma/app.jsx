@@ -20,6 +20,15 @@ function App() {
   const [density, setDensity] = useState(() => localStorage.getItem('uni_density') || 'regular');
   const [colorScheme, setColorScheme] = useState(() => localStorage.getItem('uni_colors') || 'blue');
 
+  // ── Auth ──
+  // cloudOn  = Supabase configured (data syncs).
+  // authOn   = login is actually enforced (REQUIRE_LOGIN flag in config.js).
+  const cloudOn = !!(window.UNI_DB && window.UNI_DB.enabled);
+  const authOn = !!(window.UNI_DB && window.UNI_DB.requireLogin);
+  const [authReady, setAuthReady] = useState(!authOn); // not enforcing → ready immediately
+  const [session, setSession] = useState(null);
+  const [me, setMe] = useState(null); // { role, full_name, email }
+
   // Color schemes reshape the entire feel
   const SCHEMES = {
     blue: { accent: '#1177cc', accent2: '#06b6d4', ok: '#16a34a', err: '#dc2626', warn: '#d97706' },
@@ -45,10 +54,27 @@ function App() {
   useEffect(() => { localStorage.setItem('uni_suppliers', JSON.stringify(suppliers)); }, [suppliers]);
   useEffect(() => { localStorage.setItem('uni_orders', JSON.stringify(orders)); }, [orders]);
 
-  // Load shared data from the cloud (Supabase) on startup — only if configured.
-  // Falls back silently to localStorage when cloud is disabled or empty.
+  // Check the auth session on startup and subscribe to changes (only when enforcing login).
   useEffect(() => {
-    if (!window.UNI_DB || !window.UNI_DB.enabled) return;
+    if (!authOn) return;
+    let unsub = () => {};
+    (async () => {
+      const s = await window.UNI_DB.getSession();
+      setSession(s);
+      if (s) setMe(await window.UNI_DB.getMyRole());
+      setAuthReady(true);
+    })();
+    unsub = window.UNI_DB.onAuthChange(async (s) => {
+      setSession(s);
+      setMe(s ? await window.UNI_DB.getMyRole() : null);
+    });
+    return () => unsub();
+  }, []);
+
+  // Load shared data from the cloud. When login is enforced, wait until signed in.
+  useEffect(() => {
+    if (!cloudOn) return;            // offline → keep localStorage data
+    if (authOn && !session) return;  // login required but not signed in yet
     let cancelled = false;
     window.UNI_DB.loadAll().then(data => {
       if (cancelled || !data) return;
@@ -58,7 +84,7 @@ function App() {
       notify(L('โหลดข้อมูลล่าสุดจากคลาวด์แล้ว', 'Synced latest data from cloud'));
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [session, authOn]);
 
   // Apply color & density tweaks via CSS variables
   useMemo(() => {
@@ -98,7 +124,26 @@ function App() {
   const lowStockCount = drugs.filter(d => Object.values(d.stock).some(v => v <= d.minStock)).length;
   const pendingCount = orders.filter(o => o.status === 'pending').length;
 
-  const sharedProps = { lang, L, drugs, setDrugs, suppliers, setSuppliers, orders, setOrders, notify, setPage, setViewPO, setShowCreate };
+  // Permissions. When login isn't enforced → full control (current open mode).
+  // When enforced → driven by the signed-in user's role.
+  const role = me ? me.role : (authOn ? 'viewer' : 'admin');
+  const perm = {
+    role,
+    canWrite: role === 'admin' || role === 'manager',
+    canApprove: role === 'admin' || role === 'manager',
+    canDelete: role === 'admin',
+  };
+  const roleLabel = { admin: L('ผู้ดูแลระบบ', 'Admin'), manager: L('ฝ่ายจัดซื้อ', 'Purchasing'), viewer: L('ดูอย่างเดียว', 'View-only') }[role] || role;
+
+  const sharedProps = { lang, L, drugs, setDrugs, suppliers, setSuppliers, orders, setOrders, notify, setPage, setViewPO, setShowCreate, perm };
+
+  // ── Auth gate (only when login is enforced) ──
+  if (authOn && !authReady) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txt3)', background: 'var(--bg0)' }}>{L('กำลังโหลด…', 'Loading…')}</div>;
+  }
+  if (authOn && !session) {
+    return <LoginScreen L={L} onSignedIn={async () => { const s = await window.UNI_DB.getSession(); setSession(s); setMe(await window.UNI_DB.getMyRole()); }} />;
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -145,9 +190,20 @@ function App() {
           <button className="icon-btn" title="Toggle theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀' : '🌙'}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
-            + {L('สร้างใบสั่งซื้อ', 'New PO')}
-          </button>
+          {perm.canWrite && (
+            <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
+              + {L('สร้างใบสั่งซื้อ', 'New PO')}
+            </button>
+          )}
+          {authOn && session && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 4, paddingLeft: 10, borderLeft: '1px solid var(--border)' }}>
+              <div style={{ textAlign: 'right', lineHeight: 1.2 }} title={me && me.email}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--txt2)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(me && (me.full_name || me.email)) || ''}</div>
+                <div style={{ fontSize: 10, color: 'var(--txt3)' }}>{roleLabel}</div>
+              </div>
+              <button className="icon-btn" title={L('ออกจากระบบ', 'Sign out')} onClick={async () => { await window.UNI_DB.signOut(); setSession(null); setMe(null); }}>⏏</button>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -161,11 +217,11 @@ function App() {
         {page === 'stock' && <StockPage {...sharedProps} />}
         {page === 'reports' && <ReportsPage {...sharedProps} />}
         {page === 'help' && <HelpPage lang={lang} L={L} />}
-        {page === 'sync' && <DataSyncPage lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} suppliers={suppliers} setSuppliers={setSuppliers} notify={notify} />}
+        {page === 'sync' && <DataSyncPage lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} suppliers={suppliers} setSuppliers={setSuppliers} notify={notify} perm={perm} />}
       </div>
 
       {/* CREATE PO MODAL */}
-      {showCreate && (
+      {showCreate && perm.canWrite && (
         <CreatePOModal {...sharedProps} onClose={() => setShowCreate(false)}
           onCreated={po => { setOrders(prev => [po, ...prev]); setShowCreate(false); setViewPO(po); if (window.UNI_DB) window.UNI_DB.savePO(po); notify(L('สร้างใบสั่งซื้อสำเร็จ', 'PO created successfully')); }} />
       )}

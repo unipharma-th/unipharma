@@ -1,7 +1,7 @@
 // Suppliers.jsx — Supplier Management
 const { useState, useMemo } = React;
 
-function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, orders, notify, setShowCreate }) {
+function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, orders, notify, setShowCreate, perm = { canWrite: true } }) {
   const [search, setSearch] = useState('');
   const [editSup, setEditSup] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -37,7 +37,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, orders, notify
           <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
           <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>
+        {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
       </div>
 
       <div style={{ marginBottom: 16, maxWidth: 360 }}>
@@ -55,8 +55,8 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, orders, notify
                   <div style={{ fontSize: 11, color: 'var(--txt3)' }} className="ellipsis">{lang==='th'?sup.nameEN:sup.name}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }} onClick={e => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-xs" onClick={() => setEditSup(sup)}>✏</button>
-                  <button className="btn btn-primary btn-xs" onClick={() => { setShowCreate && setShowCreate(true); }}>+ PO</button>
+                  {perm.canWrite && <button className="btn btn-ghost btn-xs" onClick={() => setEditSup(sup)}>✏</button>}
+                  {perm.canWrite && <button className="btn btn-primary btn-xs" onClick={() => { setShowCreate && setShowCreate(true); }}>+ PO</button>}
                 </div>
               </div>
 

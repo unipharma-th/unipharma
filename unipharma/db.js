@@ -75,6 +75,7 @@
 
   window.UNI_DB = {
     enabled: enabled,
+    requireLogin: enabled && !!cfg.REQUIRE_LOGIN,
 
     // Returns {drugs,suppliers,orders} from the cloud, or null if not
     // enabled / nothing stored yet.
@@ -152,6 +153,38 @@
       if (!enabled) return;
       try { await client.from("sync_history").insert({ source: source, kind: kind, count: count }); }
       catch (e) { /* non-critical */ }
+    },
+
+    // ---- Authentication ----
+    async getSession() {
+      if (!enabled) return null;
+      try { const { data } = await client.auth.getSession(); return data.session || null; }
+      catch (e) { return null; }
+    },
+    async signIn(email, password) {
+      if (!enabled) return { error: "Cloud not configured" };
+      const { data, error } = await client.auth.signInWithPassword({ email: email, password: password });
+      return { session: data && data.session, error: error && error.message };
+    },
+    async signOut() {
+      if (!enabled) return;
+      try { await client.auth.signOut(); } catch (e) {}
+    },
+    // role of the logged-in user: 'admin' | 'manager' | 'viewer'
+    async getMyRole() {
+      if (!enabled) return null;
+      try {
+        const { data: u } = await client.auth.getUser();
+        if (!u || !u.user) return null;
+        const res = await client.from("profiles").select("role, full_name, email").eq("id", u.user.id).single();
+        if (res.error) return { role: "viewer", email: u.user.email };
+        return { role: res.data.role, full_name: res.data.full_name, email: res.data.email };
+      } catch (e) { return { role: "viewer" }; }
+    },
+    onAuthChange(cb) {
+      if (!enabled || !client.auth.onAuthStateChange) return function () {};
+      const { data } = client.auth.onAuthStateChange(function (_evt, session) { cb(session); });
+      return function () { data && data.subscription && data.subscription.unsubscribe(); };
     },
 
     _client: client,

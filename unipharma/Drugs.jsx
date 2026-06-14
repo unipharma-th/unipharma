@@ -4,7 +4,7 @@ const { useState, useMemo, useCallback } = React;
 const TOTAL_DRUGS_SYSTEM = 10258; // simulated full dataset size
 const PER_PAGE = 100;
 
-function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify }) {
+function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify, perm = { canWrite: true } }) {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [subFilter, setSubFilter] = useState('');
@@ -83,9 +83,11 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify }) {
           <button className={`btn ${showPkg?'btn-primary':'btn-ghost'} btn-sm`} onClick={()=>setShowPkg(v=>!v)}>
             📦 {L('หน่วยบรรจุ','Packaging')} {showPkg?'ON':'OFF'}
           </button>
+          {perm.canWrite && (
           <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
             + {L('เพิ่มสินค้าใหม่', 'Add Product')}
           </button>
+          )}
         </div>
       </div>
 
@@ -229,9 +231,11 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify }) {
                         </div>
                       </td>
                       <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        {perm.canWrite ? (
                         <button className="btn btn-ghost btn-xs" onClick={() => setEditDrug(d)}>
                           ✏ {L('แก้ไข', 'Edit')}
                         </button>
+                        ) : <span className="text-muted" style={{ fontSize: 11 }}>—</span>}
                       </td>
                     </tr>
                     {isExpanded && (

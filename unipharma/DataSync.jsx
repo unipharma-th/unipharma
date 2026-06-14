@@ -113,7 +113,7 @@ function downloadTemplate(type) {
 }
 
 /* ─── MAIN PAGE ─── */
-function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notify }) {
+function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notify, perm = { canWrite: true } }) {
   const [tab, setTab] = useState('sheets');
   const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('uni_sheet_url')||'');
   const [sheetType, setSheetType] = useState('drugs');
@@ -395,7 +395,9 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
           </div>
           <div style={{display:'flex',gap:10}}>
             <button className="btn btn-ghost" onClick={()=>setStep(2)}>{L('← แก้ Mapping','← Fix Mapping')}</button>
-            <button className="btn btn-primary" onClick={commitImport}>✅ {L('นำเข้าข้อมูล','Import Data')}</button>
+            {perm.canWrite
+              ? <button className="btn btn-primary" onClick={commitImport}>✅ {L('นำเข้าข้อมูล','Import Data')}</button>
+              : <span className="text-muted" style={{fontSize:12,alignSelf:'center'}}>{L('คุณไม่มีสิทธิ์นำเข้าข้อมูล','You do not have import permission')}</span>}
           </div>
         </div>
       )}
