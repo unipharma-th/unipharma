@@ -15,25 +15,25 @@ function HelpPage({ lang, L }) {
 
   // 🎯 EDIT HERE: Add new pages to the guide
   const PAGES = [
-    { icon:'▦', th:'Dashboard', en:'Dashboard', color:'var(--acc)',
+    { icon:'▦', th:'ภาพรวม', en:'Dashboard', color:'var(--acc)',
       steps_th:['ดูยอดสั่งซื้อประจำเดือน, จำนวน PO รอ, สินค้าใกล้หมด','ดูกราฟยอดสั่งซื้อแยกสาขา และสัดส่วนตามหมวดหมู่','คลิก Card เพื่อไปหน้าอื่น หรือสร้าง PO ใหม่'],
       steps_en:['View monthly spend, pending POs, low stock alerts','See branch spending & category breakdown','Click cards to navigate or create new PO'] },
-    { icon:'💊', th:'Drug Database', en:'Drug Database', color:'var(--ok)',
+    { icon:'💊', th:'ฐานข้อมูลยา', en:'Drug Database', color:'var(--ok)',
       steps_th:['ค้นหาด้วยรหัส/ชื่อยา กรองตามหมวดหมู่/VAT','ดูรายละเอียด: ต้นทุน/ขาย, กำไร%, หน่วยบรรจุ, สต็อก','เพิ่มยาใหม่ หรือแก้ไข (กำไรแก้ได้→ราคาขายอัปเดต)','📦 Packaging ON เพื่อดูหน่วยบรรจุแบบเต็ม','หน่วยบรรจุแก้ได้ใน Edit form'],
       steps_en:['Search by code/name, filter by category/VAT','View full details: cost/sell, profit%, packaging, stock','Add new or edit drugs (profit editable → auto-update sell)','Toggle Packaging ON to see packaging hierarchy','Edit packaging in the Edit form'] },
-    { icon:'📋', th:'Purchase Orders', en:'Purchase Orders', color:'var(--info)',
-      steps_th:['ดูรายการ PO ทั้งหมด กรองตามสาขา/สถานษ/เดือน','เปลี่ยนสถานะ: ส่ง → อนุมัติ → ยืนยันรับ','ดูเอกสาร A4 (ชื่อ Supplier & จำนวนเงินแปลเป็นคำ)', 'สร้าง PO ใหม่: เลือกสาขา+Supplier → ดึงราคา → เลือกสินค้า'],
+    { icon:'📋', th:'การสั่งซื้อ', en:'Purchase Orders', color:'var(--info)',
+      steps_th:['ดูรายการ PO ทั้งหมด กรองตามสาขา/สถานะ/เดือน','เปลี่ยนสถานะ: ส่ง → อนุมัติ → ยืนยันรับ','ดูเอกสาร A4 (ชื่อ Supplier & จำนวนเงินแปลเป็นคำ)', 'สร้าง PO ใหม่: เลือกสาขา+Supplier → ดึงราคา → เลือกสินค้า'],
       steps_en:['View all POs, filter by branch/status/month','Change status: submit → approve → confirm','View A4 document (supplier name & amount in words translated)','Create PO: select branch+supplier → auto prices → select items'] },
-    { icon:'🏭', th:'Suppliers', en:'Suppliers', color:'var(--warn)',
-      steps_th:['ดูการ์ด Supplier พร้อมยอดซื้อ คะแนน','คลิกการ์ดเพื่อดูรายการยา ประวัติ PO โปรโมชั่น','แก้ไขข้อมูล (ชื่อ/ติดต่อ/เครดิต) หรือเพิ่มราย'],
+    { icon:'🏭', th:'ผู้จัดจำหน่าย', en:'Suppliers', color:'var(--warn)',
+      steps_th:['ดูการ์ด Supplier พร้อมยอดซื้อ คะแนน','คลิกการ์ดเพื่อดูรายการยา ประวัติ PO โปรโมชั่น','แก้ไขข้อมูล (ชื่อ/ติดต่อ/เครดิต) หรือเพิ่มผู้จัดจำหน่ายใหม่'],
       steps_en:['View supplier cards with spend, rating, promotions','Click card to see drug list, PO history, deals','Edit info or add new supplier'] },
-    { icon:'⚖', th:'Price Comparison', en:'Price Comparison', color:'var(--err)',
+    { icon:'⚖', th:'เปรียบเทียบราคา', en:'Price Comparison', color:'var(--err)',
       steps_th:['ค้นหายา หรือเลือกจาก Quick Search ด้านล่าง','ดูราคาทุก Supplier + แนะนำซื้อจากไหน','คอลัมน์ \"vs ถูกสุด\" แสดงส่วนต่างราคา'],
       steps_en:['Search drug or pick from quick search below','See prices from all suppliers + recommendation','\"vs Cheapest\" column shows price difference'] },
-    { icon:'📦', th:'Stock Tracking', en:'Stock Tracking', color:'#e5312a',
+    { icon:'📦', th:'ติดตามสินค้า', en:'Stock Tracking', color:'#e5312a',
       steps_th:['ดูสต็อกแยกสาขา (PTN/RAM/CNX) พร้อมแถบสี','กรองดู \"ใกล้หมด\" เพื่อสั่งเร็ว','ดูประวัติการเคลื่อนไหวสต็อก (รับเข้า/จ่ายออก)'],
       steps_en:['View stock per branch with status bars','Filter \"Low Stock\" to see items needing order','View movement history (in/out)'] },
-    { icon:'📊', th:'Reports', en:'Reports', color:'var(--acc)',
+    { icon:'📊', th:'รายงาน', en:'Reports', color:'var(--acc)',
       steps_th:['เลือกเดือน+สาขา ด้วย filter','ดูกราฟแนวโน้ม หมวดหมู่ เปรียบเทียบสาขา','แท็บ Top 10 / ไม่ได้สั่ง / Supplier Analysis'],
       steps_en:['Select month+branch with filters','View trend, category, branch comparison charts','Tabs: Top 10 / Rarely Ordered / Supplier Analysis'] },
   ];
@@ -41,7 +41,7 @@ function HelpPage({ lang, L }) {
   // 🎯 EDIT HERE: Update data requirements
   const REQUIRED_DATA = [
     { th:'💊 ฐานข้อมูลยา', en:'💊 Drug Database',
-      current_th:'84 ตัวอย่าง', current_en:'84 sample',
+      current_th:'83 ตัวอย่าง', current_en:'83 sample',
       needed_th:'10,258 รายการ', needed_en:'10,258 items',
       fields:[['รหัสสินค้า','Code'],['ชื่อไทย','Name TH'],['ชื่ออังกฤษ','Name EN'],['หน่วย','Unit'],['หมวดหมู่','Category'],['VAT','Has VAT'],['ต้นทุน','Cost'],['ราคาขาย','Sell'],['สต็อก PTN/RAM/CNX','Stock'],['สต็อกขั้นต่ำ','Min Stock'],['ผู้จัดจำหน่าย','Supplier'],['หน่วยบรรจุ','Packaging (ใหม่)']] },
     { th:'🏭 ผู้จัดจำหน่าย', en:'🏭 Suppliers',
@@ -60,8 +60,8 @@ function HelpPage({ lang, L }) {
     { priority:'🔴', icon:'🏭', th:'นำเข้าผู้จัดจำหน่าย 410 ราย + ราคา + ยา', en:'Import 410 suppliers + pricing' },
     { priority:'🟡', icon:'📦', th:'บันทึกสต็อกจริงทั้ง 3 สาขา', en:'Record real stock all branches' },
     { priority:'🟡', icon:'🎁', th:'ตั้งค่าโปรโมชั่น Supplier', en:'Set up supplier promotions' },
-    { priority:'🟢', icon:'🗄', th:'เชื่อม Backend + Database (ระยะยาว)', en:'Connect Backend + Database (future)' },
-    { priority:'🟢', icon:'🔐', th:'เพิ่ม Login + สิทธิ์ (ระยะยาว)', en:'Add Login + permissions (future)' },
+    { priority:'🟢', icon:'☁', th:'ฐานข้อมูลคลาวด์ Supabase (เชื่อมแล้ว ✓)', en:'Supabase cloud database (connected ✓)' },
+    { priority:'🟢', icon:'🔐', th:'เปิดใช้ระบบ Login + สิทธิ์ (พร้อมแล้ว เปิดเมื่อต้องการ)', en:'Enable Login + roles (ready to turn on)' },
   ];
 
   const Card = ({ title, children }) => (
@@ -105,12 +105,12 @@ function HelpPage({ lang, L }) {
             </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:12}}>
               {[
-                {icon:'📋',th:'ภาพรวมดี',en:'Good overview'},
-                {icon:'📋',th:'ข้อมูลตัวอย่าง 84 ยา',en:'84 sample drugs'},
+                {icon:'✅',th:'พร้อมใช้งานทันที',en:'Ready to use'},
+                {icon:'💊',th:'ข้อมูลตัวอย่าง 83 ยา',en:'83 sample drugs'},
                 {icon:'🏭',th:'10 ผู้จัดจำหน่าย',en:'10 suppliers'},
-                {icon:'🇹🇭/🇺🇸',th:'2 ภาษา',en:'2 languages'},
-                {icon:'🌓',th:'Dark/Light',en:'Dark/Light'},
-                {icon:'💾',th:'บันทึกใน Browser',en:'Save in browser'},
+                {icon:'🇹🇭/🇺🇸',th:'2 ภาษา (ไทย/อังกฤษ)',en:'2 languages'},
+                {icon:'🌓',th:'โหมดมืด/สว่าง',en:'Dark/Light'},
+                {icon:'☁',th:'ซิงค์บนคลาวด์ (Supabase)',en:'Cloud sync (Supabase)'},
               ].map((item,i)=>(
                 <div key={i} style={{background:'var(--bg3)',borderRadius:8,padding:12}}>
                   <div style={{fontSize:20,marginBottom:4}}>{item.icon}</div>
