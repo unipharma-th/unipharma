@@ -15,32 +15,32 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
-  /* Light mode — default, based on Unipharma logo blue */
-  --bg0:#f2f6fb;--bg1:#ffffff;--bg2:#ffffff;--bg3:#eaf1f9;--bg4:#d8e8f5;
-  --border:rgba(17,119,204,.13);--border2:rgba(17,119,204,.3);
-  --acc:#1177cc;--acc2:#1a8fe0;--acc3:#4fb0f5;--glow:rgba(17,119,204,.12);
-  --txt:#071628;--txt2:#0d4a8a;--txt3:#4a78a8;--txt4:#93b4cc;
+  /* Light mode — Option 2: Deep blue + warm red */
+  --bg0:#f5f8fb;--bg1:#ffffff;--bg2:#ffffff;--bg3:#f0f5fa;--bg4:#e0ecf5;
+  --border:rgba(0,85,204,.12);--border2:rgba(0,85,204,.28);
+  --acc:#0055cc;--acc2:#0066dd;--acc3:#5b8fc7;--glow:rgba(0,85,204,.1);
+  --txt:#2f4560;--txt2:#0d3d7a;--txt3:#5a7a95;--txt4:#8fa5b8;
   --ok:#16a34a;--ok-bg:rgba(22,163,74,.1);
   --warn:#d97706;--warn-bg:rgba(217,119,6,.1);
   --err:#dc2626;--err-bg:rgba(220,38,38,.1);
   --info:#0284c7;--info-bg:rgba(2,132,199,.1);
-  --red:#e5312a;--red-bg:rgba(229,49,42,.1);
+  --red:#e8b4b0;--red-bg:rgba(232,180,176,.1);
   --nav-h:60px;--r:12px;--r2:8px;--r3:6px;
-  --shadow:0 2px 12px rgba(17,119,204,.08);
-  --shadow2:0 8px 32px rgba(17,119,204,.14);
+  --shadow:0 2px 12px rgba(0,85,204,.08);
+  --shadow2:0 8px 32px rgba(0,85,204,.12);
   /* Density tweaks */
   --density-gap:12px;--density-pad:16px;--density-fs:14px;
 }
 [data-theme="dark"]{
-  --bg0:#071624;--bg1:#0c1e30;--bg2:#102540;--bg3:#163052;--bg4:#1d3e68;
-  --border:rgba(55,155,230,.15);--border2:rgba(55,155,230,.32);
-  --acc:#3399e8;--acc2:#5bb4ff;--acc3:#8fd0ff;--glow:rgba(51,153,232,.2);
-  --txt:#e4f0ff;--txt2:#afd5ff;--txt3:#5e96c4;--txt4:#355f82;
+  --bg0:#061624;--bg1:#0c1f34;--bg2:#112a42;--bg3:#1a3855;--bg4:#224464;
+  --border:rgba(0,102,221,.15);--border2:rgba(0,102,221,.32);
+  --acc:#2288ee;--acc2:#4aa0ff;--acc3:#7fc0ff;--glow:rgba(34,136,238,.18);
+  --txt:#d4e8ff;--txt2:#a0d0ff;--txt3:#5a8ec8;--txt4:#2d5a8a;
   --ok:#34d399;--ok-bg:rgba(52,211,153,.12);
   --warn:#fbbf24;--warn-bg:rgba(251,191,36,.12);
   --err:#f87171;--err-bg:rgba(248,113,113,.12);
   --info:#38bdf8;--info-bg:rgba(56,189,248,.12);
-  --red:#f87171;--red-bg:rgba(248,113,113,.12);
+  --red:#f0b8b5;--red-bg:rgba(240,184,181,.12);
   --shadow:0 4px 20px rgba(0,0,0,.45);
   --shadow2:0 8px 40px rgba(0,0,0,.55);
 }
@@ -112,8 +112,8 @@ tbody tr:hover td{background:var(--bg3)}
 
 /* ─── BUTTONS ─── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r2);border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap}
-.btn-primary{background:var(--acc);color:#fff;box-shadow:0 2px 8px rgba(17,119,204,.25)}
-.btn-primary:hover{background:var(--acc2);box-shadow:0 4px 16px rgba(17,119,204,.35)}
+.btn-primary{background:var(--acc);color:#fff;box-shadow:0 2px 8px rgba(0,85,204,.25)}
+.btn-primary:hover{background:var(--acc2);box-shadow:0 4px 16px rgba(0,85,204,.35)}
 .btn-outline{background:transparent;color:var(--acc2);border:1px solid var(--border2)}
 .btn-outline:hover{background:var(--glow);border-color:var(--acc)}
 .btn-ghost{background:transparent;color:var(--txt3);border:1px solid var(--border)}
