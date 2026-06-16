@@ -1,6 +1,5 @@
 {
-  "buildCommand": "echo 'Static site'",
-  "publicPath": "unipharma",
+  "root": "unipharma",
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
