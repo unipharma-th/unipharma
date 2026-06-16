@@ -9,6 +9,7 @@ function HelpPage({ lang, L, perm = { role: 'admin' } }) {
   const ALL_SECTIONS = [
     { id:'overview',  icon:'📋', th:'ภาพรวมระบบ',         en:'System Overview' },
     { id:'pages',     icon:'🖥',  th:'วิธีใช้แต่ละหน้า',    en:'How to Use Each Page' },
+    { id:'roles',     icon:'🔐', th:'สิทธิ์การเข้าถึง',     en:'Roles & Permissions' },
     { id:'data',      icon:'📦', th:'ข้อมูลที่ต้องเตรียม',   en:'Required Data',  adminOnly:true },
     { id:'sync',      icon:'🔄', th:'ซิงค์ข้อมูล',          en:'Data Sync',       adminOnly:true },
     { id:'nextsteps', icon:'🚀', th:'ขั้นตอนถัดไป',         en:'Next Steps',      adminOnly:true },
@@ -156,6 +157,120 @@ function HelpPage({ lang, L, perm = { role: 'admin' } }) {
               {(lang==='th'?page.steps_th:page.steps_en).map((s,i) => <Step key={i} n={i+1} th={s} en={s} />)}
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* ROLES & PERMISSIONS */}
+      {sec==='roles' && (
+        <div>
+          <Card title={L('🔐 สิทธิ์การเข้าถึงระบบ', '🔐 System Access Control')}>
+            <div style={{fontSize:13,color:'var(--txt3)',lineHeight:1.8,marginBottom:16}}>
+              {L('ระบบมี 3 บทบาทการใช้งาน เพื่อจัดการสิทธิ์การเข้าถึง feature ต่างๆ',
+                'The system has 3 user roles to manage access to different features')}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))',gap:16}}>
+              {[
+                {
+                  num:'1️⃣',
+                  role:L('Admin (ผู้ดูแลระบบ)','Admin - Full Control'),
+                  desc:L('สิทธิ์ทั้งหมด - สร้าง แก้ไข ลบ อนุมัติ ซิงค์ข้อมูล','Full access to all features'),
+                  permissions:[
+                    {icon:'✅',text:L('สร้าง/แก้ไข/ลบ PO','Create/Edit/Delete PO')},
+                    {icon:'✅',text:L('อนุมัติ PO','Approve PO')},
+                    {icon:'✅',text:L('จัดการสินค้า','Manage Products')},
+                    {icon:'✅',text:L('จัดการผู้จัดจำหน่าย','Manage Suppliers')},
+                    {icon:'✅',text:L('ซิงค์ข้อมูล (Import)','Data Sync/Import')},
+                    {icon:'✅',text:L('ดูรายงาน','View Reports')},
+                  ]
+                },
+                {
+                  num:'2️⃣',
+                  role:L('Manager (ฝ่ายจัดซื้อ)','Manager - Limited Control'),
+                  desc:L('สร้าง แก้ไข อนุมัติ PO แต่ไม่ลบข้อมูล','Can manage POs but cannot delete'),
+                  permissions:[
+                    {icon:'✅',text:L('สร้าง/แก้ไข PO','Create/Edit PO')},
+                    {icon:'✅',text:L('อนุมัติ PO','Approve PO')},
+                    {icon:'✅',text:L('จัดการสินค้า','Manage Products')},
+                    {icon:'✅',text:L('จัดการผู้จัดจำหน่าย','Manage Suppliers')},
+                    {icon:'✅',text:L('ดูรายงาน','View Reports')},
+                    {icon:'❌',text:L('ลบข้อมูล','Delete Data')},
+                    {icon:'❌',text:L('ซิงค์ข้อมูล','Data Sync')},
+                  ]
+                },
+                {
+                  num:'3️⃣',
+                  role:L('Viewer (ผู้ชมอย่างเดียว)','Viewer - Read-Only'),
+                  desc:L('ดูข้อมูลเท่านั้น ไม่สามารถแก้ไข','View-only access'),
+                  permissions:[
+                    {icon:'✅',text:L('ดู PO','View PO')},
+                    {icon:'✅',text:L('ดูสินค้า','View Products')},
+                    {icon:'✅',text:L('ดูผู้จัดจำหน่าย','View Suppliers')},
+                    {icon:'✅',text:L('ดูรายงาน','View Reports')},
+                    {icon:'❌',text:L('สร้าง/แก้ไข PO','Create/Edit PO')},
+                    {icon:'❌',text:L('ลบข้อมูล','Delete Data')},
+                    {icon:'❌',text:L('ซิงค์ข้อมูล','Data Sync')},
+                  ]
+                },
+              ].map((role,i)=>(
+                <div key={i} style={{background:'var(--bg2)',borderRadius:12,padding:16,borderLeft:`5px solid var(--acc)`}}>
+                  <div style={{fontSize:18,marginBottom:2}}>{role.num}</div>
+                  <div style={{fontSize:16,fontWeight:700,color:'var(--acc)',marginBottom:4}}>{role.role}</div>
+                  <div style={{fontSize:12,color:'var(--txt3)',marginBottom:12,lineHeight:1.6}}>{role.desc}</div>
+                  <div style={{fontSize:12,color:'var(--txt)'}}>
+                    {role.permissions.map((perm,j)=>(
+                      <div key={j} style={{marginBottom:6,display:'flex',gap:6,alignItems:'center'}}>
+                        <span style={{fontSize:14}}>{perm.icon}</span>
+                        <span>{perm.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title={L('📋 ตารางเปรียบเทียบสิทธิ์','📋 Comparison Table')}>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',fontSize:12,borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{background:'var(--bg3)',borderBottom:`2px solid var(--border)`}}>
+                    <th style={{padding:8,textAlign:'left',fontWeight:700}}>{L('Feature','Feature')}</th>
+                    <th style={{padding:8,textAlign:'center',fontWeight:700}}>Admin</th>
+                    <th style={{padding:8,textAlign:'center',fontWeight:700}}>Manager</th>
+                    <th style={{padding:8,textAlign:'center',fontWeight:700}}>Viewer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {feat:L('ดู PO','View PO'),a:'✅',m:'✅',v:'✅'},
+                    {feat:L('สร้าง PO','Create PO'),a:'✅',m:'✅',v:'❌'},
+                    {feat:L('แก้ไข PO','Edit PO'),a:'✅',m:'✅',v:'❌'},
+                    {feat:L('ลบ PO','Delete PO'),a:'✅',m:'❌',v:'❌'},
+                    {feat:L('อนุมัติ PO','Approve PO'),a:'✅',m:'✅',v:'❌'},
+                    {feat:L('จัดการสินค้า','Manage Products'),a:'✅',m:'✅',v:'❌'},
+                    {feat:L('จัดการผู้จัดจำหน่าย','Manage Suppliers'),a:'✅',m:'✅',v:'❌'},
+                    {feat:L('ซิงค์ข้อมูล','Data Sync'),a:'✅',m:'❌',v:'❌'},
+                    {feat:L('ดูรายงาน','View Reports'),a:'✅',m:'✅',v:'✅'},
+                  ].map((row,i)=>(
+                    <tr key={i} style={{borderBottom:`1px solid var(--bg3)`}}>
+                      <td style={{padding:8}}>{row.feat}</td>
+                      <td style={{padding:8,textAlign:'center'}}>{row.a}</td>
+                      <td style={{padding:8,textAlign:'center'}}>{row.m}</td>
+                      <td style={{padding:8,textAlign:'center'}}>{row.v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card title={L('🔧 วิธีตั้งค่า Role','🔧 How to Set User Roles')}>
+            <Step n={1} th="เปิดการ Login บังคับ (REQUIRE_LOGIN = true)" en="Enable Login enforcement (REQUIRE_LOGIN = true)" />
+            <Step n={2} th="เข้า Supabase Dashboard" en="Open Supabase Dashboard" />
+            <Step n={3} th="ไปที่ Database → user_roles table" en="Go to Database → user_roles table" />
+            <Step n={4} th="ตั้ง role ของผู้ใช้: admin, manager, หรือ viewer" en="Set user role: admin, manager, or viewer" />
+            <Step n={5} th="ผู้ใช้จะได้สิทธิ์ตามบทบาทของตน" en="Users will get access based on their role" />
+          </Card>
         </div>
       )}
 
