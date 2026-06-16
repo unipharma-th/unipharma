@@ -50,17 +50,19 @@ function CreatePOModal({ lang, L, drugs, suppliers, orders, onClose, onCreated, 
     return supplierDrugs.filter(d => d.code.toLowerCase().includes(q) || d.nameTH.includes(q) || d.nameEN.toLowerCase().includes(q)).slice(0, 20);
   }, [supplierDrugs, searchDrug]);
 
+  const units = ['เม็ด', 'แคปซูล', 'ซอฟเจล', 'ขวด (ml)', 'ขวด (pcs)', 'แผง', 'ชุด', 'กระป๋อง'];
+
   const addItem = drug => {
     setItems(prev => {
       const exists = prev.find(i => i.code === drug.code);
       if (exists) return prev.map(i => i.code === drug.code ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { code: drug.code, nameTH: drug.nameTH, nameEN: drug.nameEN, unit: drug.unit, qty: 1, unitPrice: drug.costEx, vatRate: drug.vatRate, discount: 0 }];
+      return [...prev, { code: drug.code, nameTH: drug.nameTH, nameEN: drug.nameEN, unit: drug.unit, unitMode: 'select', qty: 1, unitPrice: drug.costEx, vatRate: drug.vatRate, discount: 0 }];
     });
     setSearchDrug('');
   };
 
   const updateItem = (code, field, val) => {
-    setItems(prev => prev.map(i => i.code === code ? { ...i, [field]: parseFloat(val) || 0 } : i));
+    setItems(prev => prev.map(i => i.code === code ? { ...i, [field]: field === 'unitMode' ? val : (field === 'unit' ? val : (parseFloat(val) || 0)) } : i));
   };
 
   const removeItem = code => setItems(prev => prev.filter(i => i.code !== code));
@@ -282,7 +284,21 @@ function CreatePOModal({ lang, L, drugs, suppliers, orders, onClose, onCreated, 
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? it.nameTH : it.nameEN}</div>
                         <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{it.code}</div>
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--txt3)' }}>{UTILS.getUnit(it.unit, lang)}</td>
+                      <td style={{ minWidth: 140 }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                          <button className={`btn btn-sm ${it.unitMode === 'select' ? 'btn-primary' : 'btn-ghost'}`} style={{ fontSize: 11, padding: '4px 8px' }}
+                            onClick={() => updateItem(it.code, 'unitMode', 'select')}>📋</button>
+                          <button className={`btn btn-sm ${it.unitMode === 'text' ? 'btn-primary' : 'btn-ghost'}`} style={{ fontSize: 11, padding: '4px 8px' }}
+                            onClick={() => updateItem(it.code, 'unitMode', 'text')}>⌨️</button>
+                        </div>
+                        {it.unitMode === 'select' ? (
+                          <select className="input input-sm" value={it.unit} onChange={e => updateItem(it.code, 'unit', e.target.value)} style={{ width: '100%' }}>
+                            {units.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        ) : (
+                          <input className="input input-sm" type="text" value={it.unit} onChange={e => updateItem(it.code, 'unit', e.target.value)} placeholder="หน่วย" style={{ width: '100%' }} />
+                        )}
+                      </td>
                       <td>
                         <input className="input input-sm" type="number" min="1" value={it.qty} style={{ width: 70, textAlign: 'right' }} onChange={e => updateItem(it.code, 'qty', e.target.value)} />
                       </td>
