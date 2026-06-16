@@ -403,4 +403,90 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
   );
 }
 
-Object.assign(window, { Modal, StatusBadge, BranchBadge, Pagination, SearchInput, ChartWidget, RatingStars, Confirm, PriceDisplay, StockBar, DrugForm });
+// Quick form — minimal fields for bulk entry: code + name (TH/EN) + unit only
+function QuickDrugForm({ onSave, onClose, lang, L }) {
+  const [form, setForm] = useState({ code: '', nameTH: '', nameEN: '', unit: 'เม็ด', unitMode: 'select' });
+  const [errors, setErrors] = useState({});
+  const units = ['เม็ด', 'แคปซูล', 'ซอฟเจล', 'ขวด (ml)', 'ขวด (pcs)', 'แผง', 'ชุด', 'กระป๋อง'];
+
+  const validate = () => {
+    const e = {};
+    if (!form.code.trim()) e.code = true;
+    if (!form.nameTH.trim()) e.nameTH = true;
+    if (!form.nameEN.trim()) e.nameEN = true;
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSave = () => {
+    if (!validate()) return;
+    onSave({
+      code: form.code.trim(),
+      nameTH: form.nameTH.trim(),
+      nameEN: form.nameEN.trim(),
+      unit: form.unit.trim(),
+      catId: 'CAT01',
+      subId: 'S0101',
+      hasVat: false,
+      costEx: 0,
+      sellEx: 0,
+      stock: { PTN: 0, RAM: 0, CNX: 0 },
+      minStock: 100,
+      supplierId: 'SUP001'
+    });
+  };
+
+  return (
+    <Modal title={L('เพิ่มสินค้าใหม่ (รวดเร็ว)', 'Quick Add Product')} onClose={onClose} size={500}
+      footer={<><button className="btn btn-ghost" onClick={onClose}>{L('ยกเลิก', 'Cancel')}</button><button className="btn btn-primary" onClick={handleSave}>{L('บันทึก', 'Save')}</button></>}>
+      <div className="form-group">
+        <label className="label">{L('รหัสสินค้า *', 'Code *')}</label>
+        <input className={`input${errors.code ? ' border-red' : ''}`} type="text" value={form.code}
+          onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="เช่น D001" autoFocus />
+        {errors.code && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
+      </div>
+      <div className="form-group">
+        <label className="label">{L('ชื่อภาษาไทย *', 'Thai Name *')}</label>
+        <input className={`input${errors.nameTH ? ' border-red' : ''}`} type="text" value={form.nameTH}
+          onChange={e => setForm(f => ({ ...f, nameTH: e.target.value }))} placeholder="เช่น ยาลดไข้" />
+        {errors.nameTH && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
+      </div>
+      <div className="form-group">
+        <label className="label">{L('ชื่อภาษาอังกฤษ *', 'English Name *')}</label>
+        <input className={`input${errors.nameEN ? ' border-red' : ''}`} type="text" value={form.nameEN}
+          onChange={e => setForm(f => ({ ...f, nameEN: e.target.value }))} placeholder="e.g. Paracetamol" />
+        {errors.nameEN && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
+      </div>
+
+      <div className="form-group">
+        <label className="label">{L('หน่วย', 'Unit')} — {L('เลือก หรือ พิมพ์เอง', 'Select or type')}</label>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <button className={`btn btn-sm ${form.unitMode === 'select' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setForm(f => ({ ...f, unitMode: 'select', unit: 'เม็ด' }))}>
+            📋 {L('เลือกจากรายการ', 'Dropdown')}
+          </button>
+          <button className={`btn btn-sm ${form.unitMode === 'text' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setForm(f => ({ ...f, unitMode: 'text', unit: '' }))}>
+            ⌨️ {L('พิมพ์เอง', 'Free text')}
+          </button>
+        </div>
+
+        {form.unitMode === 'select' ? (
+          <select className="input" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
+            {units.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        ) : (
+          <input className="input" type="text" value={form.unit}
+            onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+            placeholder="เช่น กล่อง ซม. หลอด..." />
+        )}
+      </div>
+
+      <div style={{ fontSize: 12, color: 'var(--txt3)', marginTop: 16, padding: '10px 12px', background: 'var(--bg3)', borderRadius: 'var(--r2)' }}>
+        ℹ️ {L('ราคา หมวดหมู่ ผู้จัดจำหน่าย สต็อก สามารถแก้ไขได้ทีหลังในหน้าแก้ไขสินค้า', 'Price, category, supplier, stock can be edited later')}
+      </div>
+    </Modal>
+  );
+}
+
+Object.assign(window, { Modal, StatusBadge, BranchBadge, Pagination, SearchInput, ChartWidget, RatingStars, Confirm, PriceDisplay, StockBar, DrugForm, QuickDrugForm });

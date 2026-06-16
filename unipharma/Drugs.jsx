@@ -57,6 +57,18 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify, perm = { canWr
     notify(L('บันทึกข้อมูลสำเร็จ', 'Saved successfully'));
   }, [setDrugs, notify, L]);
 
+  const saveQuickDrug = useCallback(saved => {
+    setDrugs(prev => {
+      const idx = prev.findIndex(d => d.code === saved.code);
+      if (idx >= 0) { const n = [...prev]; n[idx] = saved; return n; }
+      return [saved, ...prev];
+    });
+    setShowAdd(false);
+    setEditDrug(saved);
+    if (window.UNI_DB) window.UNI_DB.saveDrug(saved);
+    notify(L('บันทึกข้อมูลสำเร็จ', 'Saved successfully'));
+  }, [setDrugs, notify, L]);
+
   const stockStatus = d => {
     const total = d.totalStock;
     if (total <= d.minStock) return 'err';
@@ -309,7 +321,11 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify, perm = { canWr
       </div>
 
       {/* ADD / EDIT MODAL */}
-      {(showAdd || editDrug) && (
+      {showAdd && !editDrug && (
+        <QuickDrugForm lang={lang} L={L}
+          onSave={saveQuickDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
+      )}
+      {editDrug && (
         <DrugForm drug={editDrug} lang={lang} L={L} suppliers={suppliers}
           onSave={saveDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
       )}
