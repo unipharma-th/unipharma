@@ -116,6 +116,7 @@ function App() {
     { id: 'suppliers', icon: '🏭', th: 'ผู้จัดจำหน่าย', en: 'Suppliers' },
     { id: 'comparison', icon: '⚖', th: 'เปรียบเทียบราคา', en: 'Price Comparison' },
     { id: 'stock', icon: '📦', th: 'ติดตามสินค้า', en: 'Stock Tracking' },
+    { id: 'out_of_stock', icon: '📸', th: 'สินค้าหมด', en: 'Out of Stock' },
     { id: 'reports', icon: '📊', th: 'รายงาน', en: 'Reports' },
     { id: 'help', icon: '📖', th: 'คู่มือ', en: 'Guide' },
     { id: 'sync', icon: '🔄', th: 'ซิงค์ข้อมูล', en: 'Data Sync', adminOnly: true },
@@ -215,6 +216,7 @@ function App() {
         {page === 'suppliers' && <SuppliersPage {...sharedProps} />}
         {page === 'comparison' && <ComparisonPage {...sharedProps} />}
         {page === 'stock' && <StockPage {...sharedProps} />}
+        {page === 'out_of_stock' && <OutOfStockPage lang={lang} L={L} perm={perm} notify={notify} drugs={drugs} />}
         {page === 'reports' && <ReportsPage {...sharedProps} />}
         {page === 'help' && <HelpPage lang={lang} L={L} perm={perm} />}
         {page === 'sync' && perm.role === 'admin' && <DataSyncPage lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} suppliers={suppliers} setSuppliers={setSuppliers} notify={notify} perm={perm} />}
