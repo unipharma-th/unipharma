@@ -1,9 +1,18 @@
 // UNIPHARMA Purchasing Management — Mock Data
 const DB = (() => {
   const BRANCHES = [
-    { id:'PTN', code:'00', name:'สาขาประตูน้ำ',   nameEN:'Pratu Nam',      color:'#1177cc' },
-    { id:'RAM', code:'01', name:'สาขารามคำแหง',  nameEN:'Ramkhamhaeng',   color:'#06b6d4' },
-    { id:'CNX', code:'02', name:'สาขาเชียงใหม่',  nameEN:'Chiang Mai',     color:'#16a34a' }
+    { id:'PTN', code:'00', name:'สาขาประตูน้ำ',   nameEN:'Pratu Nam',      color:'#1177cc',
+      address:'491/4 ถนนราชปรารภ แขวงมักกะสัน เขตราชเทวี กรุงเทพฯ 10400',
+      addressEN:'491/4 Ratchaprarop Rd, Makkasan, Ratchathewi, Bangkok 10400',
+      openTime:'8:00–21:00', phone:'080 005 5690' },
+    { id:'RAM', code:'01', name:'สาขารามคำแหง',  nameEN:'Ramkhamhaeng',   color:'#06b6d4',
+      address:'2041/4 ถนนรามคำแหง แขวงหัวหมาก เขตบางกะปิ กรุงเทพฯ 10240',
+      addressEN:'2041/4 Ramkhamhaeng Rd, Hua Mak, Bang Kapi, Bangkok 10240',
+      openTime:'10:00–19:00', phone:'092 938 1325' },
+    { id:'CNX', code:'02', name:'สาขาเชียงใหม่',  nameEN:'Chiang Mai',     color:'#16a34a',
+      address:'ถนนท่าแพ ตำบลช้างคลาน อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50100',
+      addressEN:'Tha Phae Road, Chang Khlan, Mueang Chiang Mai, Chiang Mai 50100',
+      openTime:'10:00–19:00', phone:'092 530 3160' }
   ];
 
   const CATEGORIES = [

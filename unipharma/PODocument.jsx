@@ -15,6 +15,7 @@ function numToEnWords(n){
 function PODocumentModal({ po, lang, L, suppliers, onClose }) {
   const supplier = suppliers.find(s => s.id === po.supplierId) || {};
   const branch = DB.BRANCHES.find(b => b.id === po.branch) || {};
+  const deliveryBranch = DB.BRANCHES.find(b => b.id === (po.deliveryBranch || po.branch)) || branch;
 
   const COMPANY = {
     nameTH: 'บริษัท แม็กนิฟิเซนท์ เมียนม่าร์ จำกัด (สำนักงานใหญ่)',
@@ -127,7 +128,8 @@ function PODocumentModal({ po, lang, L, suppliers, onClose }) {
                   ['Purchase Requisition No.', po.isNonPO ? 'Non-PO' : '-'],
                   ['Purchase Order Date', UTILS.fmtDate(po.poDate, 'en')],
                   ['Delivery Date', UTILS.fmtDate(po.deliveryDate, 'en')],
-                  ['Location', po.location || branch.nameEN || '-'],
+                  ['Deliver To', po.location || deliveryBranch.addressEN || deliveryBranch.nameEN || '-'],
+                  ['Branch Tel', deliveryBranch.phone || '-'],
                   ['Deal / Note', po.dealNote || '-'],
                 ].map(([lbl, val]) => (
                   <div key={lbl} style={{ marginBottom: 4, fontSize: '9.5pt', lineHeight: 1.4 }}>

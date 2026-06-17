@@ -175,6 +175,10 @@ function SupplierForm({ sup, lang, L, onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(sup || { id: 'SUP' + Date.now(), code: '', name: '', nameEN: '', contact: '', phone: '', email: '', taxId: '', creditTerm: 30, deliveryDays: 3, rating: 4.0, minOrder: 5000, address: '', category: '', promotions: [], drugs: [] });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const promos = form.promotions || [];
+  const addPromo = () => setForm(f => ({ ...f, promotions: [...(f.promotions || []), { id: 'P' + Date.now(), name: '', type: 'percent', discount: 0, validUntil: '' }] }));
+  const updatePromo = (id, k, v) => setForm(f => ({ ...f, promotions: (f.promotions || []).map(p => p.id === id ? { ...p, [k]: v } : p) }));
+  const removePromo = (id) => setForm(f => ({ ...f, promotions: (f.promotions || []).filter(p => p.id !== id) }));
   const inp = (k, lbl, type = 'text') => (
     <div className="form-group">
       <label className="label">{lbl}</label>
@@ -206,6 +210,36 @@ function SupplierForm({ sup, lang, L, onSave, onClose }) {
         {inp('minOrder', L('ขั้นต่ำ (บาท)', 'Min Order (THB)'), 'number')}
         {inp('category', L('ประเภทสินค้า', 'Category'))}
       </div>
+
+      <div className="divider" />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <label className="label" style={{ margin: 0 }}>🎁 {L('โปรโมชั่น / ดีล', 'Promotions / Deals')}</label>
+        <button type="button" className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={addPromo}>
+          + {L('เพิ่มโปรโมชั่น', 'Add promotion')}
+        </button>
+      </div>
+      {promos.length === 0 && (
+        <div style={{ fontSize: 12, color: 'var(--txt4)', marginBottom: 8 }}>{L('ยังไม่มีโปรโมชั่น', 'No promotions yet')}</div>
+      )}
+      {promos.map(p => (
+        <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 8 }}>
+          <div className="form-group" style={{ flex: 2, margin: 0 }}>
+            <label className="label" style={{ fontSize: 11 }}>{L('ชื่อโปรโมชั่น', 'Promotion name')}</label>
+            <input className="input" value={p.name || ''} onChange={e => updatePromo(p.id, 'name', e.target.value)}
+              placeholder={L('เช่น ส่วนลด 5% สั่งเกิน 10,000', 'e.g., 5% off over 10,000')} />
+          </div>
+          <div className="form-group" style={{ width: 90, margin: 0 }}>
+            <label className="label" style={{ fontSize: 11 }}>{L('ส่วนลด %', 'Discount %')}</label>
+            <input className="input" type="number" value={p.discount || 0} onChange={e => updatePromo(p.id, 'discount', parseFloat(e.target.value) || 0)} />
+          </div>
+          <div className="form-group" style={{ width: 150, margin: 0 }}>
+            <label className="label" style={{ fontSize: 11 }}>{L('ใช้ได้ถึง', 'Valid until')}</label>
+            <input className="input" type="date" value={p.validUntil || ''} onChange={e => updatePromo(p.id, 'validUntil', e.target.value)} />
+          </div>
+          <button type="button" className="btn btn-ghost" style={{ padding: '8px 10px', color: 'var(--err)' }}
+            title={L('ลบ', 'Remove')} onClick={() => removePromo(p.id)}>🗑</button>
+        </div>
+      ))}
     </Modal>
   );
 }

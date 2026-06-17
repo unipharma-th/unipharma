@@ -8,6 +8,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, orders, onClose, onCreated, 
   const [poDate, setPoDate] = useState(today);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [creditTerm, setCreditTerm] = useState(30);
+  const [deliveryBranch, setDeliveryBranch] = useState('PTN');
   const [location, setLocation] = useState('');
   const [memo, setMemo] = useState('');
   const [selectedDeal, setSelectedDeal] = useState('');
@@ -28,6 +29,18 @@ function CreatePOModal({ lang, L, drugs, suppliers, orders, onClose, onCreated, 
       setDealDiscount(0);
     }
   }, [supplier]);
+
+  // Branch address in the current language (editable once filled).
+  const branchAddr = (id) => {
+    const b = DB.BRANCHES.find(x => x.id === id) || {};
+    return lang === 'th' ? (b.address || '') : (b.addressEN || b.address || '');
+  };
+
+  // Delivery address defaults to the ordering branch; refilled when it changes.
+  useEffect(() => {
+    setDeliveryBranch(branch);
+    setLocation(branchAddr(branch));
+  }, [branch, lang]);
 
   // Auto-set delivery date
   useEffect(() => {
@@ -129,6 +142,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, orders, onClose, onCreated, 
       poDate,
       deliveryDate,
       creditTerm: parseInt(creditTerm),
+      deliveryBranch,
       location,
       memo,
       dealNote: promo ? promo.name : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : '-'),
@@ -222,13 +236,32 @@ function CreatePOModal({ lang, L, drugs, suppliers, orders, onClose, onCreated, 
 
           <div className="form-row">
             <div className="form-group">
-              <label className="label">{L('สถานที่จัดส่ง', 'Delivery Location')}</label>
-              <input className="input" value={location} onChange={e => setLocation(e.target.value)} placeholder={L('ที่อยู่จัดส่ง…', 'Delivery address…')} />
+              <label className="label">{L('สถานที่จัดส่ง (สาขา)', 'Delivery Location (Branch)')}</label>
+              <select className="input" value={deliveryBranch}
+                onChange={e => { setDeliveryBranch(e.target.value); setLocation(branchAddr(e.target.value)); }}>
+                {DB.BRANCHES.map(b => (
+                  <option key={b.id} value={b.id}>{lang === 'th' ? b.name : b.nameEN}</option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
               <label className="label">{L('ผู้จัดทำ', 'Created By')}</label>
               <input className="input" value={createdBy} onChange={e => setCreatedBy(e.target.value)} placeholder={L('ชื่อผู้จัดทำ…', 'Name…')} />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="label">{L('ที่อยู่จัดส่ง (แก้ไขได้)', 'Delivery Address (editable)')}</label>
+            <textarea className="input" rows={2} value={location} onChange={e => setLocation(e.target.value)}
+              placeholder={L('ที่อยู่จัดส่ง…', 'Delivery address…')} style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+            {(() => {
+              const b = DB.BRANCHES.find(x => x.id === deliveryBranch);
+              return b ? (
+                <div style={{ fontSize: 11, color: 'var(--txt4)', marginTop: 4 }}>
+                  ⏰ {b.openTime} · 📞 {b.phone}
+                </div>
+              ) : null;
+            })()}
           </div>
 
           <div className="divider" />
