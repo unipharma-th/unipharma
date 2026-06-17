@@ -269,13 +269,15 @@ function HelpPage({ lang, L, perm = { role: 'admin' } }) {
             </div>
           </Card>
 
-          <Card title={L('🔧 วิธีตั้งค่า Role','🔧 How to Set User Roles')}>
-            <Step n={1} th="เปิดการ Login บังคับ (REQUIRE_LOGIN = true)" en="Enable Login enforcement (REQUIRE_LOGIN = true)" />
-            <Step n={2} th="เข้า Supabase Dashboard" en="Open Supabase Dashboard" />
-            <Step n={3} th="ไปที่ Database → user_roles table" en="Go to Database → user_roles table" />
-            <Step n={4} th="ตั้ง role ของผู้ใช้: admin, manager, หรือ viewer" en="Set user role: admin, manager, or viewer" />
-            <Step n={5} th="ผู้ใช้จะได้สิทธิ์ตามบทบาทของตน" en="Users will get access based on their role" />
-          </Card>
+          {isAdmin && (
+            <Card title={L('🔧 วิธีตั้งค่า Role (เฉพาะผู้ดูแลระบบ)','🔧 How to Set User Roles (Admin only)')}>
+              <Step n={1} th="รัน database/auth.sql ใน Supabase SQL Editor (สร้างตาราง profiles + สิทธิ์)" en="Run database/auth.sql in the Supabase SQL Editor (creates the profiles table + policies)" />
+              <Step n={2} th="เข้า Supabase → Authentication → Users → Add user (อีเมล + รหัสผ่าน)" en="Supabase → Authentication → Users → Add user (email + password)" />
+              <Step n={3} th="ยกระดับสิทธิ์ด้วย SQL: update profiles set role='admin' where email='...'  (admin / manager / viewer)" en="Promote with SQL: update profiles set role='admin' where email='...'  (admin / manager / viewer)" />
+              <Step n={4} th="เปิดบังคับ Login: ตั้ง REQUIRE_LOGIN = true ใน config.js แล้ว deploy" en="Enforce login: set REQUIRE_LOGIN = true in config.js, then deploy" />
+              <Step n={5} th="ผู้ใช้ login จะได้สิทธิ์ตาม role ที่กำหนดในตาราง profiles" en="Signed-in users get access based on the role in the profiles table" />
+            </Card>
+          )}
         </div>
       )}
 
