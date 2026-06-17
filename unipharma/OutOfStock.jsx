@@ -6,36 +6,51 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const [imagePreview, setImagePreview] = React.useState(null);
   const [suggestions, setSuggestions] = React.useState([]);
 
+  const cloudOn = !!(window.UNI_DB && window.UNI_DB.enabled);
+
+  // Monday 00:00 of the current week — the start of the 7-day reporting window.
+  const weekStart = () => {
+    const t = new Date();
+    const s = new Date(t);
+    s.setDate(t.getDate() - t.getDay() + 1);
+    s.setHours(0, 0, 0, 0);
+    return s;
+  };
+
   React.useEffect(() => {
     initializePeriod();
     loadReports();
+    // Live updates: re-fetch whenever anyone adds/changes a report.
+    let unsub = () => {};
+    if (cloudOn && window.UNI_DB.onOutOfStockChange) {
+      unsub = window.UNI_DB.onOutOfStockChange(() => loadReports());
+    }
+    return () => unsub();
   }, []);
 
   const initializePeriod = () => {
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+    const startOfWeek = weekStart();
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6); // Sunday
+    endOfWeek.setHours(23, 59, 59, 999);
 
     setCurrentPeriod({
       start: startOfWeek.toLocaleDateString('en-CA'),
       end: endOfWeek.toLocaleDateString('en-CA'),
-      daysLeft: Math.ceil((endOfWeek - today) / (1000 * 60 * 60 * 24))
+      daysLeft: Math.max(0, Math.ceil((endOfWeek - new Date()) / (1000 * 60 * 60 * 24)))
     });
   };
 
   const loadReports = async () => {
+    const since = weekStart();
     try {
-      const stored = localStorage.getItem('uni_out_of_stock') || '[]';
-      const data = JSON.parse(stored);
-      // Filter only current period
-      const today = new Date();
-      const currentWeekStart = new Date(today);
-      currentWeekStart.setDate(today.getDate() - today.getDay() + 1);
-
-      const filtered = data.filter(r => new Date(r.createdAt) >= currentWeekStart);
-      setReports(filtered);
+      if (cloudOn && window.UNI_DB.loadOutOfStock) {
+        const cloud = await window.UNI_DB.loadOutOfStock(since.toISOString());
+        if (cloud) { setReports(cloud); return; }
+      }
+      // Offline fallback → this browser's localStorage only.
+      const data = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
+      setReports(data.filter(r => new Date(r.createdAt) >= since));
     } catch (e) {
       console.log('Load reports error:', e);
     }
@@ -65,7 +80,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     setSuggestions([]);
   };
 
-  const handleAddReport = () => {
+  const handleAddReport = async () => {
     const code = (form.productCode || '').trim();
     const name = (form.productName || '').trim();
 
@@ -80,23 +95,34 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       productName: name,
       notes: (form.notes || '').trim(),
       image: imagePreview || null,
-      reportedBy: 'Viewer',
+      reportedBy: perm.role || 'Viewer',
+      periodStart: currentPeriod?.start || null,
       createdAt: new Date().toISOString(),
       timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
     };
 
-    try {
-      const updated = [...reports, newReport];
-      setReports(updated);
-      localStorage.setItem('uni_out_of_stock', JSON.stringify(updated));
+    // Optimistic update so the reporter sees it immediately; realtime keeps
+    // everyone else in sync.
+    setReports(prev => [...prev, newReport]);
+    setForm({ productCode: '', productName: '', notes: '' });
+    setImagePreview(null);
+    setSuggestions([]);
 
-      setForm({ productCode: '', productName: '', notes: '' });
-      setImagePreview(null);
-      setSuggestions([]);
-      notify(L('บันทึกรายการเรียบร้อย ✓', 'Report saved ✓'), 'success');
+    try {
+      if (cloudOn && window.UNI_DB.saveOutOfStock) {
+        const ok = await window.UNI_DB.saveOutOfStock(newReport);
+        if (!ok) throw new Error('cloud save failed');
+        notify(L('บันทึกและแชร์ให้ทุกคนแล้ว ✓', 'Saved & shared with everyone ✓'), 'success');
+      } else {
+        // Offline → persist to this browser only.
+        const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
+        localStorage.setItem('uni_out_of_stock', JSON.stringify([...stored, newReport]));
+        notify(L('บันทึกแล้ว (เครื่องนี้เท่านั้น)', 'Saved (this device only)'), 'success');
+      }
     } catch (e) {
-      notify(L('เกิดข้อผิดพลาด', 'Error saving'), 'error');
       console.error('Save error:', e);
+      notify(L('บันทึกขึ้นคลาวด์ไม่สำเร็จ', 'Could not save to cloud'), 'error');
+      loadReports(); // roll back optimistic add to the true server state
     }
   };
 

@@ -86,6 +86,31 @@ function App() {
     return () => { cancelled = true; };
   }, [session, authOn]);
 
+  // Live data — apply other users' changes without refreshing.
+  useEffect(() => {
+    if (!cloudOn || !window.UNI_DB.onDataChange) return;
+    if (authOn && !session) return;
+    const setterOf = { drugs: setDrugs, suppliers: setSuppliers, orders: setOrders };
+    const keyOf = { drugs: 'code', suppliers: 'id', orders: 'id' };
+    const unsub = window.UNI_DB.onDataChange((kind, p) => {
+      const setItems = setterOf[kind], key = keyOf[kind];
+      if (!setItems) return;
+      if (p.eventType === 'DELETE') {
+        const gone = p.old && p.old[key];
+        if (gone != null) setItems(prev => prev.filter(x => x[key] !== gone));
+        return;
+      }
+      const obj = p.new && p.new.data;        // the full app object lives in the jsonb `data` column
+      if (!obj) return;
+      setItems(prev => {
+        const i = prev.findIndex(x => x[key] === obj[key]);
+        if (i === -1) return kind === 'orders' ? [obj, ...prev] : [...prev, obj];
+        const next = prev.slice(); next[i] = obj; return next;
+      });
+    });
+    return unsub;
+  }, [session, authOn]);
+
   // Apply color & density tweaks via CSS variables
   useMemo(() => {
     const root = document.documentElement;

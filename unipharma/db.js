@@ -50,6 +50,21 @@
       grand_total: p.grandTotal, is_non_po: !!p.isNonPO, data: p,
     };
   }
+  function oosRow(r) {
+    return {
+      id: r.id, product_code: r.productCode || "", product_name: r.productName || "",
+      notes: r.notes || "", image: r.image || null, reported_by: r.reportedBy || "",
+      period_start: r.periodStart || null, created_at: r.createdAt,
+    };
+  }
+  function oosFromRow(row) {
+    return {
+      id: row.id, productCode: row.product_code, productName: row.product_name,
+      notes: row.notes, image: row.image, reportedBy: row.reported_by,
+      periodStart: row.period_start, createdAt: row.created_at,
+      timestamp: new Date(row.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+    };
+  }
 
   // chunk helper for large bulk upserts (10k+ drugs)
   function chunk(arr, n) {
@@ -166,6 +181,49 @@
       if (!enabled) return;
       try { await client.from("sync_history").insert({ source: source, kind: kind, count: count }); }
       catch (e) { /* non-critical */ }
+    },
+
+    // ---- Out of stock reports (shared across all users) ----
+    async loadOutOfStock(sinceISO) {
+      if (!enabled) return null;
+      try {
+        var q = client.from("out_of_stock").select("*").order("created_at", { ascending: true });
+        if (sinceISO) q = q.gte("created_at", sinceISO);
+        var res = await q;
+        if (res.error) throw res.error;
+        return (res.data || []).map(oosFromRow);
+      } catch (e) { console.warn("[UNI_DB] loadOutOfStock:", e); return null; }
+    },
+    async saveOutOfStock(report) {
+      if (!enabled) return false;
+      try {
+        var res = await client.from("out_of_stock").upsert(oosRow(report));
+        if (res.error) throw res.error;
+        return true;
+      } catch (e) { console.warn("[UNI_DB] saveOutOfStock:", e); return false; }
+    },
+    async deleteOutOfStock(id) {
+      if (!enabled) return;
+      try { await client.from("out_of_stock").delete().eq("id", id); }
+      catch (e) { console.warn("[UNI_DB] deleteOutOfStock:", e); }
+    },
+    // Live subscription for the out_of_stock table. cb() is called on any change.
+    onOutOfStockChange(cb) {
+      if (!enabled || !client.channel) return function () {};
+      var ch = client.channel("uni-oos-" + Math.random().toString(36).slice(2))
+        .on("postgres_changes", { event: "*", schema: "public", table: "out_of_stock" }, function () { cb(); })
+        .subscribe();
+      return function () { try { client.removeChannel(ch); } catch (e) {} };
+    },
+    // Live subscription for master/transactional data. cb(kind, payload) per change.
+    onDataChange(cb) {
+      if (!enabled || !client.channel) return function () {};
+      var ch = client.channel("uni-data-" + Math.random().toString(36).slice(2))
+        .on("postgres_changes", { event: "*", schema: "public", table: "drugs" }, function (p) { cb("drugs", p); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "suppliers" }, function (p) { cb("suppliers", p); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "purchase_orders" }, function (p) { cb("orders", p); })
+        .subscribe();
+      return function () { try { client.removeChannel(ch); } catch (e) {} };
     },
 
     // ---- Authentication ----
