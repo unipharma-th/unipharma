@@ -23,6 +23,12 @@ create table if not exists out_of_stock (
 create index if not exists oos_period_idx  on out_of_stock(period_start);
 create index if not exists oos_created_idx on out_of_stock(created_at desc);
 
+-- Soft-remove: admin/manager mark an item handled after ordering. The row
+-- stays in the table (kept as statistics/history); the dashboard active
+-- list simply hides rows where resolved_at is set.
+alter table out_of_stock add column if not exists resolved_at timestamptz;
+alter table out_of_stock add column if not exists resolved_by text;
+
 -- ---------- Row Level Security (same convention as schema.sql) ----------
 alter table out_of_stock enable row level security;
 drop policy if exists anon_all on out_of_stock;

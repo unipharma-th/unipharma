@@ -55,6 +55,7 @@
       id: r.id, product_code: r.productCode || "", product_name: r.productName || "",
       notes: r.notes || "", image: r.image || null, reported_by: r.reportedBy || "",
       period_start: r.periodStart || null, created_at: r.createdAt,
+      resolved_at: r.resolvedAt || null, resolved_by: r.resolvedBy || null,
     };
   }
   function oosFromRow(row) {
@@ -62,6 +63,7 @@
       id: row.id, productCode: row.product_code, productName: row.product_name,
       notes: row.notes, image: row.image, reportedBy: row.reported_by,
       periodStart: row.period_start, createdAt: row.created_at,
+      resolvedAt: row.resolved_at || null, resolvedBy: row.resolved_by || null,
       timestamp: new Date(row.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
     };
   }
@@ -206,6 +208,17 @@
       if (!enabled) return;
       try { await client.from("out_of_stock").delete().eq("id", id); }
       catch (e) { console.warn("[UNI_DB] deleteOutOfStock:", e); }
+    },
+    // Soft-remove: mark handled (kept in the table as history/statistics).
+    async setOutOfStockResolved(id, by) {
+      if (!enabled) return false;
+      try {
+        var res = await client.from("out_of_stock")
+          .update({ resolved_at: new Date().toISOString(), resolved_by: by || "" })
+          .eq("id", id);
+        if (res.error) throw res.error;
+        return true;
+      } catch (e) { console.warn("[UNI_DB] setOutOfStockResolved:", e); return false; }
     },
     // Live subscription for the out_of_stock table. cb() is called on any change.
     onOutOfStockChange(cb) {

@@ -126,6 +126,28 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     }
   };
 
+  // Admin/Manager mark an item handled after ordering. The record is kept in
+  // the database as statistics — it is just removed from the active list.
+  const handleResolve = async (id) => {
+    const stamp = { resolvedAt: new Date().toISOString(), resolvedBy: perm.role || '' };
+    // Optimistic: flag it locally so it leaves the active list immediately.
+    setReports(prev => prev.map(r => r.id === id ? { ...r, ...stamp } : r));
+    try {
+      if (cloudOn && window.UNI_DB.setOutOfStockResolved) {
+        const ok = await window.UNI_DB.setOutOfStockResolved(id, perm.role || '');
+        if (!ok) throw new Error('cloud update failed');
+      } else {
+        const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
+        localStorage.setItem('uni_out_of_stock', JSON.stringify(stored.map(r => r.id === id ? { ...r, ...stamp } : r)));
+      }
+      notify(L('ย้ายไปสถิติแล้ว ✓', 'Moved to statistics ✓'), 'success');
+    } catch (e) {
+      console.error('Resolve error:', e);
+      notify(L('ดำเนินการไม่สำเร็จ', 'Could not update'), 'error');
+      loadReports();
+    }
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -160,6 +182,10 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     periodHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' },
     topicBox: { background: 'var(--glow)', border: '1px solid var(--border2)', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }
   };
+
+  // Active = still needs ordering; resolved = handled, kept as statistics.
+  const activeReports = reports.filter(r => !r.resolvedAt);
+  const resolvedReports = reports.filter(r => r.resolvedAt);
 
   return (
     <div style={{
@@ -325,6 +351,11 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '500', marginBottom: '4px' }}>
                       {r.productCode && <span style={{ color: 'var(--acc2)', fontWeight: '600' }}>{r.productCode}</span>} {r.productName}
+                      {r.resolvedAt && (
+                        <span style={{ fontSize: '11px', background: 'rgba(34,197,94,.18)', color: 'var(--ok)', border: '1px solid rgba(34,197,94,.35)', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px' }}>
+                          ✓ {L('สั่งแล้ว', 'Ordered')}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--txt3)' }}>
                       {L('แจ้งโดย', 'Reported by')}: {r.reportedBy} • {new Date(r.createdAt).toLocaleDateString('th-TH')} {r.timestamp}
@@ -349,7 +380,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <span style={{ fontSize: '20px' }}>🔔</span>
               <div>
-                <strong style={{ fontSize: '14px', color: 'var(--txt)' }}>{reports.length} {L('รายการสินค้าหมด', 'items out of stock')}</strong>
+                <strong style={{ fontSize: '14px', color: 'var(--txt)' }}>{activeReports.length} {L('รายการรอสั่ง', 'items to reorder')}</strong>
                 <div style={{ fontSize: '13px', color: 'var(--txt3)', marginTop: '4px' }}>
                   {L('แจ้งสำหรับช่วง', 'Reported for period')} {currentPeriod?.start} - {currentPeriod?.end}
                 </div>
@@ -359,49 +390,88 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
 
           <h4 style={{ ...styles.header, marginBottom: '1rem' }}>📋 {L('รายการที่ต้องสั่ง', 'Items to reorder')}</h4>
 
-          {reports.length === 0 ? (
+          {activeReports.length === 0 ? (
             <p style={{ color: 'var(--txt4)', textAlign: 'center', padding: '2rem' }}>
-              {L('ไม่มีรายการที่หมดในช่วงนี้', 'No out of stock items this period')}
+              {L('ไม่มีรายการที่รอสั่งในช่วงนี้', 'No items waiting to reorder this period')}
             </p>
           ) : (
             <div>
-              {reports.map((r, idx) => (
+              {activeReports.map((r, idx) => (
                 <div key={r.id} style={styles.card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                    <div style={{ fontWeight: '500' }}>
-                      {idx + 1}. {r.productCode && <span style={{ color: 'var(--acc2)' }}>[{r.productCode}]</span>} {r.productName}
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {r.image ? (
+                      <img src={r.image} alt="" style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border)', cursor: 'pointer', flexShrink: 0 }}
+                        onClick={() => window.open(r.image, '_blank')} title={L('คลิกเพื่อดูรูปเต็ม', 'Click to view full image')} />
+                    ) : (
+                      <div style={{ width: '72px', height: '72px', borderRadius: '6px', background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>💊</div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                        <div style={{ fontWeight: '500' }}>
+                          {idx + 1}. {r.productCode && <span style={{ color: 'var(--acc2)' }}>[{r.productCode}]</span>} {r.productName}
+                        </div>
+                        <span style={{ fontSize: '12px', background: 'rgba(255,193,7,.18)', color: 'var(--txt2)', border: '1px solid rgba(255,193,7,.35)', padding: '4px 12px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                          ⚠️ {L('หมด', 'Out')}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: 'var(--txt3)', marginBottom: '4px' }}>
+                        {L('แจ้งโดย', 'Reported by')}: {r.reportedBy} • {new Date(r.createdAt).toLocaleDateString('th-TH')} {r.timestamp}
+                      </div>
+                      {r.notes && (
+                        <div style={{ fontSize: '12px', color: 'var(--txt4)', marginBottom: '4px' }}>
+                          {L('หมายเหตุ', 'Note')}: {r.notes}
+                        </div>
+                      )}
                     </div>
-                    <span style={{ fontSize: '12px', background: 'rgba(255,193,7,.18)', color: 'var(--txt2)', border: '1px solid rgba(255,193,7,.35)', padding: '4px 12px', borderRadius: '4px' }}>
-                      ⚠️ {L('หมด', 'Out')}
-                    </span>
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--txt3)', marginBottom: '12px' }}>
-                    {L('แจ้งล่าสุด', 'Last reported')}: {new Date(r.createdAt).toLocaleDateString('th-TH')} •
-                    {L('หมด stock ครั้งล่าสุด', 'Current stock')}: 0 {L('หน่วย', 'units')}
-                  </div>
-                  <button style={{ ...styles.button, background: '#17a2b8' }}>
-                    → {L('สร้าง PO', 'Create PO')}
-                  </button>
+                  {perm.canWrite && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button style={{ ...styles.button, background: '#17a2b8', flex: 1 }}
+                        onClick={() => handleResolve(r.id)}>
+                        ✓ {L('สั่งแล้ว / ลบออกจากรายการ', 'Ordered / Remove from list')}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Summary */}
+          {/* Summary — handled items are kept here as statistics */}
           <div style={{ ...styles.card, marginTop: '2rem', background: 'var(--bg3)' }}>
-            <h5 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '500', color: 'var(--txt2)' }}>📊 {L('สรุปสถิติ', 'Summary')}</h5>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', fontSize: '13px' }}>
+            <h5 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '500', color: 'var(--txt2)' }}>📊 {L('สรุปสถิติ (ช่วงนี้)', 'Statistics (this period)')}</h5>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', fontSize: '13px' }}>
               <div>
-                <div style={{ color: 'var(--txt3)' }}>{L('รายการที่หมด', 'Items out')}</div>
-                <div style={{ fontSize: '18px', fontWeight: '500', color: 'var(--acc2)' }}>{reports.length}</div>
+                <div style={{ color: 'var(--txt3)' }}>{L('รอสั่ง', 'To reorder')}</div>
+                <div style={{ fontSize: '18px', fontWeight: '500', color: 'var(--acc2)' }}>{activeReports.length}</div>
               </div>
               <div>
-                <div style={{ color: 'var(--txt3)' }}>{L('สำคัญสูง', 'High priority')}</div>
-                <div style={{ fontSize: '18px', fontWeight: '500', color: '#ff6b6b' }}>
-                  {reports.filter(r => !r.notes || r.notes.length < 50).length}
-                </div>
+                <div style={{ color: 'var(--txt3)' }}>{L('สั่งแล้ว', 'Ordered')}</div>
+                <div style={{ fontSize: '18px', fontWeight: '500', color: 'var(--ok)' }}>{resolvedReports.length}</div>
+              </div>
+              <div>
+                <div style={{ color: 'var(--txt3)' }}>{L('แจ้งทั้งหมด', 'Total reported')}</div>
+                <div style={{ fontSize: '18px', fontWeight: '500', color: 'var(--txt2)' }}>{reports.length}</div>
               </div>
             </div>
+
+            {resolvedReports.length > 0 && (
+              <div style={{ marginTop: '16px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--txt3)', marginBottom: '8px', fontWeight: '600' }}>
+                  ✓ {L('สั่งแล้ว / ดำเนินการแล้ว', 'Ordered / handled')}
+                </div>
+                {resolvedReports.map(r => (
+                  <div key={r.id} style={{ fontSize: '12px', color: 'var(--txt4)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                    <span style={{ textDecoration: 'line-through' }}>
+                      {r.productCode && <span style={{ color: 'var(--acc2)' }}>[{r.productCode}]</span>} {r.productName}
+                    </span>
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      {r.resolvedBy ? `${L('โดย', 'by')} ${r.resolvedBy}` : ''} {new Date(r.resolvedAt).toLocaleDateString('th-TH')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
