@@ -73,7 +73,8 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
       {/* KPI STATS */}
       <div className="stat-grid">
         <StatCard label={L('ยอดสั่งซื้อเดือนนี้', 'This Month Spend')} val={'฿' + (monthSpend/1000).toFixed(0) + 'K'}
-          sub={`${monthOrders.length} ${L('ใบสั่งซื้อ', 'orders')}`} icon="💰" color="var(--acc2)" />
+          sub={`${monthOrders.length} ${L('ใบสั่งซื้อ', 'orders')}`} icon="💰" color="var(--acc2)"
+          onClick={() => setPage('reports')} />
         <StatCard label={L('รออนุมัติ', 'Pending Approval')} val={pending.length}
           sub={L('ใบสั่งซื้อ', 'purchase orders')} icon="⏳" color={pending.length > 0 ? 'var(--warn)' : 'var(--txt)'}
           onClick={() => setPage('orders')} />
@@ -81,15 +82,19 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
           sub={L('รายการ ใน 3 สาขา', 'items across branches')} icon="📦" color={lowStock.length > 0 ? 'var(--err)' : 'var(--ok)'}
           onClick={() => setPage('stock')} />
         <StatCard label={L('มูลค่าสต็อกรวม', 'Total Stock Value')} val={'฿' + (stockValue/1000000).toFixed(2) + 'M'}
-          sub={`${totalStock.toLocaleString()} ${L('หน่วย', 'units')}`} icon="🏪" />
+          sub={`${totalStock.toLocaleString()} ${L('หน่วย', 'units')}`} icon="🏪"
+          onClick={() => setPage('stock')} />
         <StatCard label={L('จำนวนรายการยา', 'Drug Items')} val={drugs.length.toLocaleString()}
-          sub={L('รายการในระบบ', 'items in system')} icon="💊" />
+          sub={L('รายการในระบบ', 'items in system')} icon="💊"
+          onClick={() => setPage('drugs')} />
         <StatCard label={L('ผู้จัดจำหน่าย', 'Suppliers')} val={suppliers.length}
           sub={L('ราย', 'suppliers')} icon="🏭" onClick={() => setPage('suppliers')} />
         <StatCard label={L('PO ที่อนุมัติแล้ว', 'Approved POs')} val={approved.length}
-          sub={L('รอจัดส่ง', 'awaiting delivery')} icon="✅" color="var(--ok)" />
+          sub={L('รอจัดส่ง', 'awaiting delivery')} icon="✅" color="var(--ok)"
+          onClick={() => setPage('orders')} />
         <StatCard label={L('ราคาถัวเฉลี่ย/รายการ', 'Avg Cost/Item')} val={'฿' + UTILS.fmt(stockValue / Math.max(drugs.length, 1), 0)}
-          sub={L('ต้นทุนเฉลี่ย', 'average cost')} icon="📈" />
+          sub={L('ต้นทุนเฉลี่ย', 'average cost')} icon="📈"
+          onClick={() => setPage('reports')} />
       </div>
 
       {/* CHARTS ROW */}

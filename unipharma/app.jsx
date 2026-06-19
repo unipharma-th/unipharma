@@ -165,6 +165,17 @@ function App() {
   const lowStockCount = drugs.filter(d => Object.values(d.stock).some(v => v <= d.minStock)).length;
   const pendingCount = orders.filter(o => o.status === 'pending').length;
 
+  // Let the mouse wheel scroll the horizontal top-nav (non-passive so we can
+  // translate vertical wheel delta into horizontal scroll).
+  const navWheelRef = useCallback(node => {
+    if (!node) return;
+    node.addEventListener('wheel', e => {
+      if (!e.deltaY) return;
+      e.preventDefault();
+      node.scrollLeft += e.deltaY;
+    }, { passive: false });
+  }, []);
+
   // Permissions. When login isn't enforced → full control (current open mode).
   // When enforced → driven by the signed-in user's role.
   const role = me ? me.role : (authOn ? 'viewer' : 'admin');
@@ -218,7 +229,7 @@ function App() {
           </div>
         </a>
 
-        <div className="topnav-nav">
+        <div className="topnav-nav" ref={navWheelRef}>
           {NAV.filter(n => {
             if (n.adminOnly && perm.role !== 'admin') return false;
             if (isViewer) return VIEWER_PAGES.includes(n.id);
