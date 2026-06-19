@@ -368,7 +368,7 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
               onChange={e=>setForm(f=>({...f,pkgLevels:f.pkgLevels.map((x,j)=>j===i?{...x,en:e.target.value}:x)}))} placeholder="Strip" />
           </div>
           <div className="form-group" style={{margin:0}}>
-            <label className="label">{L('จำนวน/ลวก','Qty/Level')}</label>
+            <label className="label">{L('จำนวนต่อหน่วยล่าง','Qty per lower unit')}</label>
             <input className="input input-sm" type="number" min="1" value={lv.qty||1}
               onChange={e=>setForm(f=>({...f,pkgLevels:f.pkgLevels.map((x,j)=>j===i?{...x,qty:parseInt(e.target.value)||1}:x)}))} />
           </div>
