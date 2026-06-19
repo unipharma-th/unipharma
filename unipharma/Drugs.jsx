@@ -4,7 +4,7 @@ const { useState, useMemo, useCallback } = React;
 const TOTAL_DRUGS_SYSTEM = 10258; // simulated full dataset size
 const PER_PAGE = 100;
 
-function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify, perm = { canWrite: true } }) {
+function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategories, notify, perm = { canWrite: true } }) {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [subFilter, setSubFilter] = useState('');
@@ -16,8 +16,9 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify, perm = { canWr
   const [sortDir, setSortDir] = useState('asc');
   const [showPkg, setShowPkg] = useState(false);
   const [expandedCode, setExpandedCode] = useState(null);
+  const [showCatMgr, setShowCatMgr] = useState(false);
 
-  const cats = DB.CATEGORIES;
+  const cats = categories || DB.CATEGORIES;
   const selectedCat = cats.find(c => c.id === catFilter);
 
   const filtered = useMemo(() => {
@@ -96,12 +97,22 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, notify, perm = { canWr
             📦 {L('หน่วยบรรจุ','Packaging')} {showPkg?'ON':'OFF'}
           </button>
           {perm.canWrite && (
+          <button className="btn btn-ghost" onClick={() => setShowCatMgr(true)}>
+            🏷️ {L('จัดการหมวดหมู่', 'Categories')}
+          </button>
+          )}
+          {perm.canWrite && (
           <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
             + {L('เพิ่มสินค้าใหม่', 'Add Product')}
           </button>
           )}
         </div>
       </div>
+
+      {showCatMgr && (
+        <CategoryManagerModal lang={lang} L={L} categories={cats} setCategories={setCategories}
+          drugs={drugs} notify={notify} onClose={() => setShowCatMgr(false)} />
+      )}
 
       {/* Packaging info banner */}
       {showPkg && (

@@ -14,6 +14,11 @@ function App() {
   const [orders, setOrders] = useState(() => {
     try { const s = localStorage.getItem('uni_orders'); return s ? JSON.parse(s) : DB.PURCHASE_ORDERS; } catch { return DB.PURCHASE_ORDERS; }
   });
+  const [categories, setCategories] = useState(() => {
+    try { const s = localStorage.getItem('uni_categories'); return s ? JSON.parse(s) : DB.CATEGORIES; } catch { return DB.CATEGORIES; }
+  });
+  // Mirror to the global the page components read directly (Drugs/Stock/DataSync/DrugForm).
+  DB.CATEGORIES = categories;
   const [viewPO, setViewPO] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -53,6 +58,7 @@ function App() {
   useEffect(() => { localStorage.setItem('uni_drugs', JSON.stringify(drugs)); }, [drugs]);
   useEffect(() => { localStorage.setItem('uni_suppliers', JSON.stringify(suppliers)); }, [suppliers]);
   useEffect(() => { localStorage.setItem('uni_orders', JSON.stringify(orders)); }, [orders]);
+  useEffect(() => { localStorage.setItem('uni_categories', JSON.stringify(categories)); }, [categories]);
 
   // Check the auth session on startup and subscribe to changes (only when enforcing login).
   useEffect(() => {
@@ -83,6 +89,10 @@ function App() {
       if (data.orders && data.orders.length) setOrders(data.orders);
       notify(L('โหลดข้อมูลล่าสุดจากคลาวด์แล้ว', 'Synced latest data from cloud'));
     });
+    // Categories live in their own table (flat columns) — load separately.
+    window.UNI_DB.loadCategories && window.UNI_DB.loadCategories().then(cats => {
+      if (!cancelled && cats && cats.length) setCategories(cats);
+    });
     return () => { cancelled = true; };
   }, [session, authOn]);
 
@@ -93,6 +103,11 @@ function App() {
     const setterOf = { drugs: setDrugs, suppliers: setSuppliers, orders: setOrders };
     const keyOf = { drugs: 'code', suppliers: 'id', orders: 'id' };
     const unsub = window.UNI_DB.onDataChange((kind, p) => {
+      // Categories use flat columns (no jsonb `data`) — just reload the list.
+      if (kind === 'categories') {
+        window.UNI_DB.loadCategories().then(cats => { if (cats && cats.length) setCategories(cats); });
+        return;
+      }
       const setItems = setterOf[kind], key = keyOf[kind];
       if (!setItems) return;
       if (p.eventType === 'DELETE') {
@@ -161,7 +176,7 @@ function App() {
   };
   const roleLabel = { admin: L('ผู้ดูแลระบบ', 'Admin'), manager: L('ฝ่ายจัดซื้อ', 'Purchasing'), viewer: L('ดูอย่างเดียว', 'View-only') }[role] || role;
 
-  const sharedProps = { lang, L, drugs, setDrugs, suppliers, setSuppliers, orders, setOrders, notify, setPage, setViewPO, setShowCreate, perm };
+  const sharedProps = { lang, L, drugs, setDrugs, suppliers, setSuppliers, orders, setOrders, categories, setCategories, notify, setPage, setViewPO, setShowCreate, perm };
 
   // ── Auth gate (only when login is enforced) ──
   if (authOn && !authReady) {

@@ -67,6 +67,12 @@
       timestamp: new Date(row.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
     };
   }
+  function categoryRow(c) {
+    return { id: c.id, name_th: c.name || "", name_en: c.nameEN || "", color: c.color || null, subs: c.subs || [] };
+  }
+  function categoryFromRow(row) {
+    return { id: row.id, name: row.name_th, nameEN: row.name_en, color: row.color, subs: row.subs || [] };
+  }
 
   // chunk helper for large bulk upserts (10k+ drugs)
   function chunk(arr, n) {
@@ -209,6 +215,29 @@
       try { await client.from("out_of_stock").delete().eq("id", id); }
       catch (e) { console.warn("[UNI_DB] deleteOutOfStock:", e); }
     },
+    // ---- Drug categories (shared master list) ----
+    async loadCategories() {
+      if (!enabled) return null;
+      try {
+        var res = await client.from("categories").select("*").order("id", { ascending: true });
+        if (res.error) throw res.error;
+        return (res.data || []).map(categoryFromRow);
+      } catch (e) { console.warn("[UNI_DB] loadCategories:", e); return null; }
+    },
+    async saveCategoriesBulk(arr) {
+      if (!enabled || !arr || !arr.length) return false;
+      try {
+        var res = await client.from("categories").upsert(arr.map(categoryRow));
+        if (res.error) throw res.error;
+        return true;
+      } catch (e) { console.warn("[UNI_DB] saveCategoriesBulk:", e); return false; }
+    },
+    async deleteCategory(id) {
+      if (!enabled) return;
+      try { await client.from("categories").delete().eq("id", id); }
+      catch (e) { console.warn("[UNI_DB] deleteCategory:", e); }
+    },
+
     // Soft-remove: mark handled (kept in the table as history/statistics).
     async setOutOfStockResolved(id, by) {
       if (!enabled) return false;
@@ -235,6 +264,7 @@
         .on("postgres_changes", { event: "*", schema: "public", table: "drugs" }, function (p) { cb("drugs", p); })
         .on("postgres_changes", { event: "*", schema: "public", table: "suppliers" }, function (p) { cb("suppliers", p); })
         .on("postgres_changes", { event: "*", schema: "public", table: "purchase_orders" }, function (p) { cb("orders", p); })
+        .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, function (p) { cb("categories", p); })
         .subscribe();
       return function () { try { client.removeChannel(ch); } catch (e) {} };
     },

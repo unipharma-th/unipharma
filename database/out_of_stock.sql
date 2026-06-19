@@ -44,7 +44,7 @@ create policy anon_all on out_of_stock
 do $$
 declare t text;
 begin
-  foreach t in array array['out_of_stock','drugs','suppliers','purchase_orders']
+  foreach t in array array['out_of_stock','drugs','suppliers','purchase_orders','categories']
   loop
     begin
       execute format('alter publication supabase_realtime add table %I;', t);
