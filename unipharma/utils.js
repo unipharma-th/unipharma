@@ -138,9 +138,9 @@ const UTILS = (() => {
 
   // Packaging hierarchy by unit type
   const PKG_MAP = {
-    'เม็ด':    { base:'เม็ด',   baseEN:'Tablet',   levels:[{th:'แผง',en:'Strip',  qty:10},{th:'กล่อง',en:'Box',    qty:3}]},
-    'แคปซูล':{ base:'แคปซูล',baseEN:'Capsule', levels:[{th:'แผง',en:'Strip',  qty:10},{th:'กล่อง',en:'Box',    qty:3}]},
-    'ขวด':    { base:'ขวด',   baseEN:'Bottle',   levels:[{th:'ลัง',en:'Carton', qty:12}]},
+    'เม็ด':    { base:'เม็ด',   baseEN:'Tablet',   levels:[{th:'แผง',en:'Strip',  qty:10},{th:'กล่อง',en:'Box',    qty:10},{th:'ลัง',en:'Carton', qty:24}]},
+    'แคปซูล':{ base:'แคปซูล',baseEN:'Capsule', levels:[{th:'แผง',en:'Strip',  qty:10},{th:'กล่อง',en:'Box',    qty:10},{th:'ลัง',en:'Carton', qty:24}]},
+    'ขวด':    { base:'ขวด',   baseEN:'Bottle',   levels:[{th:'แพ็ค',en:'Pack', qty:6},{th:'โหล',en:'Dozen', qty:2},{th:'ลัง',en:'Carton', qty:2}]},
     'กระป๋อง':{ base:'กระป๋อง',baseEN:'MDI',     levels:[{th:'กล่อง',en:'Box',    qty:1},{th:'ลัง',en:'Carton', qty:6}]},
     'หลอด':    { base:'หลอด',   baseEN:'Tube',     levels:[{th:'กล่อง',en:'Box',    qty:1},{th:'ลัง',en:'Carton', qty:12}]},
     'ปากกา':  { base:'ปากกา',  baseEN:'Pen',      levels:[{th:'กล่อง',en:'Box',    qty:5}]},

@@ -399,7 +399,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                             {units.map(u => <option key={u} value={u}>{u}</option>)}
                           </select>
                         ) : (
-                          <input className="input input-sm" type="text" value={it.unit} onChange={e => updateItem(it.code, 'unit', e.target.value)} placeholder="หน่วย" style={{ width: '100%' }} />
+                          <input className="input input-sm" type="text" value={it.unit} onChange={e => updateItem(it.code, 'unit', e.target.value)} placeholder={L('หน่วย', 'Unit')} style={{ width: '100%' }} />
                         )}
                       </td>
                       <td>

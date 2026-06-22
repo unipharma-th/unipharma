@@ -360,7 +360,7 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
           <div className="form-group" style={{margin:0}}>
             <label className="label">{L(`ระดับ ${i+1} (ไทย)`,`Level ${i+1} (TH)`)}</label>
             <input className="input input-sm" value={lv.th||''}
-              onChange={e=>setForm(f=>({...f,pkgLevels:f.pkgLevels.map((x,j)=>j===i?{...x,th:e.target.value}:x)}))} placeholder="แผง" />
+              onChange={e=>setForm(f=>({...f,pkgLevels:f.pkgLevels.map((x,j)=>j===i?{...x,th:e.target.value}:x)}))} placeholder={L('แผง','Strip')} />
           </div>
           <div className="form-group" style={{margin:0}}>
             <label className="label">Level {i+1} (EN)</label>
@@ -442,13 +442,13 @@ function QuickDrugForm({ onSave, onClose, lang, L }) {
       <div className="form-group">
         <label className="label">{L('รหัสสินค้า *', 'Code *')}</label>
         <input className={`input${errors.code ? ' border-red' : ''}`} type="text" value={form.code}
-          onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="เช่น D001" autoFocus />
+          onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder={L('เช่น D001', 'e.g. D001')} autoFocus />
         {errors.code && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
       </div>
       <div className="form-group">
         <label className="label">{L('ชื่อภาษาไทย *', 'Thai Name *')}</label>
         <input className={`input${errors.nameTH ? ' border-red' : ''}`} type="text" value={form.nameTH}
-          onChange={e => setForm(f => ({ ...f, nameTH: e.target.value }))} placeholder="เช่น ยาลดไข้" />
+          onChange={e => setForm(f => ({ ...f, nameTH: e.target.value }))} placeholder={L('เช่น ยาลดไข้', 'e.g. Paracetamol')} />
         {errors.nameTH && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
       </div>
       <div className="form-group">
@@ -478,7 +478,7 @@ function QuickDrugForm({ onSave, onClose, lang, L }) {
         ) : (
           <input className="input" type="text" value={form.unit}
             onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-            placeholder="เช่น กล่อง ซม. หลอด..." />
+            placeholder={L('เช่น กล่อง ซม. หลอด...', 'e.g. Box, cm, Tube...')} />
         )}
       </div>
 
