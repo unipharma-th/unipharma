@@ -239,7 +239,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
               <input
                 type="text"
                 style={styles.input}
-                placeholder={L('เช่น A001 หรือ พาราเซตามอล 500มก.', 'e.g., A001 or Paracetamol 500mg')}
+                placeholder={L('เช่น P-1234 หรือ ชื่อยา', 'e.g., P-1234 or drug name')}
                 value={form.productCode || form.productName}
                 onChange={(e) => {
                   const val = e.target.value;

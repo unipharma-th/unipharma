@@ -91,12 +91,17 @@ function App() {
     if (!cloudOn) return;            // offline → keep localStorage data
     if (authOn && !session) return;  // login required but not signed in yet
     let cancelled = false;
+    notify(L('กำลังโหลดข้อมูลจากคลาวด์...', 'Loading data from cloud...'));
     window.UNI_DB.loadAll().then(data => {
       if (cancelled || !data) return;
-      if (data.drugs && data.drugs.length) setDrugs(data.drugs);
-      if (data.suppliers && data.suppliers.length) setSuppliers(data.suppliers);
-      if (data.orders && data.orders.length) setOrders(data.orders);
-      notify(L('โหลดข้อมูลล่าสุดจากคลาวด์แล้ว', 'Synced latest data from cloud'));
+      // Always set from cloud — cloud is the source of truth (empty cloud → empty UI).
+      setDrugs(data.drugs || []);
+      setSuppliers(data.suppliers || []);
+      setOrders(data.orders || []);
+      notify(L(`โหลดข้อมูลแล้ว: ยา ${(data.drugs||[]).length} รายการ`, `Loaded: ${(data.drugs||[]).length} drugs`));
+    }).catch(e => {
+      console.warn('loadAll error:', e);
+      notify(L('โหลดข้อมูลคลาวด์ไม่สำเร็จ — ลองรีเฟรชหน้า', 'Failed to load cloud data — try refreshing'), 'err');
     });
     // Categories live in their own table (flat columns) — load separately.
     window.UNI_DB.loadCategories && window.UNI_DB.loadCategories().then(cats => {

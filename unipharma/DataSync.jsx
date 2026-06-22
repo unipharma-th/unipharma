@@ -3,13 +3,36 @@ const { useState, useRef, useCallback } = React;
 
 /* ─── helpers ─── */
 function sheetUrlToCsv(url) {
-  // Extract spreadsheet ID and gid from various Google Sheets URL formats
+  // Returns a LIST of candidate CSV endpoints to try — different share settings
+  // expose the sheet at different paths.
   const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!idMatch) return null;
   const id = idMatch[1];
   const gidMatch = url.match(/[#&?]gid=(\d+)/);
   const gid = gidMatch ? gidMatch[1] : '0';
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  return [
+    // gviz works for "Anyone with the link" sharing
+    `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`,
+    // export needs "Publish to the web"
+    `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`,
+  ];
+}
+
+async function fetchSheetCsv(url) {
+  const candidates = sheetUrlToCsv(url);
+  if (!candidates) throw new Error('Invalid Google Sheets URL');
+  let lastErr;
+  for (const u of candidates) {
+    try {
+      const res = await fetch(u, { redirect: 'follow' });
+      if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+      const text = await res.text();
+      // gviz sometimes returns a JS wrapper if the sheet isn't readable
+      if (text.trim().startsWith('<')) { lastErr = new Error('Sheet not accessible'); continue; }
+      return text;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('Sheet not accessible');
 }
 
 function csvToRows(text) {
@@ -150,21 +173,22 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
   /* ── Google Sheets sync ── */
   const handleSheetSync = async () => {
     if (!sheetUrl) { notify(L('กรุณากรอก URL','Please enter URL'),'err'); return; }
-    const csvUrl = sheetUrlToCsv(sheetUrl);
-    if (!csvUrl) { notify(L('URL ไม่ถูกต้อง','Invalid Google Sheets URL'),'err'); return; }
     localStorage.setItem('uni_sheet_url', sheetUrl);
     setSyncing(true);
     try {
-      const res = await fetch(csvUrl);
-      if (!res.ok) throw new Error('HTTP '+res.status);
-      const text = await res.text();
+      const text = await fetchSheetCsv(sheetUrl);
       const { headers, rows } = csvToRows(text);
       if (rows.length === 0) throw new Error('No data rows');
       setRawHeaders(headers); setRawRows(rows);
       const autoMap = sheetType === 'drugs' ? detectMap(headers, DRUG_ALIASES) : detectMap(headers, SUP_ALIASES);
       setColMap(autoMap); setStep(2);
     } catch(e) {
-      notify(L(`ดึงข้อมูลไม่สำเร็จ: ${e.message}`, `Fetch failed: ${e.message}`),'err');
+      // Give a clear, actionable error — most common cause is sharing settings
+      notify(L(
+        'ดึงข้อมูลไม่สำเร็จ — ตรวจสอบว่าตั้งค่า Share เป็น "Anyone with the link" และลองใหม่',
+        'Fetch failed — make sure the sheet is shared as "Anyone with the link" and try again'
+      ),'err');
+      console.warn('[Sheet sync] error:', e);
     } finally { setSyncing(false); }
   };
 

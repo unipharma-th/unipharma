@@ -33,10 +33,14 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
     if (vatFilter === 'vat') list = list.filter(d => d.hasVat);
     if (vatFilter === 'novat') list = list.filter(d => !d.hasVat);
     if (branchFilter) list = list.filter(d => ((d.stock && d.stock[branchFilter]) || 0) > 0);
+    // Natural sort so "P-1, P-2, ..., P-10" instead of "P-1, P-10, P-100".
+    const naturalCmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
     list.sort((a, b) => {
       let av = a[sortCol], bv = b[sortCol];
-      if (typeof av === 'string') av = av.toLowerCase(), bv = bv.toLowerCase();
-      return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+      const cmp = (typeof av === 'string' || typeof bv === 'string')
+        ? naturalCmp.compare(av == null ? '' : String(av), bv == null ? '' : String(bv))
+        : (av > bv ? 1 : av < bv ? -1 : 0);
+      return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
   }, [drugs, search, catFilter, subFilter, vatFilter, branchFilter, sortCol, sortDir]);

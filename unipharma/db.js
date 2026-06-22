@@ -82,16 +82,24 @@
   }
 
   async function selectAll(table) {
-    // paginate to bypass the 1000-row default cap
-    var page = 0, size = 1000, all = [];
-    while (true) {
-      var res = await client.from(table)
-        .select("data").range(page * size, page * size + size - 1);
-      if (res.error) throw res.error;
-      var rows = res.data || [];
-      all = all.concat(rows.map(function (r) { return r.data; }));
-      if (rows.length < size) break;
-      page++;
+    // First, get the total count so we can fetch all pages in parallel
+    // (10k+ rows over sequential requests is too slow on first load).
+    var size = 1000;
+    var head = await client.from(table).select("data", { count: "exact", head: true });
+    if (head.error) throw head.error;
+    var total = head.count || 0;
+    if (total === 0) return [];
+    var pages = Math.ceil(total / size);
+    var jobs = [];
+    for (var p = 0; p < pages; p++) {
+      jobs.push(client.from(table).select("data").range(p * size, p * size + size - 1));
+    }
+    var results = await Promise.all(jobs);
+    var all = [];
+    for (var i = 0; i < results.length; i++) {
+      if (results[i].error) throw results[i].error;
+      var rows = results[i].data || [];
+      for (var j = 0; j < rows.length; j++) all.push(rows[j].data);
     }
     return all;
   }
