@@ -11,7 +11,7 @@ function App() {
     }
   } catch (e) {}
 
-  const [page, setPage] = useState(() => localStorage.getItem('uni_page') || 'dashboard');
+  const [page, setPage] = useState('dashboard');
   const [lang, setLang] = useState(() => localStorage.getItem('uni_lang') || 'th');
   const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'light');
   const [drugs, setDrugs] = useState(() => {
@@ -68,7 +68,6 @@ function App() {
   // Persist state
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('uni_theme', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('uni_lang', lang); }, [lang]);
-  useEffect(() => { localStorage.setItem('uni_page', page); }, [page]);
   useEffect(() => { localStorage.setItem('uni_drugs', JSON.stringify(drugs)); }, [drugs]);
   useEffect(() => { localStorage.setItem('uni_suppliers', JSON.stringify(suppliers)); }, [suppliers]);
   useEffect(() => { localStorage.setItem('uni_orders', JSON.stringify(orders)); }, [orders]);
