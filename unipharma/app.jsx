@@ -30,6 +30,7 @@ function App() {
   DB.CATEGORIES = categories;
   const [viewPO, setViewPO] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editPO, setEditPO] = useState(null);
   const [notification, setNotification] = useState(null);
   const [density, setDensity] = useState(() => localStorage.getItem('uni_density') || 'regular');
   const [colorScheme, setColorScheme] = useState(() => localStorage.getItem('uni_colors') || 'blue');
@@ -300,15 +301,29 @@ function App() {
         {curPage === 'sync' && perm.role === 'admin' && <DataSyncPage lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} suppliers={suppliers} setSuppliers={setSuppliers} notify={notify} perm={perm} />}
       </div>
 
-      {/* CREATE PO MODAL */}
+      {/* CREATE / EDIT PO MODAL */}
       {showCreate && perm.canWrite && (
-        <CreatePOModal {...sharedProps} onClose={() => setShowCreate(false)}
-          onCreated={(po, items) => { setOrders(prev => [po, ...prev]); setShowCreate(false); setViewPO(po); if (window.UNI_DB) window.UNI_DB.savePOWithUnits(po, items, drugs); notify(L('สร้างใบสั่งซื้อสำเร็จ', 'PO created successfully')); }} />
+        <CreatePOModal {...sharedProps}
+          editPO={editPO}
+          onClose={() => { setShowCreate(false); if (editPO) setViewPO(editPO); setEditPO(null); }}
+          onCreated={(po, items) => {
+            if (editPO) {
+              setOrders(prev => prev.map(o => o.id === po.id ? po : o));
+              notify(L('แก้ไขใบสั่งซื้อสำเร็จ', 'PO updated successfully'));
+            } else {
+              setOrders(prev => [po, ...prev]);
+              notify(L('สร้างใบสั่งซื้อสำเร็จ', 'PO created successfully'));
+            }
+            setShowCreate(false); setEditPO(null); setViewPO(po);
+            if (window.UNI_DB) window.UNI_DB.savePOWithUnits(po, items, drugs);
+          }} />
       )}
 
       {/* PO DOCUMENT VIEWER */}
       {viewPO && (
-        <PODocumentModal po={viewPO} lang={lang} L={L} suppliers={suppliers} onClose={() => setViewPO(null)} />
+        <PODocumentModal po={viewPO} lang={lang} L={L} suppliers={suppliers}
+          onClose={() => setViewPO(null)}
+          onEdit={perm.canWrite ? () => { setEditPO(viewPO); setViewPO(null); setShowCreate(true); } : null} />
       )}
 
       {/* NOTIFICATION TOAST */}

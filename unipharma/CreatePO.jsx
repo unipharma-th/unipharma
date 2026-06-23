@@ -1,35 +1,40 @@
-// CreatePO.jsx — Create Purchase Order Modal
-const { useState, useMemo, useEffect } = React;
+// CreatePO.jsx — Create / Edit Purchase Order Modal
+const { useState, useMemo, useEffect, useRef } = React;
 
-function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClose, onCreated, notify }) {
+function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClose, onCreated, notify, editPO }) {
   const today = new Date().toISOString().split('T')[0];
-  const [branch, setBranch] = useState('PTN');
-  const [supplierId, setSupplierId] = useState('');
+  const [branch, setBranch] = useState(() => editPO?.branch || 'PTN');
+  const [supplierId, setSupplierId] = useState(() => editPO?.supplierId || '');
   const [supSearch, setSupSearch] = useState('');
   const [supOpen, setSupOpen] = useState(false);
-  const [poDate, setPoDate] = useState(today);
-  const [deliveryDate, setDeliveryDate] = useState('');
-  const [creditTerm, setCreditTerm] = useState(30);
-  const [deliveryBranch, setDeliveryBranch] = useState('PTN');
-  const [location, setLocation] = useState('');
-  const [memo, setMemo] = useState('');
+  const [poDate, setPoDate] = useState(() => editPO?.poDate || today);
+  const [deliveryDate, setDeliveryDate] = useState(() => editPO?.deliveryDate || '');
+  const [creditTerm, setCreditTerm] = useState(() => editPO?.creditTerm ?? 30);
+  const [deliveryBranch, setDeliveryBranch] = useState(() => editPO?.deliveryBranch || editPO?.branch || 'PTN');
+  const [location, setLocation] = useState(() => editPO?.location || '');
+  const [memo, setMemo] = useState(() => editPO?.memo || '');
   const [selectedDeal, setSelectedDeal] = useState('');
   const [dealDiscount, setDealDiscount] = useState(0);
   const [showDealEditor, setShowDealEditor] = useState(false);
   const [dealName, setDealName] = useState('');
   const [dealPct, setDealPct] = useState('');
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(() => editPO?.items ? editPO.items.map(it => ({ ...it, unitMode: 'select' })) : []);
   const [searchDrug, setSearchDrug] = useState('');
-  const [isNonPO, setIsNonPO] = useState(false);
-  const [createdBy, setCreatedBy] = useState('');
+  const [isNonPO, setIsNonPO] = useState(() => !!editPO?.isNonPO);
+  const [createdBy, setCreatedBy] = useState(() => editPO?.createdBy || '');
   const [errors, setErrors] = useState({});
+  // Prevent auto-fill effects from overwriting loaded edit values on first mount
+  const didInit = useRef(false);
+  useEffect(() => { didInit.current = true; }, []);
 
   const supplier = useMemo(() => suppliers.find(s => s.id === supplierId), [suppliers, supplierId]);
 
   // Reset deal/credit only when the chosen supplier *changes* — keying on
   // supplierId (not the supplier object) so editing this supplier's
   // promotions doesn't wipe the current selection.
+  // In edit mode, skip the first run so loaded values are preserved.
   useEffect(() => {
+    if (editPO && !didInit.current) return;
     if (supplier) {
       setCreditTerm(supplier.creditTerm);
       setSelectedDeal('');
@@ -72,12 +77,14 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
 
   // Delivery address defaults to the ordering branch; refilled when it changes.
   useEffect(() => {
+    if (editPO && !didInit.current) return;
     setDeliveryBranch(branch);
     setLocation(branchAddr(branch));
   }, [branch, lang]);
 
   // Auto-set delivery date
   useEffect(() => {
+    if (editPO && !didInit.current) return;
     if (poDate && supplier) {
       const d = new Date(poDate);
       d.setDate(d.getDate() + supplier.deliveryDays);
@@ -170,8 +177,29 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
 
   const handleSubmit = (status = 'draft') => {
     if (!validate()) { notify(L('กรุณากรอกข้อมูลให้ครบ', 'Please fill in all required fields'), 'err'); return; }
+    const promo = supplier?.promotions?.find(p => p.id === selectedDeal);
+    const mappedItems = items.map(it => ({ ...it, amount: calcLine(it) }));
+    if (editPO) {
+      // Update existing PO — keep original id, poNumber, status, approvedBy
+      const updatedPO = {
+        ...editPO,
+        branch, supplierId, poDate, deliveryDate,
+        creditTerm: parseInt(creditTerm),
+        deliveryBranch, location, memo, isNonPO,
+        dealNote: promo ? promo.name : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : editPO.dealNote || '-'),
+        items: mappedItems,
+        grossTotal: summary.gross,
+        discount: summary.discount,
+        taxableAmt: summary.taxable,
+        nonTaxableAmt: summary.nonTaxable,
+        vat: summary.vat,
+        grandTotal: summary.grandTotal,
+        createdBy: createdBy || editPO.createdBy || L('ผู้ใช้งาน', 'User'),
+      };
+      onCreated(updatedPO, mappedItems);
+      return;
+    }
     const poNumber = UTILS.generatePONumber(branch, poDate);
-    const promo = supplier?.promotions.find(p => p.id === selectedDeal);
     const newPO = {
       id: 'PO' + Date.now(),
       poNumber,
@@ -186,7 +214,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       memo,
       dealNote: promo ? promo.name : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : '-'),
       isNonPO,
-      items: items.map(it => ({ ...it, amount: calcLine(it) })),
+      items: mappedItems,
       grossTotal: summary.gross,
       discount: summary.discount,
       taxableAmt: summary.taxable,
@@ -196,7 +224,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       createdBy: createdBy || L('ผู้ใช้งาน', 'User'),
       approvedBy: status === 'approved' ? L('ผู้จัดการจัดซื้อ', 'Purchasing Manager') : '-'
     };
-    onCreated(newPO, items);
+    onCreated(newPO, mappedItems);
   };
 
   const branchInfo = DB.BRANCHES.find(b => b.id === branch);
@@ -206,9 +234,15 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       <div className="modal" style={{ maxWidth: 900, width: '95vw' }}>
         <div className="modal-header">
           <div>
-            <div className="modal-title">+ {L('สร้างใบสั่งซื้อ', 'Create Purchase Order')}</div>
+            <div className="modal-title">
+              {editPO
+                ? `✏ ${L('แก้ไขใบสั่งซื้อ', 'Edit PO')} — ${editPO.poNumber}`
+                : `+ ${L('สร้างใบสั่งซื้อ', 'Create Purchase Order')}`}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>
-              {L('รูปแบบ:', 'Format:')} PO{branchInfo?.code}-{poDate?.replace(/-/g,'').slice(2)}-XXX
+              {editPO
+                ? L('เพิ่ม/แก้ไขรายการสินค้าแล้วกด "บันทึกการแก้ไข"', 'Add or edit items, then click "Save Changes"')
+                : `${L('รูปแบบ:', 'Format:')} PO${branchInfo?.code}-${poDate?.replace(/-/g,'').slice(2)}-XXX`}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -503,8 +537,16 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
 
         <div className="modal-footer">
           <button className="btn btn-ghost" onClick={onClose}>{L('ยกเลิก', 'Cancel')}</button>
-          <button className="btn btn-outline" onClick={() => handleSubmit('draft')}>💾 {L('บันทึกร่าง', 'Save Draft')}</button>
-          <button className="btn btn-primary" onClick={() => handleSubmit('pending')}>📤 {L('ส่งอนุมัติ', 'Submit for Approval')}</button>
+          {editPO ? (
+            <button className="btn btn-primary" onClick={() => handleSubmit(editPO.status)}>
+              💾 {L('บันทึกการแก้ไข', 'Save Changes')}
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-outline" onClick={() => handleSubmit('draft')}>💾 {L('บันทึกร่าง', 'Save Draft')}</button>
+              <button className="btn btn-primary" onClick={() => handleSubmit('pending')}>📤 {L('ส่งอนุมัติ', 'Submit for Approval')}</button>
+            </>
+          )}
         </div>
       </div>
     </div>

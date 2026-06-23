@@ -12,7 +12,7 @@ function numToEnWords(n){
   else res+=' only';
   return res.charAt(0).toUpperCase()+res.slice(1);
 }
-function PODocumentModal({ po, lang, L, suppliers, onClose }) {
+function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
   const supplier = suppliers.find(s => s.id === po.supplierId) || {};
   const branch = DB.BRANCHES.find(b => b.id === po.branch) || {};
   const deliveryBranch = DB.BRANCHES.find(b => b.id === (po.deliveryBranch || po.branch)) || branch;
@@ -78,6 +78,11 @@ function PODocumentModal({ po, lang, L, suppliers, onClose }) {
           <span className="modal-title">📄 {po.poNumber}</span>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <StatusBadge status={po.status} lang={lang} />
+            {onEdit && (
+              <button className="btn btn-outline btn-sm" onClick={onEdit}>
+                ✏ {L('แก้ไข/เพิ่มรายการ', 'Edit / Add Items')}
+              </button>
+            )}
             <button className="btn btn-primary btn-sm" onClick={handlePrint}>🖨 {L('พิมพ์', 'Print')}</button>
             <button className="btn-icon" onClick={onClose} style={{ border: 'none', fontSize: 18 }}>✕</button>
           </div>
