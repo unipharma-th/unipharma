@@ -4,7 +4,9 @@ const { useState, useMemo, useEffect } = React;
 function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClose, onCreated, notify }) {
   const today = new Date().toISOString().split('T')[0];
   const [branch, setBranch] = useState('PTN');
-  const [supplierId, setSupplierId] = useState('SUP001');
+  const [supplierId, setSupplierId] = useState('');
+  const [supSearch, setSupSearch] = useState('');
+  const [supOpen, setSupOpen] = useState(false);
   const [poDate, setPoDate] = useState(today);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [creditTerm, setCreditTerm] = useState(30);
@@ -83,16 +85,21 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
     }
   }, [poDate, supplier]);
 
-  // Drug search results filtered by supplier's drugs list
+  // Pool of drugs the supplier carries (if listed). Empty supplier list (or no
+  // supplier) → fall back to ALL drugs, so a buyer can always find what to add.
   const supplierDrugs = useMemo(() => {
-    if (!supplier) return [];
-    return drugs.filter(d => supplier.drugs.includes(d.code));
+    if (supplier && Array.isArray(supplier.drugs) && supplier.drugs.length > 0) {
+      return drugs.filter(d => supplier.drugs.includes(d.code));
+    }
+    return drugs; // open catalog
   }, [supplier, drugs]);
 
   const filteredDrugs = useMemo(() => {
     if (!searchDrug) return supplierDrugs.slice(0, 20);
     const q = searchDrug.toLowerCase();
-    return supplierDrugs.filter(d => d.code.toLowerCase().includes(q) || d.nameTH.includes(q) || d.nameEN.toLowerCase().includes(q)).slice(0, 20);
+    return supplierDrugs
+      .filter(d => d.code.toLowerCase().includes(q) || (d.nameTH || '').toLowerCase().includes(q) || (d.nameEN || '').toLowerCase().includes(q))
+      .slice(0, 20);
   }, [supplierDrugs, searchDrug]);
 
   const units = ['เม็ด', 'แคปซูล', 'ซอฟเจล', 'ขวด (ml)', 'ขวด (pcs)', 'แผง', 'ชุด', 'กระป๋อง'];
@@ -195,7 +202,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
   const branchInfo = DB.BRANCHES.find(b => b.id === branch);
 
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: 900, width: '95vw' }}>
         <div className="modal-header">
           <div>
@@ -235,9 +242,39 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
           <div className="form-row" style={{ marginBottom: 14 }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="label">{L('ผู้จัดจำหน่าย *', 'Supplier *')}</label>
-              <select className={`input${errors.supplierId ? ' border-red' : ''}`} value={supplierId} onChange={e => setSupplierId(e.target.value)}>
-                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className={`input${errors.supplierId ? ' border-red' : ''}`}
+                  value={supOpen ? supSearch : (supplier ? (lang === 'th' ? supplier.name : (supplier.nameEN || supplier.name)) : '')}
+                  onChange={e => { setSupSearch(e.target.value); setSupOpen(true); }}
+                  onFocus={() => { setSupSearch(''); setSupOpen(true); }}
+                  onBlur={() => setTimeout(() => setSupOpen(false), 180)}
+                  placeholder={L('ค้นหา / พิมพ์ชื่อผู้จัดจำหน่าย…', 'Search / type supplier name…')}
+                  autoComplete="off" />
+                {supOpen && (() => {
+                  const q = (supSearch || '').toLowerCase();
+                  const list = suppliers.filter(s => !q
+                    || (s.name || '').toLowerCase().includes(q)
+                    || (s.nameEN || '').toLowerCase().includes(q)
+                    || (s.id || '').toLowerCase().includes(q));
+                  return (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--bg1)', border: '1px solid var(--border)', borderRadius: 8, maxHeight: 240, overflowY: 'auto', zIndex: 20, boxShadow: '0 6px 18px rgba(0,0,0,.18)' }}>
+                      {list.length === 0 ? (
+                        <div style={{ padding: 12, fontSize: 12, color: 'var(--txt4)' }}>{L('ไม่พบผู้จัดจำหน่าย', 'No suppliers found')}</div>
+                      ) : list.slice(0, 50).map(s => (
+                        <div key={s.id}
+                          onMouseDown={() => { setSupplierId(s.id); setSupSearch(''); setSupOpen(false); }}
+                          style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--txt)' }}
+                          onMouseOver={e => e.currentTarget.style.background = 'var(--bg3)'}
+                          onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                          <div style={{ fontWeight: 600 }}>{lang === 'th' ? s.name : (s.nameEN || s.name)}</div>
+                          <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{s.id}{s.phone ? ' · ' + s.phone : ''}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
               {supplier && (
                 <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 3 }}>
                   📞 {supplier.phone} · เครดิต {supplier.creditTerm} วัน · ส่ง {supplier.deliveryDays} วัน

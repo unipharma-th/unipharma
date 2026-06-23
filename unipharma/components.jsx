@@ -9,7 +9,7 @@ function Modal({ title, onClose, children, footer, size = 600 }) {
     return () => document.removeEventListener('keydown', h);
   }, [onClose]);
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: size }}>
         <div className="modal-header">
           <span className="modal-title">{title}</span>
