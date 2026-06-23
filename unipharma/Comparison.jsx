@@ -32,7 +32,10 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
     let supList = suppliers.filter(s => (s.drugs||[]).includes(selectedDrug.code));
     // Fallback: use supplier IDs stored directly on the drug (main + extra)
     if (!supList.length) {
-      const linked = [selectedDrug.supplierId, ...(selectedDrug.extraSupplierIds||[])].filter(Boolean);
+      const extraIds = (selectedDrug.extraSuppliers||[]).map(s=>s.id).filter(Boolean).length
+        ? (selectedDrug.extraSuppliers||[]).map(s=>s.id)
+        : (selectedDrug.extraSupplierIds||[]);
+      const linked = [selectedDrug.supplierId, ...extraIds].filter(Boolean);
       supList = suppliers.filter(s => linked.includes(s.id));
     }
     return supList.map(s => {

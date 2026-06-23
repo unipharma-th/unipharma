@@ -351,10 +351,15 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                                 <span style={{ color: 'var(--acc2)', fontSize: 10, marginRight: 4 }}>หลัก</span>
                                 {UTILS.getSupplier(d.supplierId).name}
                               </div>
-                              {(d.extraSupplierIds||[]).filter(Boolean).map((sid, i) => (
-                                <div key={sid} style={{ fontSize: 12, marginTop: 2 }}>
+                              {(d.extraSuppliers || (d.extraSupplierIds||[]).map(id=>({id,costEx:0,sellEx:0}))).filter(s=>s.id).map((sup, i) => (
+                                <div key={sup.id} style={{ fontSize: 12, marginTop: 2 }}>
                                   <span style={{ color: 'var(--txt4)', fontSize: 10, marginRight: 4 }}>รายย่อย {i+1}</span>
-                                  {UTILS.getSupplier(sid).name || sid}
+                                  {UTILS.getSupplier(sup.id).name || sup.id}
+                                  {(sup.costEx > 0 || sup.sellEx > 0) && (
+                                    <span style={{ color: 'var(--txt3)', fontSize: 10, marginLeft: 6 }}>
+                                      ต้นทุน {UTILS.fmt(sup.costEx)} · ขาย {UTILS.fmt(sup.sellEx)}
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                               <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 4 }}>{L('สั่งซื้อแล้ว', 'Ordered')} {d.orderCount} {L('ครั้ง/ปี', 'times/yr')}</div>

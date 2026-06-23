@@ -164,12 +164,18 @@ function StockBar({ current, min, max }) {
 function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
   const cats = DB.CATEGORIES;
   const [form, setForm] = useState(() => {
-    if (drug) return { costByBranch: {}, extraSupplierIds: [], ...drug };
+    if (drug) {
+      // Migrate old extraSupplierIds (array of strings) \u2192 extraSuppliers (array of objects)
+      const exSups = drug.extraSuppliers?.length
+        ? drug.extraSuppliers
+        : (drug.extraSupplierIds || []).map(id => ({ id, costEx: 0, sellEx: 0 }));
+      return { costByBranch: {}, ...drug, extraSuppliers: exSups };
+    }
     // New drug: pre-fill packaging from unit default
     const defPkg = UTILS.getPackaging('\u0e40\u0e21\u0e47\u0e14', 'th');
     return {
       code: '', nameTH: '', nameEN: '', unit: '\u0e40\u0e21\u0e47\u0e14', catId: 'CAT01', subId: 'S0101',
-      hasVat: false, vatRate: 0, costEx: 0, sellEx: 0, costByBranch: {}, extraSupplierIds: [],
+      hasVat: false, vatRate: 0, costEx: 0, sellEx: 0, costByBranch: {}, extraSuppliers: [],
       stock: { PTN: 0, RAM: 0, CNX: 0 }, minStock: 100, supplierId: 'SUP001', orderCount: 0,
       pkgBase: defPkg?.base || '', pkgBaseEN: defPkg?.baseEN || '',
       pkgLevels: defPkg?.levels ? defPkg.levels.map(l=>({...l})) : []
@@ -237,7 +243,8 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
       profitEx: +(sEx - cEx).toFixed(2),
       profitMargin: sEx > 0 ? +((sEx - cEx) / sEx * 100).toFixed(1) : 0,
       totalStock: (form.stock.PTN || 0) + (form.stock.RAM || 0) + (form.stock.CNX || 0),
-      extraSupplierIds: (form.extraSupplierIds || []).filter(id => id),
+      extraSuppliers: (form.extraSuppliers || []).filter(s => s.id),
+      extraSupplierIds: (form.extraSuppliers || []).filter(s => s.id).map(s => s.id),
     };
     onSave(saved);
   };
@@ -293,27 +300,62 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
         </div>
       </div>
 
-      {/* Extra suppliers */}
-      {(form.extraSupplierIds || []).map((sid, i) => (
-        <div key={i} className="form-group" style={{ marginBottom: 8 }}>
-          <label className="label">{L(`ผู้จัดจำหน่ายรายย่อย ${i + 1}`, `Secondary Supplier ${i + 1}`)}</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select className="input" style={{ flex: 1 }} value={sid || ''}
-              onChange={e => setForm(f => ({ ...f, extraSupplierIds: (f.extraSupplierIds||[]).map((x,j) => j===i ? e.target.value : x) }))}>
-              <option value="">— {L('ไม่ระบุ', 'None')} —</option>
-              {suppliers.filter(s => s.id !== form.supplierId && !(form.extraSupplierIds||[]).some((x,j) => x===s.id && j!==i))
-                .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <button type="button" className="btn btn-ghost btn-sm" style={{ color:'var(--err)', flexShrink:0 }}
-              onClick={() => setForm(f => ({ ...f, extraSupplierIds: (f.extraSupplierIds||[]).filter((_,j) => j!==i) }))}>
-              ✕
-            </button>
+      {/* Extra suppliers with pricing */}
+      {(form.extraSuppliers || []).map((sup, i) => {
+        const cEx = parseFloat(sup.costEx) || 0, sEx = parseFloat(sup.sellEx) || 0;
+        const profit = +(sEx - cEx).toFixed(2);
+        const margin = sEx > 0 ? +((profit / sEx) * 100).toFixed(1) : 0;
+        const hasPrice = cEx > 0 || sEx > 0;
+        const updSup = (field, val) => setForm(f => ({
+          ...f, extraSuppliers: (f.extraSuppliers||[]).map((x,j) => j===i ? {...x,[field]:val} : x)
+        }));
+        return (
+          <div key={i} style={{ marginBottom: 10, padding: '10px 12px', background: 'var(--bg2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label className="label">{L(`ผู้จัดจำหน่ายรายย่อย ${i + 1}`, `Secondary Supplier ${i + 1}`)}</label>
+                <select className="input" value={sup.id || ''}
+                  onChange={e => updSup('id', e.target.value)}>
+                  <option value="">— {L('ไม่ระบุ', 'None')} —</option>
+                  {suppliers.filter(s => s.id !== form.supplierId && !(form.extraSuppliers||[]).some((x,j) => x.id===s.id && j!==i))
+                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ color:'var(--err)', flexShrink:0 }}
+                onClick={() => setForm(f => ({ ...f, extraSuppliers: (f.extraSuppliers||[]).filter((_,j) => j!==i) }))}>
+                ✕
+              </button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:8 }}>
+              <div className="form-group">
+                <label className="label" style={{ fontSize: 11 }}>{L('ต้นทุน (ไม่รวม VAT)', 'Cost (excl. VAT)')}</label>
+                <input className="input" type="number" step="0.01" value={sup.costEx || ''}
+                  onChange={e => updSup('costEx', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="label" style={{ fontSize: 11 }}>{L('ราคาขาย (ไม่รวม VAT)', 'Sell Price (excl. VAT)')}</label>
+                <input className="input" type="number" step="0.01" value={sup.sellEx || ''}
+                  onChange={e => updSup('sellEx', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="label" style={{ fontSize: 11 }}>{L('กำไร/หน่วย (บาท)', 'Profit/Unit (฿)')}</label>
+                <div className="input" style={{ color: profit >= 0 ? 'var(--ok)' : 'var(--err)', fontWeight: 700, opacity: .85 }}>
+                  {hasPrice ? UTILS.fmt(profit) : '—'}
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="label" style={{ fontSize: 11 }}>{L('กำไร %', 'Margin %')}</label>
+                <div className="input" style={{ color: margin >= 0 ? 'var(--ok)' : 'var(--err)', fontWeight: 700, opacity: .85 }}>
+                  {hasPrice ? margin + '%' : '—'}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
-      {(form.extraSupplierIds||[]).length < 5 && (
+        );
+      })}
+      {(form.extraSuppliers||[]).length < 5 && (
         <button type="button" className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}
-          onClick={() => setForm(f => ({ ...f, extraSupplierIds: [...(f.extraSupplierIds||[]), ''] }))}>
+          onClick={() => setForm(f => ({ ...f, extraSuppliers: [...(f.extraSuppliers||[]), {id:'', costEx:'', sellEx:''}] }))}>
           + {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}
         </button>
       )}
