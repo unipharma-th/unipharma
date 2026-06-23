@@ -43,6 +43,16 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
     datasets: [{ data: catArr.map(c => +c.value.toFixed(0)), backgroundColor: catArr.map(c => c.color), borderWidth: 0 }]
   };
 
+  // Drug counts per category / subcategory for the overview panel
+  const catStats = useMemo(() => {
+    const byMain = {}, bySub = {};
+    drugs.forEach(d => {
+      byMain[d.catId] = (byMain[d.catId] || 0) + 1;
+      if (d.subId) bySub[d.subId] = (bySub[d.subId] || 0) + 1;
+    });
+    return { byMain, bySub };
+  }, [drugs]);
+
   // Top 5 drugs by order count
   const top5 = [...drugs].sort((a, b) => b.orderCount - a.orderCount).slice(0, 5);
 
@@ -188,6 +198,48 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
           </div>
         </div>
       )}
+
+      {/* CATEGORY OVERVIEW */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card-header">
+          <span className="card-title">{L('หมวดหมู่ยาทั้งหมด', 'All Drug Categories')}</span>
+          <span style={{ fontSize: 12, color: 'var(--txt3)' }}>
+            {DB.CATEGORIES.length} {L('หมวดหลัก', 'main')} · {DB.CATEGORIES.reduce((n, c) => n + c.subs.length, 0)} {L('หมวดรอง', 'sub')}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 10 }}>
+          {DB.CATEGORIES.map(cat => {
+            const mainCount = catStats.byMain[cat.id] || 0;
+            return (
+              <div key={cat.id} style={{ borderRadius: 8, border: '1px solid var(--border)', borderLeft: `4px solid ${cat.color}`, padding: '10px 12px', background: 'var(--bg2)', cursor: 'pointer' }}
+                onClick={() => setPage('drugs')}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: cat.color, marginBottom: 2, letterSpacing: .3 }}>{cat.id}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.35, color: 'var(--txt)' }}>{lang === 'th' ? cat.name : cat.nameEN}</div>
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: cat.color, flexShrink: 0, lineHeight: 1 }}>
+                    {mainCount.toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {cat.subs.map(sub => {
+                    const subCount = catStats.bySub[sub.id] || 0;
+                    return (
+                      <span key={sub.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, padding: '2px 7px', borderRadius: 99, background: 'var(--bg3)', color: 'var(--txt3)', lineHeight: 1.6 }}>
+                        {lang === 'th' ? sub.name : sub.nameEN}
+                        {subCount > 0 && (
+                          <span style={{ fontWeight: 700, color: cat.color }}>{subCount}</span>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
