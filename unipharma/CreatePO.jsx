@@ -414,7 +414,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                       onMouseDown={() => addItem(d)}>
                       <div>
                         <span style={{ color: 'var(--acc2)', fontFamily: 'monospace', fontSize: 12 }}>{d.code}</span>
-                        <span style={{ marginLeft: 8, fontSize: 13 }}>{lang === 'th' ? d.nameTH : d.nameEN}</span>
+                        <span style={{ marginLeft: 8, fontSize: 13 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</span>
                       </div>
                       <div style={{ textAlign: 'right', fontSize: 11, color: 'var(--txt3)' }}>
                         <div>ต้นทุน ฿{UTILS.fmt(d.costEx)}</div>
@@ -455,7 +455,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                     <tr key={it.code}>
                       <td style={{ color: 'var(--txt3)', fontSize: 12 }}>{i + 1}</td>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? it.nameTH : it.nameEN}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? it.nameTH : (it.nameEN||it.nameTH)}</div>
                         <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{it.code}</div>
                       </td>
                       <td style={{ minWidth: 140 }}>

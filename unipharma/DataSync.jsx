@@ -127,7 +127,7 @@ function parseDrugs(rows, map, cats) {
     }
     catId = catId || 'CAT01'; subId = subId || 'S0101';
     return {
-      code, nameTH: r[map.nameTH]||code, nameEN: r[map.nameEN]||code,
+      code, nameTH: r[map.nameTH]||code, nameEN: r[map.nameEN]||r[map.nameTH]||code,
       unit: r[map.unit]||'เม็ด', catId, subId,
       hasVat, vatRate: hasVat?7:0, costEx, costInc: hasVat?+(costEx*1.07).toFixed(2):costEx,
       sellEx, sellInc: hasVat?+(sellEx*1.07).toFixed(2):sellEx,

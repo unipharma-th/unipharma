@@ -135,7 +135,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
                     </td>
                     <td><BranchBadge branchId={po.branch} /></td>
                     <td>
-                      <div className="ellipsis" style={{ maxWidth: 180, fontSize: 13 }}>{lang==='th'?sup.name:sup.nameEN}</div>
+                      <div className="ellipsis" style={{ maxWidth: 180, fontSize: 13 }}>{lang==='th'?sup.name:(sup.nameEN||sup.name)}</div>
                       <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{L('เครดิต', 'Credit')} {po.creditTerm} {L('วัน', 'days')}</div>
                     </td>
                     <td style={{ fontSize: 12 }}>{UTILS.fmtDate(po.poDate, lang)}</td>

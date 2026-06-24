@@ -284,7 +284,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
                       onMouseOut={(e) => e.currentTarget.style.background = 'var(--bg1)'}
                     >
                       <div style={{ fontWeight: 500 }}>{drug.code} - {drug.nameTH || drug.nameEN}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--txt3)' }}>{drug.nameEN}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--txt3)' }}>{drug.nameEN||drug.nameTH}</div>
                     </div>
                   ))}
                 </div>

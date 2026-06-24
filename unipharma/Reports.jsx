@@ -197,7 +197,7 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
                   <tr key={po.id}>
                     <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--acc2)' }}>{po.poNumber}</td>
                     <td><BranchBadge branchId={po.branch} /></td>
-                    <td style={{ fontSize: 12 }} className="ellipsis">{lang==='th'?UTILS.getSupplier(po.supplierId).name:UTILS.getSupplier(po.supplierId).nameEN}</td>
+                    <td style={{ fontSize: 12 }} className="ellipsis">{lang==='th'?UTILS.getSupplier(po.supplierId).name:(UTILS.getSupplier(po.supplierId).nameEN||UTILS.getSupplier(po.supplierId).name)}</td>
                     <td style={{ fontSize: 12 }}>{UTILS.fmtDate(po.poDate, lang)}</td>
                     <td className="tbl-num" style={{ fontSize: 12 }}>{UTILS.fmt(po.grossTotal, 0)}</td>
                     <td className="tbl-num" style={{ fontSize: 12 }}>{UTILS.fmt(po.nonTaxableAmt ?? po.nonTaxable ?? 0, 0)}</td>
@@ -240,7 +240,7 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
                     </td>
                     <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--acc2)' }}>{d.code}</td>
                     <td>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : d.nameEN}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
                       <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{UTILS.getUnit(d.unit, lang)}</div>
                     </td>
                     <td><span style={{ fontSize: 11, color: UTILS.getCat(d.catId).color }}>{lang === 'th' ? UTILS.getCat(d.catId).name : UTILS.getCat(d.catId).nameEN}</span></td>
@@ -278,14 +278,14 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
                       <td style={{ color: 'var(--txt3)', fontSize: 12 }}>{i + 1}</td>
                       <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--warn)' }}>{d.code}</td>
                       <td>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : d.nameEN}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
                         <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{UTILS.getUnit(d.unit, lang)}</div>
                       </td>
                       <td><span style={{ fontSize: 11, color: UTILS.getCat(d.catId).color }}>{lang === 'th' ? UTILS.getCat(d.catId).name : UTILS.getCat(d.catId).nameEN}</span></td>
                       <td className="tbl-num" style={{ fontWeight: 700, color: d.orderCount === 0 ? 'var(--err)' : 'var(--warn)' }}>{d.orderCount}</td>
                       <td className="tbl-num" style={{ fontSize: 12 }}>{d.totalStock.toLocaleString()}</td>
                       <td style={{ fontSize: 12, color: 'var(--txt3)' }}>{UTILS.fmtDate(d.lastOrdered, lang)}</td>
-                      <td style={{ fontSize: 11 }} className="ellipsis">{lang==='th'?UTILS.getSupplier(d.supplierId).name:UTILS.getSupplier(d.supplierId).nameEN}</td>
+                      <td style={{ fontSize: 11 }} className="ellipsis">{lang==='th'?UTILS.getSupplier(d.supplierId).name:(UTILS.getSupplier(d.supplierId).nameEN||UTILS.getSupplier(d.supplierId).name)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -310,7 +310,7 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
                     <tr key={item.supplier.id}>
                       <td style={{ fontWeight: 800, color: i < 3 ? 'var(--acc2)' : 'var(--txt3)' }}>{i + 1}</td>
                       <td>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>{lang==='th'?item.supplier.name:item.supplier.nameEN}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{lang==='th'?item.supplier.name:(item.supplier.nameEN||item.supplier.name)}</div>
                         <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{UTILS.getSupCat(sup.category||'', lang)}</div>
                       </td>
                       <td className="tbl-num">

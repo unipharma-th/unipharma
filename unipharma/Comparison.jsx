@@ -88,7 +88,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 'var(--r2)', padding: '10px 14px' }}>
                 <span style={{ fontSize: 20 }}>💊</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{lang === 'th' ? selectedDrug.nameTH : selectedDrug.nameEN}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{lang === 'th' ? selectedDrug.nameTH : (selectedDrug.nameEN||selectedDrug.nameTH)}</div>
                   <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{selectedDrug.code} · {lang === 'th' ? UTILS.getCat(selectedDrug.catId).name : UTILS.getCat(selectedDrug.catId).nameEN}</div>
                 </div>
                 <button className="btn btn-ghost btn-sm" onClick={clearDrug}>✕ {L('เปลี่ยน', 'Change')}</button>
@@ -109,7 +109,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
                           onMouseDown={() => selectDrug(d)}>
                           <div>
                             <span style={{ color: 'var(--acc)', fontFamily: 'monospace', fontSize: 12 }}>{d.code}</span>
-                            <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : d.nameEN}</span>
+                            <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</span>
                           </div>
                           <div style={{ textAlign: 'right', fontSize: 11, color: 'var(--txt3)', flexShrink: 0 }}>
                             <div style={{ color: 'var(--ok)', fontWeight: 700 }}>฿{UTILS.fmt(minP)} – ฿{UTILS.fmt(maxP)}</div>
@@ -132,7 +132,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
           {/* Drug info + Summary KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 14, marginBottom: 20, alignItems: 'stretch' }}>
             <div className="card" style={{ padding: 16 }}>
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{lang === 'th' ? selectedDrug.nameTH : selectedDrug.nameEN}</div>
+              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{lang === 'th' ? selectedDrug.nameTH : (selectedDrug.nameEN||selectedDrug.nameTH)}</div>
               <div style={{ fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>
                 {selectedDrug.code} · {lang === 'th' ? UTILS.getCat(selectedDrug.catId).name : UTILS.getCat(selectedDrug.catId).nameEN} · {selectedDrug.unit}
                 {selectedDrug.hasVat && <span className="badge" style={{ marginLeft: 8, background: 'var(--info-bg)', color: 'var(--info)' }}>VAT 7%</span>}
@@ -145,12 +145,12 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
             <div className="card" style={{ padding: '12px 20px', textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontSize: 11, color: 'var(--ok)', fontWeight: 700, marginBottom: 4 }}>💚 {L('ราคาถูกสุด', 'Cheapest')}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--ok)' }}>฿{UTILS.fmt(cheapest.afterPromo)}</div>
-                  <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>{lang==='th'?cheapest.supplier.name.split(' ').slice(0,3).join(' '):cheapest.supplier.nameEN.split(' ').slice(0,3).join(' ')}</div>
+                  <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>{lang==='th'?cheapest.supplier.name.split(' ').slice(0,3).join(' '):(cheapest.supplier.nameEN||cheapest.supplier.name).split(' ').slice(0,3).join(' ')}</div>
             </div>
             <div className="card" style={{ padding: '12px 20px', textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontSize: 11, color: 'var(--err)', fontWeight: 700, marginBottom: 4 }}>🔴 {L('ราคาแพงสุด', 'Most Exp.')}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--err)' }}>฿{UTILS.fmt(mostExp.afterPromo)}</div>
-                  <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>{lang==='th'?mostExp.supplier.name.split(' ').slice(0,3).join(' '):mostExp.supplier.nameEN.split(' ').slice(0,3).join(' ')}</div>
+                  <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 2 }}>{lang==='th'?mostExp.supplier.name.split(' ').slice(0,3).join(' '):(mostExp.supplier.nameEN||mostExp.supplier.name).split(' ').slice(0,3).join(' ')}</div>
             </div>
             {maxSavings > 0 && (
               <div className="card" style={{ padding: '12px 20px', textAlign: 'center', minWidth: 130, borderColor: 'rgba(22,163,74,.4)', background: 'var(--ok-bg)' }}>
@@ -166,7 +166,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
             <div style={{ fontSize: 36 }}>🏆</div>
             <div style={{ flex: 1 }}>
               <div style={{ color: '#fff', fontWeight: 800, fontSize: 15, marginBottom: 4 }}>
-                {L('แนะนำ: ซื้อจาก', 'Recommended: Buy from')} {lang==='th'?cheapest.supplier.name:cheapest.supplier.nameEN}
+                {L('แนะนำ: ซื้อจาก', 'Recommended: Buy from')} {lang==='th'?cheapest.supplier.name:(cheapest.supplier.nameEN||cheapest.supplier.name)}
               </div>
               <div style={{ color: 'rgba(255,255,255,.85)', fontSize: 13 }}>
                 {L('ราคาต้นทุน', 'Cost price')} <b>฿{UTILS.fmt(cheapest.costEx)}</b>
@@ -304,7 +304,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
                   onClick={() => selectDrug(d)}
                   onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border2)'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = ''}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 3 }} className="ellipsis">{lang === 'th' ? d.nameTH : d.nameEN}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 3 }} className="ellipsis">{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
                   <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 10 }}>
                     {d.code} · {supList.length} {L('ผู้จัดจำหน่าย', 'suppliers')}
                   </div>

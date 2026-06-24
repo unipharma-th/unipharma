@@ -234,8 +234,8 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                         <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--acc2)', fontWeight: 700 }}>{d.code}</span>
                       </td>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? d.nameTH : d.nameEN}</div>
-                        <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang === 'th' ? d.nameEN : d.nameTH}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang === 'th' ? (d.nameEN||'') : d.nameTH}</div>
                       </td>
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{UTILS.getUnit(d.unit, lang)}</span>

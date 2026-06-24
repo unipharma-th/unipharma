@@ -138,7 +138,7 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
                       <tr key={d.code} style={{ background: isLow ? 'rgba(248,113,113,.05)' : isWarn ? 'rgba(251,191,36,.05)' : undefined }}>
                         <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--acc2)', fontWeight: 700 }}>{d.code}</td>
                         <td>
-                          <div style={{ fontSize: 12, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : d.nameEN}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
                           <div style={{ fontSize: 10, color: 'var(--txt4)' }}>{UTILS.getUnit(d.unit, lang)}</div>
                         </td>
                         <td>
@@ -212,7 +212,7 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
                           </span>
                         </td>
                         <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--acc2)' }}>{m.code}</td>
-                        <td style={{ fontSize: 12 }}>{drug ? (lang === 'th' ? drug.nameTH : drug.nameEN) : m.code}</td>
+                        <td style={{ fontSize: 12 }}>{drug ? (lang === 'th' ? drug.nameTH : (drug.nameEN||drug.nameTH)) : m.code}</td>
                         <td><BranchBadge branchId={m.branch} /></td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: m.type === 'in' ? 'var(--ok)' : 'var(--err)' }}>
                           {m.type === 'in' ? '+' : '-'}{m.qty.toLocaleString()}

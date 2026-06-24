@@ -51,8 +51,8 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, orders, notify
             <div key={sup.id} className="card" style={{ cursor: 'pointer' }} onClick={() => setViewSup(sup)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', marginBottom: 2 }} className="ellipsis">{lang==='th'?sup.name:sup.nameEN}</div>
-                  <div style={{ fontSize: 11, color: 'var(--txt3)' }} className="ellipsis">{lang==='th'?sup.nameEN:sup.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', marginBottom: 2 }} className="ellipsis">{lang==='th'?sup.name:(sup.nameEN||sup.name)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--txt3)' }} className="ellipsis">{lang==='th'?(sup.nameEN||''):sup.name}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }} onClick={e => e.stopPropagation()}>
                   {perm.canWrite && <button className="btn btn-ghost btn-xs" onClick={() => setEditSup(sup)}>✏</button>}
@@ -114,7 +114,7 @@ function SupplierDetail({ sup, lang, L, drugs, orders, onClose, onEdit }) {
   const supDrugs = drugs.filter(d => sup.drugs?.includes(d.code));
   const supOrders = orders.filter(o => o.supplierId === sup.id).sort((a, b) => new Date(b.poDate) - new Date(a.poDate));
   return (
-    <Modal title={lang==='th'?sup.name:sup.nameEN} onClose={onClose} size={800}
+    <Modal title={lang==='th'?sup.name:(sup.nameEN||sup.name)} onClose={onClose} size={800}
       footer={<><button className="btn btn-ghost" onClick={onClose}>{L('ปิด', 'Close')}</button><button className="btn btn-outline" onClick={onEdit}>✏ {L('แก้ไข', 'Edit')}</button></>}>
       <div className="grid-2" style={{ marginBottom: 16 }}>
         <div>
@@ -144,7 +144,7 @@ function SupplierDetail({ sup, lang, L, drugs, orders, onClose, onEdit }) {
           <tbody>{supDrugs.slice(0, 30).map(d => (
             <tr key={d.code}>
               <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--acc2)' }}>{d.code}</td>
-              <td style={{ fontSize: 12 }}>{lang === 'th' ? d.nameTH : d.nameEN}</td>
+              <td style={{ fontSize: 12 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</td>
               <td style={{ fontSize: 11, color: 'var(--txt3)' }}>{UTILS.getUnit(d.unit, lang)}</td>
               <td className="tbl-num" style={{ fontSize: 12, fontWeight: 600, color: 'var(--acc2)' }}>
                 {UTILS.fmt(sup.drugPrices?.[d.code] ?? d.costEx)} ฿
@@ -293,7 +293,7 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
                 onMouseOut={e => e.currentTarget.style.background = ''}>
                 <div>
                   <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--acc2)' }}>{d.code}</span>
-                  <span style={{ marginLeft: 8, fontSize: 12 }}>{lang === 'th' ? d.nameTH : d.nameEN}</span>
+                  <span style={{ marginLeft: 8, fontSize: 12 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</span>
                 </div>
                 <span style={{ fontSize: 11, color: 'var(--txt3)' }}>฿{UTILS.fmt(d.costEx)}</span>
               </div>

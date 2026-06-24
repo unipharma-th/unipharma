@@ -117,6 +117,16 @@
         var suppliers = await selectAll("suppliers");
         var orders = await selectAll("purchase_orders");
         if (!drugs.length && !suppliers.length && !orders.length) return null;
+        // Normalize bilingual fields on load so EN mode never shows blank or drug-code as name
+        drugs = drugs.map(function(d) {
+          var en = (d.nameEN || '').trim();
+          if (!en || en === d.code) en = (d.nameTH || d.code || '');
+          return en === d.nameEN ? d : Object.assign({}, d, { nameEN: en });
+        });
+        suppliers = suppliers.map(function(s) {
+          var en = (s.nameEN || '').trim();
+          return en ? s : Object.assign({}, s, { nameEN: (s.name || s.id || '') });
+        });
         // newest POs first
         orders.sort(function (a, b) {
           return (b.poDate || "").localeCompare(a.poDate || "");

@@ -137,7 +137,7 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
                 {i + 1}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="ellipsis" style={{ fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : d.nameEN}</div>
+                <div className="ellipsis" style={{ fontSize: 13, fontWeight: 600 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
                 <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{d.code} · {lang === 'th' ? UTILS.getCat(d.catId).name : UTILS.getCat(d.catId).nameEN}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -162,7 +162,7 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
                 <BranchBadge branchId={po.branch} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--txt)' }}>{po.poNumber}</div>
-                  <div className="ellipsis" style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang==='th'?sup.name:sup.nameEN}</div>
+                  <div className="ellipsis" style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang==='th'?sup.name:(sup.nameEN||sup.name)}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>฿{UTILS.fmt(po.grandTotal, 0)}</div>
@@ -184,7 +184,7 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {lowStock.slice(0, 6).map(d => (
               <div key={d.code} className="card-sm" style={{ flex: '1 1 180px', borderColor: 'rgba(248,113,113,.3)' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--err)', marginBottom: 4 }} className="ellipsis">{lang === 'th' ? d.nameTH : d.nameEN}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--err)', marginBottom: 4 }} className="ellipsis">{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
                 <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 6 }}>{d.code}</div>
                 {DB.BRANCHES.map(br => (
                   <div key={br.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
