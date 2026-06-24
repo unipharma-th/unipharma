@@ -31,16 +31,23 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
 
   // Category breakdown — label + colour come from the live category list,
   // so it always reflects the current (and edited) categories.
-  const catMap = {}; // catId -> { label, value, color }
+  // Falls back to SKU count when no cost prices are filled in (value all zero).
+  const catMap = {}; // catId -> { label, value, count, color }
   drugs.forEach(d => {
     const cat = UTILS.getCat(d.catId);
-    if (!catMap[d.catId]) catMap[d.catId] = { label: lang === 'th' ? cat.name : cat.nameEN, value: 0, color: cat.color || '#94a3b8' };
-    catMap[d.catId].value += d.costEx * d.totalStock;
+    if (!catMap[d.catId]) catMap[d.catId] = { label: lang === 'th' ? cat.name : (cat.nameEN || cat.name), value: 0, count: 0, color: cat.color || '#94a3b8' };
+    catMap[d.catId].value += (d.costEx || 0) * (d.totalStock || 0);
+    catMap[d.catId].count += 1;
   });
-  const catArr = Object.values(catMap).filter(c => c.value > 0).sort((a, b) => b.value - a.value).slice(0, 12);
+  const totalCatValue = Object.values(catMap).reduce((s, c) => s + c.value, 0);
+  const pieByCount = totalCatValue === 0;
+  const catArr = Object.values(catMap)
+    .filter(c => pieByCount ? c.count > 0 : c.value > 0)
+    .sort((a, b) => pieByCount ? b.count - a.count : b.value - a.value)
+    .slice(0, 12);
   const pieChart = {
     labels: catArr.map(c => c.label),
-    datasets: [{ data: catArr.map(c => +c.value.toFixed(0)), backgroundColor: catArr.map(c => c.color), borderWidth: 0 }]
+    datasets: [{ data: catArr.map(c => pieByCount ? c.count : +c.value.toFixed(0)), backgroundColor: catArr.map(c => c.color), borderWidth: 0 }]
   };
 
   // Drug counts per category / subcategory for the overview panel
@@ -117,7 +124,7 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
         </div>
         <div className="card">
           <div className="card-header">
-            <span className="card-title">{L('มูลค่าสต็อกตามหมวดหมู่', 'Stock Value by Category')}</span>
+            <span className="card-title">{pieByCount ? L('จำนวนรายการยาตามหมวดหมู่', 'Drug Count by Category') : L('มูลค่าสต็อกตามหมวดหมู่', 'Stock Value by Category')}</span>
           </div>
           <ChartWidget type="doughnut" data={pieChart} options={{ plugins: { legend: { position: 'right' } }, cutout: '60%' }} />
         </div>
