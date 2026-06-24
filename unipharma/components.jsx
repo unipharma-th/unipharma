@@ -300,6 +300,38 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
         </div>
       </div>
 
+      {/* Main supplier price grid */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12 }}>
+        <div className="form-group">
+          <label className="label">{L('ต้นทุน (ไม่รวม VAT)', 'Cost (excl. VAT)')}</label>
+          <input className="input" type="number" step="0.01" value={form.costEx || ''} onChange={e => set('costEx', e.target.value)} />
+          {form.hasVat && <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>รวม VAT: {UTILS.fmt(form.costInc || (parseFloat(form.costEx) || 0) * 1.07)} ฿</div>}
+        </div>
+        <div className="form-group">
+          <label className="label">{L('ราคาขาย (ไม่รวม VAT)', 'Sell Price (excl. VAT)')}</label>
+          <input className="input" type="number" step="0.01" value={form.sellEx || ''} onChange={e => set('sellEx', e.target.value)} />
+          {form.hasVat && <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>รวม VAT: {UTILS.fmt(form.sellInc || (parseFloat(form.sellEx) || 0) * 1.07)} ฿</div>}
+        </div>
+        <div className="form-group">
+          <label className="label">{L('กำไร/หน่วย (บาท)', 'Profit/Unit (฿)')}</label>
+          <input className="input" type="number" step="0.01" value={form.profitEx ?? ''}
+            onChange={e => set('profitEx', e.target.value)}
+            style={{ color: (form.profitEx||0) >= 0 ? 'var(--ok)' : 'var(--err)', fontWeight: 700 }} />
+          <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>
+            {L('ราคาขายใหม่', 'New sell price')}: <b style={{color:'var(--acc2)'}}>{UTILS.fmt(form.sellEx||0)} ฿</b>
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="label">{L('กำไร %', 'Margin %')}</label>
+          <input className="input" type="number" step="0.1" min="0" max="99" value={form.profitMargin ?? ''}
+            onChange={e => set('profitMargin', e.target.value)}
+            style={{ color: (form.profitMargin||0) >= 0 ? 'var(--ok)' : 'var(--err)', fontWeight: 700 }} />
+          <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>
+            {L('เปลี่ยน % → คำนวณราคาขายอัตโนมัติ', 'Change % → sell price auto-calculated')}
+          </div>
+        </div>
+      </div>
+
       {/* Extra suppliers with pricing */}
       {(form.extraSuppliers || []).map((sup, i) => {
         const cEx = parseFloat(sup.costEx) || 0, sEx = parseFloat(sup.sellEx) || 0;
@@ -310,7 +342,7 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
           ...f, extraSuppliers: (f.extraSuppliers||[]).map((x,j) => j===i ? {...x,[field]:val} : x)
         }));
         return (
-          <div key={i} style={{ marginBottom: 10, padding: '10px 12px', background: 'var(--bg2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+          <div key={i} style={{ marginTop: 8, marginBottom: 4, padding: '10px 12px', background: 'var(--bg2)', borderRadius: 8, border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
                 <label className="label">{L(`ผู้จัดจำหน่ายรายย่อย ${i + 1}`, `Secondary Supplier ${i + 1}`)}</label>
@@ -354,41 +386,11 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
         );
       })}
       {(form.extraSuppliers||[]).length < 5 && (
-        <button type="button" className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }}
+        <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8, marginBottom: 4 }}
           onClick={() => setForm(f => ({ ...f, extraSuppliers: [...(f.extraSuppliers||[]), {id:'', costEx:'', sellEx:''}] }))}>
           + {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}
         </button>
       )}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12 }}>
-        <div className="form-group">
-          <label className="label">{L('ต้นทุน (ไม่รวม VAT)', 'Cost (excl. VAT)')}</label>
-          <input className="input" type="number" step="0.01" value={form.costEx || ''} onChange={e => set('costEx', e.target.value)} />
-          {form.hasVat && <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>รวม VAT: {UTILS.fmt(form.costInc || (parseFloat(form.costEx) || 0) * 1.07)} ฿</div>}
-        </div>
-        <div className="form-group">
-          <label className="label">{L('ราคาขาย (ไม่รวม VAT)', 'Sell Price (excl. VAT)')}</label>
-          <input className="input" type="number" step="0.01" value={form.sellEx || ''} onChange={e => set('sellEx', e.target.value)} />
-          {form.hasVat && <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>รวม VAT: {UTILS.fmt(form.sellInc || (parseFloat(form.sellEx) || 0) * 1.07)} ฿</div>}
-        </div>
-        <div className="form-group">
-          <label className="label">{L('กำไร/หน่วย (บาท)', 'Profit/Unit (฿)')}</label>
-          <input className="input" type="number" step="0.01" value={form.profitEx ?? ''}
-            onChange={e => set('profitEx', e.target.value)}
-            style={{ color: (form.profitEx||0) >= 0 ? 'var(--ok)' : 'var(--err)', fontWeight: 700 }} />
-          <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>
-            {L('ราคาขายใหม่', 'New sell price')}: <b style={{color:'var(--acc2)'}}>{UTILS.fmt(form.sellEx||0)} ฿</b>
-          </div>
-        </div>
-        <div className="form-group">
-          <label className="label">{L('กำไร %', 'Margin %')}</label>
-          <input className="input" type="number" step="0.1" min="0" max="99" value={form.profitMargin ?? ''}
-            onChange={e => set('profitMargin', e.target.value)}
-            style={{ color: (form.profitMargin||0) >= 0 ? 'var(--ok)' : 'var(--err)', fontWeight: 700 }} />
-          <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 2 }}>
-            {L('เปลี่ยน % → คำนวณราคาขายอัตโนมัติ', 'Change % → sell price auto-calculated')}
-          </div>
-        </div>
-      </div>
       <div className="divider" />
       <div style={{ marginBottom: 4, fontSize: 12, fontWeight: 600, color: 'var(--txt3)' }}>
         💰 {L('ต้นทุนแยกสาขา', 'Cost by Branch')}
