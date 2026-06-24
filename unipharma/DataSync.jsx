@@ -262,6 +262,10 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
   const [sqlOutput, setSqlOutput] = useState('');
   const [sqlRunning, setSqlRunning] = useState(false);
   const [sqlExportType, setSqlExportType] = useState('drugs');
+  const [sqlQuery, setSqlQuery] = useState('SELECT code, name_th, name_en, cost_ex, sell_ex, total_stock\nFROM drugs\nLIMIT 20;');
+  const [sqlResults, setSqlResults] = useState(null);
+  const [sqlError, setSqlError] = useState('');
+  const [sqlSetupOpen, setSqlSetupOpen] = useState(false);
 
   const addHistory = useCallback((source, type, count) => {
     const entry = { date: new Date().toISOString(), source, type, count };
@@ -483,6 +487,55 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
       sql: `SELECT po_number, branch, supplier_id, status, po_date, grand_total\nFROM purchase_orders\nORDER BY po_date DESC\nLIMIT 30;`,
     },
   ];
+
+  const SETUP_SQL = `-- รัน 1 ครั้งใน Supabase SQL Editor เพื่อเปิดใช้งาน SQL Runner
+CREATE OR REPLACE FUNCTION exec_sql(sql text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result   jsonb;
+  n_rows   int;
+  trimmed  text;
+  user_role text;
+BEGIN
+  -- ตรวจสิทธิ์: admin เท่านั้น
+  SELECT role INTO user_role FROM profiles WHERE id = auth.uid();
+  IF user_role IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Permission denied: admin role required';
+  END IF;
+
+  trimmed := lower(trim(regexp_replace(sql, E'^\\s*(--[^\\n]*\\n)*\\s*', '', 'g')));
+
+  IF trimmed LIKE 'select%' OR trimmed LIKE 'with%' THEN
+    EXECUTE format(
+      'SELECT COALESCE(jsonb_agg(row_to_json(t)),''[]''::jsonb) FROM (%s) t', sql
+    ) INTO result;
+    RETURN result;
+  ELSE
+    EXECUTE sql;
+    GET DIAGNOSTICS n_rows = ROW_COUNT;
+    RETURN jsonb_build_object('rowsAffected', n_rows, 'type', 'write');
+  END IF;
+END;
+$$;
+
+-- อนุญาตให้ authenticated user เรียกได้ (role check อยู่ใน function แล้ว)
+GRANT EXECUTE ON FUNCTION exec_sql(text) TO authenticated;`;
+
+  const runSql = async () => {
+    if (!sqlQuery.trim()) return;
+    if (!window.UNI_DB?.enabled) { setSqlError(L('ต้องเชื่อมต่อ Supabase','Supabase not connected')); return; }
+    setSqlRunning(true); setSqlResults(null); setSqlError('');
+    try {
+      const res = await window.UNI_DB.execSql(sqlQuery);
+      setSqlResults(res);
+    } catch(e) {
+      setSqlError(e.message || String(e));
+    } finally { setSqlRunning(false); }
+  };
 
   const TABS = [
     { id:'sheets',  icon:'📊', th:'Google Sheets',   en:'Google Sheets'  },
@@ -710,7 +763,7 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
         <div>
           {/* Sub-tab bar */}
           <div style={{display:'flex',gap:0,marginBottom:16,borderRadius:'var(--r)',overflow:'hidden',border:'1px solid var(--border)'}}>
-            {[{id:'export',icon:'📤',th:'Export SQL',en:'Export SQL'},{id:'fixes',icon:'🔧',th:'Quick Fix',en:'Quick Fix'},{id:'snips',icon:'📋',th:'SQL Snippets',en:'SQL Snippets'}].map(s=>(
+            {[{id:'export',icon:'📤',th:'Export SQL',en:'Export SQL'},{id:'fixes',icon:'🔧',th:'Quick Fix',en:'Quick Fix'},{id:'snips',icon:'📋',th:'SQL Snippets',en:'Snippets'},{id:'runner',icon:'▶',th:'SQL Runner',en:'SQL Runner'}].map(s=>(
               <button key={s.id} onClick={()=>setSqlSub(s.id)} style={{flex:1,padding:'10px 0',border:'none',cursor:'pointer',fontSize:13,fontWeight:700,
                 background:sqlSub===s.id?'var(--acc)':'var(--bg3)',color:sqlSub===s.id?'#fff':'var(--txt3)'}}>
                 {s.icon} {lang==='th'?s.th:s.en}
@@ -790,6 +843,112 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
             </div>
           )}
 
+          {/* SQL RUNNER */}
+          {sqlSub==='runner' && (
+            <div>
+              {/* Setup card */}
+              <div className="card" style={{marginBottom:14,borderColor:'rgba(234,179,8,.4)',background:'rgba(234,179,8,.04)'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={()=>setSqlSetupOpen(o=>!o)}>
+                  <div style={{fontWeight:700,fontSize:13,color:'rgba(161,98,7,1)'}}>
+                    ⚙ {L('ตั้งค่าครั้งแรก — สร้าง exec_sql function ใน Supabase','First-time setup — create exec_sql function in Supabase')}
+                  </div>
+                  <span style={{fontSize:12,color:'var(--txt3)'}}>{sqlSetupOpen?'▲':'▼'}</span>
+                </div>
+                {sqlSetupOpen && (
+                  <div style={{marginTop:12}}>
+                    <div style={{fontSize:12,color:'var(--txt3)',marginBottom:10}}>
+                      {L('รัน SQL ด้านล่างนี้ 1 ครั้งใน Supabase Dashboard → SQL Editor เพื่อเปิดใช้งาน SQL Runner',
+                         'Run the SQL below once in Supabase Dashboard → SQL Editor to enable the SQL Runner')}
+                    </div>
+                    <pre style={{margin:0,padding:'10px 14px',fontSize:11,fontFamily:'monospace',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'var(--r)',overflow:'auto',color:'var(--txt2)',whiteSpace:'pre-wrap',wordBreak:'break-all',maxHeight:220}}>
+                      {SETUP_SQL}
+                    </pre>
+                    <button className="btn btn-ghost btn-sm" style={{marginTop:10}}
+                      onClick={()=>{navigator.clipboard?.writeText(SETUP_SQL);notify(L('คัดลอก Setup SQL แล้ว','Setup SQL copied'),'ok');}}>
+                      📋 {L('คัดลอก Setup SQL','Copy Setup SQL')}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* SQL Editor */}
+              <div className="card" style={{marginBottom:14}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>▶ SQL Runner {perm.role!=='admin'&&<span style={{fontSize:11,color:'var(--err)',marginLeft:8}}>({L('เฉพาะ Admin','Admin only')})</span>}</div>
+                <textarea
+                  value={sqlQuery}
+                  onChange={e=>setSqlQuery(e.target.value)}
+                  onKeyDown={e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runSql();} }}
+                  spellCheck={false}
+                  style={{width:'100%',height:160,fontFamily:'monospace',fontSize:12,padding:12,
+                    background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'var(--r)',
+                    color:'var(--txt1)',resize:'vertical',boxSizing:'border-box',lineHeight:1.6}}
+                  placeholder="SELECT * FROM drugs LIMIT 10;"
+                />
+                <div style={{display:'flex',gap:8,marginTop:10,alignItems:'center'}}>
+                  <button className="btn btn-primary btn-sm" onClick={runSql} disabled={sqlRunning||perm.role!=='admin'}>
+                    {sqlRunning?'⏳ Running…':'▶ Run (Ctrl+Enter)'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>{setSqlResults(null);setSqlError('');}}>🗑 {L('ล้าง','Clear')}</button>
+                  <span style={{fontSize:11,color:'var(--txt3)',marginLeft:'auto'}}>{L('Ctrl+Enter เพื่อรัน','Ctrl+Enter to run')}</span>
+                </div>
+              </div>
+
+              {/* Error */}
+              {sqlError && (
+                <div className="card" style={{marginBottom:14,borderColor:'rgba(220,38,38,.4)',background:'var(--err-bg)'}}>
+                  <div style={{fontWeight:700,fontSize:13,color:'var(--err)',marginBottom:6}}>❌ Error</div>
+                  <pre style={{margin:0,fontSize:12,fontFamily:'monospace',color:'var(--err)',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>{sqlError}</pre>
+                </div>
+              )}
+
+              {/* Results */}
+              {sqlResults && !sqlError && (
+                <div className="card" style={{padding:0,overflow:'hidden'}}>
+                  <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',background:'var(--bg3)',display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontWeight:700,fontSize:13,color:'var(--ok)'}}>✓ {L('ผลลัพธ์','Results')}</span>
+                    {sqlResults.rows.length>0
+                      ? <span style={{fontSize:12,color:'var(--txt3)'}}>{sqlResults.rowsAffected.toLocaleString()} {L('แถว','rows')}</span>
+                      : <span style={{fontSize:12,color:'var(--ok)'}}>{sqlResults.rowsAffected} {L('แถวที่เปลี่ยนแปลง','rows affected')}</span>
+                    }
+                    {sqlResults.rows.length>0 && (
+                      <button className="btn btn-ghost btn-sm" style={{marginLeft:'auto'}} onClick={()=>{
+                        const cols = Object.keys(sqlResults.rows[0]);
+                        const csv = [cols.join(','), ...sqlResults.rows.map(r=>cols.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');
+                        const blob = new Blob([csv],{type:'text/csv'});
+                        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sql_result.csv';a.click();
+                      }}>⬇ CSV</button>
+                    )}
+                  </div>
+                  {sqlResults.rows.length>0 ? (
+                    <div className="tbl-wrap" style={{border:'none',maxHeight:400}}>
+                      <table>
+                        <thead>
+                          <tr>{Object.keys(sqlResults.rows[0]).map(col=><th key={col} style={{fontSize:11}}>{col}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {sqlResults.rows.slice(0,200).map((row,i)=>(
+                            <tr key={i}>
+                              {Object.values(row).map((v,j)=>(
+                                <td key={j} style={{fontSize:11,fontFamily:typeof v==='number'?'monospace':'inherit',textAlign:typeof v==='number'?'right':'left',maxWidth:240,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={String(v??'')}>
+                                  {v===null?<span style={{color:'var(--txt3)',fontStyle:'italic'}}>null</span>:String(v)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                          {sqlResults.rows.length>200&&<tr><td colSpan={99} style={{textAlign:'center',color:'var(--txt3)',fontSize:11}}>… แสดง 200 จาก {sqlResults.rows.length} แถว</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div style={{padding:'20px',textAlign:'center',color:'var(--ok)',fontSize:13,fontWeight:700}}>
+                      ✓ {sqlResults.rowsAffected} {L('แถวที่อัปเดต','rows updated')}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* SQL SNIPPETS */}
           {sqlSub==='snips' && (
             <div>
@@ -801,10 +960,16 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
                   <div key={i} className="card" style={{padding:0,overflow:'hidden'}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderBottom:'1px solid var(--border)',background:'var(--bg3)'}}>
                       <span style={{fontWeight:700,fontSize:13}}>{lang==='th'?snip.labelTH:snip.labelEN}</span>
-                      <button className="btn btn-ghost btn-sm"
-                        onClick={()=>{navigator.clipboard?.writeText(snip.sql);notify(L('คัดลอกแล้ว','Copied'),'ok');}}>
-                        📋 {L('คัดลอก','Copy')}
-                      </button>
+                      <div style={{display:'flex',gap:6}}>
+                        <button className="btn btn-ghost btn-sm"
+                          onClick={()=>{navigator.clipboard?.writeText(snip.sql);notify(L('คัดลอกแล้ว','Copied'),'ok');}}>
+                          📋 {L('คัดลอก','Copy')}
+                        </button>
+                        <button className="btn btn-primary btn-sm"
+                          onClick={()=>{setSqlQuery(snip.sql);setSqlSub('runner');setSqlResults(null);setSqlError('');}}>
+                          ▶ Run
+                        </button>
+                      </div>
                     </div>
                     <pre style={{margin:0,padding:'12px 14px',fontSize:11,fontFamily:'monospace',overflow:'auto',color:'var(--txt2)',background:'var(--bg1)',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
                       {snip.sql}

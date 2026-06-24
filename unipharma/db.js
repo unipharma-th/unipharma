@@ -150,6 +150,17 @@
       } catch (e) { return true; }
     },
 
+    // Run arbitrary SQL via the exec_sql Postgres function.
+    // Returns { rows, rowsAffected } — throws on error.
+    async execSql(sql) {
+      if (!enabled) throw new Error('Supabase not configured');
+      const { data, error } = await client.rpc('exec_sql', { sql });
+      if (error) throw error;
+      // SELECT → array of row objects; DML → { rowsAffected, type:'write' }
+      if (Array.isArray(data)) return { rows: data, rowsAffected: data.length };
+      return { rows: [], rowsAffected: data?.rowsAffected ?? 0 };
+    },
+
     async saveDrug(d) {
       if (!enabled) return;
       try { await client.from("drugs").upsert(drugRow(d)); }
