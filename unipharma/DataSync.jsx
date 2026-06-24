@@ -266,6 +266,11 @@ function DataSyncPage({ lang, L, drugs, setDrugs, suppliers, setSuppliers, notif
   const [sqlResults, setSqlResults] = useState(null);
   const [sqlError, setSqlError] = useState('');
   const [sqlSetupOpen, setSqlSetupOpen] = useState(false);
+  const [startupSql, setStartupSql] = useState(() => { try { return localStorage.getItem('uni_startup_sql') || ''; } catch(e) { return ''; } });
+  const [startupSqlDraft, setStartupSqlDraft] = useState(() => { try { return localStorage.getItem('uni_startup_sql') || ''; } catch(e) { return ''; } });
+  const [startupLastRun, setStartupLastRun] = useState(() => { try { return localStorage.getItem('uni_startup_sql_last_run') || ''; } catch(e) { return ''; } });
+  const [startupLastStatus, setStartupLastStatus] = useState(() => { try { return localStorage.getItem('uni_startup_sql_last_status') || ''; } catch(e) { return ''; } });
+  const [startupSqlOpen, setStartupSqlOpen] = useState(false);
 
   const addHistory = useCallback((source, type, count) => {
     const entry = { date: new Date().toISOString(), source, type, count };
@@ -536,6 +541,93 @@ GRANT EXECUTE ON FUNCTION exec_sql(text) TO authenticated;`;
       setSqlError(e.message || String(e));
     } finally { setSqlRunning(false); }
   };
+
+  const saveStartupSql = () => {
+    try { localStorage.setItem('uni_startup_sql', startupSqlDraft); } catch(e) {}
+    setStartupSql(startupSqlDraft);
+    notify(L('บันทึก Startup SQL แล้ว — จะรันอัตโนมัติทุกครั้งที่เปิดแอป', 'Startup SQL saved — runs automatically on every app open'), 'ok');
+  };
+  const clearStartupSql = () => {
+    try { localStorage.removeItem('uni_startup_sql'); localStorage.removeItem('uni_startup_sql_last_run'); localStorage.removeItem('uni_startup_sql_last_status'); } catch(e) {}
+    setStartupSql(''); setStartupSqlDraft(''); setStartupLastRun(''); setStartupLastStatus('');
+    notify(L('ลบ Startup SQL แล้ว', 'Startup SQL cleared'), 'ok');
+  };
+  const testStartupSql = async () => {
+    if (!startupSqlDraft.trim()) return;
+    if (!window.UNI_DB?.enabled) { notify(L('ต้องเชื่อมต่อ Supabase','Supabase not connected'),'err'); return; }
+    setSqlRunning(true);
+    try {
+      const res = await window.UNI_DB.execSql(startupSqlDraft);
+      const now = new Date().toISOString();
+      try { localStorage.setItem('uni_startup_sql_last_run', now); localStorage.setItem('uni_startup_sql_last_status', 'ok'); } catch(e) {}
+      setStartupLastRun(now); setStartupLastStatus('ok');
+      notify(L(`ทดสอบสำเร็จ — ${res.rowsAffected} แถว`, `Test OK — ${res.rowsAffected} rows`), 'ok');
+    } catch(e) {
+      const msg = 'error: ' + (e.message || String(e));
+      try { localStorage.setItem('uni_startup_sql_last_status', msg); } catch(_) {}
+      setStartupLastStatus(msg);
+      notify(L('เกิดข้อผิดพลาด: ' + e.message, 'Error: ' + e.message), 'err');
+    } finally { setSqlRunning(false); }
+  };
+
+  const STARTUP_TEMPLATES = [
+    {
+      labelTH: 'อัปเดตสต็อกจากตารางคลัง warehouse_stock',
+      labelEN: 'Update stock from warehouse_stock table',
+      desc: L('ใช้เมื่อคลังเก็บข้อมูลไว้ใน Supabase ตาราง warehouse_stock', 'Use when warehouse data is in Supabase table warehouse_stock'),
+      sql: `-- อัปเดตสต็อกยาจากตาราง warehouse_stock ที่คลังอัปเดตไว้
+-- ตาราง warehouse_stock ต้องมีคอลัมน์: drug_code, ptn_qty, ram_qty, cnx_qty
+UPDATE drugs d
+SET
+  total_stock = w.ptn_qty + w.ram_qty + w.cnx_qty,
+  data = jsonb_set(jsonb_set(jsonb_set(jsonb_set(
+    d.data,
+    '{stock,PTN}', to_jsonb(w.ptn_qty)),
+    '{stock,RAM}', to_jsonb(w.ram_qty)),
+    '{stock,CNX}', to_jsonb(w.cnx_qty)),
+    '{totalStock}', to_jsonb(w.ptn_qty + w.ram_qty + w.cnx_qty))
+FROM warehouse_stock w
+WHERE d.code = w.drug_code;`,
+    },
+    {
+      labelTH: 'อัปเดตสต็อกสาขาเดียว (PTN)',
+      labelEN: 'Update stock for one branch (PTN)',
+      desc: L('ตัวอย่างสำหรับอัปเดตสต็อกสาขาประตูน้ำ', 'Example for updating Pratu Nam branch stock'),
+      sql: `-- ตัวอย่าง: อัปเดตสต็อก PTN จากตารางคลัง
+-- แก้ชื่อตารางและคอลัมน์ให้ตรงกับระบบคลังของคุณ
+UPDATE drugs d
+SET
+  data = jsonb_set(data, '{stock,PTN}', to_jsonb(w.qty)),
+  total_stock = COALESCE((d.data->'stock'->>'RAM')::int,0)
+              + COALESCE((d.data->'stock'->>'CNX')::int,0)
+              + w.qty
+FROM your_warehouse_table w
+WHERE d.code = w.product_code
+  AND w.location = 'PTN';`,
+    },
+    {
+      labelTH: 'อัปเดตราคาทุนจากคลัง',
+      labelEN: 'Update cost prices from warehouse',
+      desc: L('ดึงราคาทุนล่าสุดจากระบบคลัง', 'Pull latest cost prices from warehouse system'),
+      sql: `-- อัปเดตราคาทุนจากตาราง price_list ของคลัง
+-- ตาราง price_list ต้องมีคอลัมน์: drug_code, unit_cost
+UPDATE drugs d
+SET
+  cost_ex   = p.unit_cost,
+  data = jsonb_set(data, '{costEx}', to_jsonb(p.unit_cost))
+FROM price_list p
+WHERE d.code = p.drug_code;`,
+    },
+    {
+      labelTH: 'ดูข้อมูลล่าสุดจากคลัง (SELECT)',
+      labelEN: 'Check latest warehouse data (SELECT)',
+      desc: L('ดูว่าตารางคลังมีข้อมูลอะไรบ้าง ก่อนตั้งค่า startup', 'Check what data is in the warehouse table before configuring startup'),
+      sql: `-- เปลี่ยน warehouse_stock เป็นชื่อตารางของคลังคุณ
+SELECT * FROM warehouse_stock
+ORDER BY updated_at DESC
+LIMIT 20;`,
+    },
+  ];
 
   const TABS = [
     { id:'sheets',  icon:'📊', th:'Google Sheets',   en:'Google Sheets'  },
@@ -846,6 +938,71 @@ GRANT EXECUTE ON FUNCTION exec_sql(text) TO authenticated;`;
           {/* SQL RUNNER */}
           {sqlSub==='runner' && (
             <div>
+              {/* ── STARTUP QUERY ── */}
+              <div className="card" style={{marginBottom:14, borderColor: startupSql ? 'rgba(22,163,74,.4)' : 'var(--border)', background: startupSql ? 'var(--ok-bg)' : 'var(--bg1)'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={()=>setStartupSqlOpen(o=>!o)}>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <span style={{fontSize:20}}>{startupSql ? '✅' : '⚙'}</span>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13}}>{L('Startup Query — รันอัตโนมัติทุกครั้งที่เปิดแอป','Startup Query — runs automatically on every app open')}</div>
+                      <div style={{fontSize:11,color:'var(--txt3)',marginTop:2}}>
+                        {startupSql
+                          ? (startupLastRun
+                              ? L(`รันล่าสุด: ${new Date(startupLastRun).toLocaleString('th-TH')} · ${startupLastStatus==='ok'?'✓ สำเร็จ':'⚠ '+startupLastStatus}`,
+                                  `Last run: ${new Date(startupLastRun).toLocaleString('en-US')} · ${startupLastStatus==='ok'?'✓ OK':'⚠ '+startupLastStatus}`)
+                              : L('บันทึกแล้ว — ยังไม่เคยรัน','Saved — not yet run'))
+                          : L('ยังไม่มี Startup SQL — กดเพื่อตั้งค่า','No startup SQL yet — click to configure')}
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{fontSize:12,color:'var(--txt3)'}}>{startupSqlOpen?'▲':'▼'}</span>
+                </div>
+
+                {startupSqlOpen && (
+                  <div style={{marginTop:14}}>
+                    {/* Templates */}
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:12,fontWeight:700,color:'var(--txt3)',marginBottom:8}}>📋 {L('เลือก Template (แก้ไขก่อนบันทึก)','Select a template (edit before saving)')}</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                        {STARTUP_TEMPLATES.map((t,i)=>(
+                          <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--bg3)',borderRadius:'var(--r)',border:'1px solid var(--border)'}}>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:12,fontWeight:600}}>{lang==='th'?t.labelTH:t.labelEN}</div>
+                              <div style={{fontSize:11,color:'var(--txt3)'}}>{t.desc}</div>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" onClick={()=>setStartupSqlDraft(t.sql)}>
+                              {L('โหลด','Load')}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Editor */}
+                    <textarea
+                      value={startupSqlDraft}
+                      onChange={e=>setStartupSqlDraft(e.target.value)}
+                      spellCheck={false}
+                      style={{width:'100%',height:180,fontFamily:'monospace',fontSize:12,padding:12,
+                        background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'var(--r)',
+                        color:'var(--txt1)',resize:'vertical',boxSizing:'border-box',lineHeight:1.6,marginBottom:10}}
+                      placeholder={L('วาง SQL จากระบบคลังที่นี่...','Paste SQL from your warehouse system here...')}
+                    />
+
+                    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                      <button className="btn btn-primary btn-sm" onClick={saveStartupSql} disabled={!startupSqlDraft.trim()||perm.role!=='admin'}>
+                        💾 {L('บันทึก Startup SQL','Save Startup SQL')}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={testStartupSql} disabled={sqlRunning||!startupSqlDraft.trim()||perm.role!=='admin'}>
+                        {sqlRunning?'⏳':L('▶ ทดสอบรัน','▶ Test Run')}
+                      </button>
+                      {startupSql && <button className="btn btn-ghost btn-sm" style={{color:'var(--err)'}} onClick={clearStartupSql}>🗑 {L('ลบ Startup SQL','Clear Startup SQL')}</button>}
+                    </div>
+                    {perm.role!=='admin' && <div style={{fontSize:11,color:'var(--err)',marginTop:6}}>{L('เฉพาะ Admin เท่านั้นที่แก้ไขได้','Admin only can edit')}</div>}
+                  </div>
+                )}
+              </div>
+
               {/* Setup card */}
               <div className="card" style={{marginBottom:14,borderColor:'rgba(234,179,8,.4)',background:'rgba(234,179,8,.04)'}}>
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}} onClick={()=>setSqlSetupOpen(o=>!o)}>
