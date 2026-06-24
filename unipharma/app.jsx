@@ -1,5 +1,5 @@
 // app.jsx — Main App Shell + Routing
-const { useState, useEffect, useCallback, useMemo } = React;
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
 function App() {
   // One-time cleanup: drop the old bundled sample-data cache so the app shows
@@ -65,13 +65,23 @@ function App() {
   };
   const dens = DENSITIES[density];
 
-  // Persist state
-  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('uni_theme', theme); }, [theme]);
-  useEffect(() => { localStorage.setItem('uni_lang', lang); }, [lang]);
-  useEffect(() => { localStorage.setItem('uni_drugs', JSON.stringify(drugs)); }, [drugs]);
-  useEffect(() => { localStorage.setItem('uni_suppliers', JSON.stringify(suppliers)); }, [suppliers]);
-  useEffect(() => { localStorage.setItem('uni_orders', JSON.stringify(orders)); }, [orders]);
-  useEffect(() => { localStorage.setItem('uni_categories', JSON.stringify(categories)); }, [categories]);
+  // Debounced localStorage writer — defers heavy JSON.stringify by 2 s so it
+  // never blocks a render. Tiny values (theme/lang) are written immediately.
+  const _lsTimers = useRef({});
+  const persistLS = useCallback((key, val, delay = 2000) => {
+    clearTimeout(_lsTimers.current[key]);
+    if (delay === 0) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} return; }
+    _lsTimers.current[key] = setTimeout(() => {
+      try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+    }, delay);
+  }, []);
+
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); persistLS('uni_theme', theme, 0); }, [theme]);
+  useEffect(() => { persistLS('uni_lang', lang, 0); }, [lang]);
+  useEffect(() => { persistLS('uni_drugs', drugs); }, [drugs]);
+  useEffect(() => { persistLS('uni_suppliers', suppliers); }, [suppliers]);
+  useEffect(() => { persistLS('uni_orders', orders); }, [orders]);
+  useEffect(() => { persistLS('uni_categories', categories); }, [categories]);
 
   // Check the auth session on startup and subscribe to changes (only when enforcing login).
   useEffect(() => {
@@ -180,8 +190,8 @@ function App() {
     { id: 'sync', icon: '🔄', th: 'ซิงค์ข้อมูล', en: 'Data Sync', adminOnly: true },
   ];
 
-  const lowStockCount = drugs.filter(d => Object.values(d.stock).some(v => v <= d.minStock)).length;
-  const pendingCount = orders.filter(o => o.status === 'pending').length;
+  const lowStockCount = useMemo(() => drugs.filter(d => Object.values(d.stock || {}).some(v => v <= d.minStock)).length, [drugs]);
+  const pendingCount = useMemo(() => orders.filter(o => o.status === 'pending').length, [orders]);
 
   // Let the mouse wheel scroll the horizontal top-nav (non-passive so we can
   // translate vertical wheel delta into horizontal scroll).

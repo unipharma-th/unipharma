@@ -2,23 +2,48 @@
 const { useState, useEffect, useMemo } = React;
 
 function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, setShowCreate }) {
-  const lowStock = useMemo(() => drugs.filter(d => Object.values(d.stock).some(v => v <= d.minStock)), [drugs]);
-  const pending = orders.filter(o => o.status === 'pending');
-  const approved = orders.filter(o => o.status === 'approved');
-  const thisMonth = '2026-06';
-  const monthOrders = orders.filter(o => o.poDate?.startsWith(thisMonth) && o.status !== 'cancelled');
-  const monthSpend = monthOrders.reduce((s, o) => s + (o.grandTotal || 0), 0);
-  const totalStock = drugs.reduce((s, d) => s + d.totalStock, 0);
-  const stockValue = drugs.reduce((s, d) => s + d.costEx * d.totalStock, 0);
+  const lowStock = useMemo(() => drugs.filter(d => Object.values(d.stock || {}).some(v => v <= d.minStock)), [drugs]);
 
-  // Monthly spend chart data (last 6 months)
-  const thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'];
-  const enMonths = ['Jan','Feb','Mar','Apr','May','Jun'];
-  const months = lang==='th' ? thMonths : enMonths;
-  const monthKeys = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
-  const ptnData = monthKeys.map(k => orders.filter(o => o.poDate?.startsWith(k) && o.branch==='PTN' && o.status!=='cancelled').reduce((s,o)=>s+o.grandTotal,0));
-  const ramData = monthKeys.map(k => orders.filter(o => o.poDate?.startsWith(k) && o.branch==='RAM' && o.status!=='cancelled').reduce((s,o)=>s+o.grandTotal,0));
-  const cnxData = monthKeys.map(k => orders.filter(o => o.poDate?.startsWith(k) && o.branch==='CNX' && o.status!=='cancelled').reduce((s,o)=>s+o.grandTotal,0));
+  // All order-derived stats memoized together — single pass over orders
+  const orderStats = useMemo(() => {
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const monthKeys = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+      monthKeys.push(d.toISOString().slice(0, 7));
+    }
+    const ptn = monthKeys.map(() => 0), ram = [...ptn.map(()=>0)], cnx = [...ptn.map(()=>0)];
+    let pending = 0, approved = 0, monthSpend = 0, monthOrderCount = 0;
+    orders.forEach(o => {
+      if (o.status === 'pending') pending++;
+      if (o.status === 'approved') approved++;
+      if (o.status === 'cancelled') return;
+      const ki = monthKeys.indexOf(o.poDate?.slice(0, 7));
+      if (ki >= 0) {
+        const t = o.grandTotal || 0;
+        if (o.branch === 'PTN') ptn[ki] += t;
+        else if (o.branch === 'RAM') ram[ki] += t;
+        else if (o.branch === 'CNX') cnx[ki] += t;
+      }
+      if (o.poDate?.startsWith(thisMonth)) { monthSpend += o.grandTotal || 0; monthOrderCount++; }
+    });
+    return { pending, approved, monthSpend, monthOrderCount, monthKeys, ptnData: ptn, ramData: ram, cnxData: cnx };
+  }, [orders]);
+
+  const { pending, approved, monthSpend, monthOrderCount, monthKeys, ptnData, ramData, cnxData } = orderStats;
+
+  // Drug totals — single reduce pass
+  const drugTotals = useMemo(() => {
+    let totalStock = 0, stockValue = 0;
+    drugs.forEach(d => { totalStock += d.totalStock || 0; stockValue += (d.costEx || 0) * (d.totalStock || 0); });
+    return { totalStock, stockValue };
+  }, [drugs]);
+  const { totalStock, stockValue } = drugTotals;
+
+  // Monthly spend chart data (last 6 months, dynamic)
+  const thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const enMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = monthKeys.map(k => { const m = parseInt(k.slice(5)) - 1; return lang === 'th' ? thMonths[m] : enMonths[m]; });
 
   const spendChart = {
     labels: months,
@@ -90,10 +115,10 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
       {/* KPI STATS */}
       <div className="stat-grid">
         <StatCard label={L('ยอดสั่งซื้อเดือนนี้', 'This Month Spend')} val={'฿' + (monthSpend/1000).toFixed(0) + 'K'}
-          sub={`${monthOrders.length} ${L('ใบสั่งซื้อ', 'orders')}`} icon="💰" color="var(--acc2)"
+          sub={`${monthOrderCount} ${L('ใบสั่งซื้อ', 'orders')}`} icon="💰" color="var(--acc2)"
           onClick={() => setPage('reports')} />
-        <StatCard label={L('รออนุมัติ', 'Pending Approval')} val={pending.length}
-          sub={L('ใบสั่งซื้อ', 'purchase orders')} icon="⏳" color={pending.length > 0 ? 'var(--warn)' : 'var(--txt)'}
+        <StatCard label={L('รออนุมัติ', 'Pending Approval')} val={pending}
+          sub={L('ใบสั่งซื้อ', 'purchase orders')} icon="⏳" color={pending > 0 ? 'var(--warn)' : 'var(--txt)'}
           onClick={() => setPage('orders')} />
         <StatCard label={L('สินค้าใกล้หมด', 'Low Stock Items')} val={lowStock.length}
           sub={L('รายการ ใน 3 สาขา', 'items across branches')} icon="📦" color={lowStock.length > 0 ? 'var(--err)' : 'var(--ok)'}
@@ -106,7 +131,7 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
           onClick={() => setPage('drugs')} />
         <StatCard label={L('ผู้จัดจำหน่าย', 'Suppliers')} val={suppliers.length}
           sub={L('ราย', 'suppliers')} icon="🏭" onClick={() => setPage('suppliers')} />
-        <StatCard label={L('PO ที่อนุมัติแล้ว', 'Approved POs')} val={approved.length}
+        <StatCard label={L('PO ที่อนุมัติแล้ว', 'Approved POs')} val={approved}
           sub={L('รอจัดส่ง', 'awaiting delivery')} icon="✅" color="var(--ok)"
           onClick={() => setPage('orders')} />
         <StatCard label={L('ราคาถัวเฉลี่ย/รายการ', 'Avg Cost/Item')} val={'฿' + UTILS.fmt(stockValue / Math.max(drugs.length, 1), 0)}

@@ -1,7 +1,9 @@
 // Drugs.jsx — Drug Database Page
 const { useState, useMemo, useCallback } = React;
 
-const PER_PAGE = 100;
+const PER_PAGE = 50;
+// Created once at module level — Intl.Collator construction is expensive
+const NATURAL_CMP = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategories, notify, perm = { canWrite: true } }) {
   const [search, setSearch] = useState('');
@@ -32,22 +34,24 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
   const getCost = (d, br) => (br && d.costByBranch?.[br] != null) ? d.costByBranch[br] : d.costEx;
 
   const filtered = useMemo(() => {
-    let list = [...drugs];
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(d => d.code.toLowerCase().includes(q) || d.nameTH.toLowerCase().includes(q) || d.nameEN.toLowerCase().includes(q));
-    }
-    if (catFilter) list = list.filter(d => d.catId === catFilter);
-    if (subFilter) list = list.filter(d => d.subId === subFilter);
-    if (vatFilter === 'vat') list = list.filter(d => d.hasVat);
-    if (vatFilter === 'novat') list = list.filter(d => !d.hasVat);
-    if (branchFilter) list = list.filter(d => ((d.stock && d.stock[branchFilter]) || 0) > 0);
-    // Natural sort so "P-1, P-2, ..., P-10" instead of "P-1, P-10, P-100".
-    const naturalCmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    const q = search ? search.toLowerCase() : '';
+    // Single-pass filter instead of chained .filter() calls (avoids N intermediate arrays)
+    const needFilter = q || catFilter || subFilter || vatFilter !== 'all' || branchFilter;
+    let list = needFilter
+      ? drugs.filter(d => {
+          if (q && !d.code.toLowerCase().includes(q) && !(d.nameTH||'').toLowerCase().includes(q) && !(d.nameEN||'').toLowerCase().includes(q)) return false;
+          if (catFilter && d.catId !== catFilter) return false;
+          if (subFilter && d.subId !== subFilter) return false;
+          if (vatFilter === 'vat' && !d.hasVat) return false;
+          if (vatFilter === 'novat' && d.hasVat) return false;
+          if (branchFilter && !((d.stock && d.stock[branchFilter]) || 0)) return false;
+          return true;
+        })
+      : drugs.slice(); // shallow copy needed for in-place sort
     list.sort((a, b) => {
-      let av = a[sortCol], bv = b[sortCol];
+      const av = a[sortCol], bv = b[sortCol];
       const cmp = (typeof av === 'string' || typeof bv === 'string')
-        ? naturalCmp.compare(av == null ? '' : String(av), bv == null ? '' : String(bv))
+        ? NATURAL_CMP.compare(av == null ? '' : String(av), bv == null ? '' : String(bv))
         : (av > bv ? 1 : av < bv ? -1 : 0);
       return sortDir === 'asc' ? cmp : -cmp;
     });
