@@ -60,7 +60,9 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     loadReports();
     let unsub = () => {};
     if (cloudOn && window.UNI_DB.onOutOfStockChange) unsub = window.UNI_DB.onOutOfStockChange(loadReports);
-    return () => unsub();
+    // Auto-poll every 60 s as fallback when realtime subscription is not available
+    const poll = cloudOn ? setInterval(loadReports, 60000) : null;
+    return () => { unsub(); if (poll) clearInterval(poll); };
   }, []);
 
   // close dropdown on outside click
@@ -431,6 +433,17 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   // ================================================================
   const ManageTab = () => (
     <div>
+      {/* Toolbar: last-synced indicator + refresh button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginBottom: '0.75rem' }}>
+        <span style={{ fontSize: '12px', color: 'var(--txt4)' }}>
+          {L('อัปเดตอัตโนมัติทุก 60 วิ', 'Auto-refreshes every 60 s')}
+        </span>
+        <button onClick={() => loadReports()}
+          style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--txt2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          🔄 {L('รีเฟรช', 'Refresh')}
+        </button>
+      </div>
+
       {/* Summary bar — clickable to filter */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: filterStatus ? '0.75rem' : '1.5rem' }}>
         {Object.entries(OOS_STATUS).map(([key, def]) => {
