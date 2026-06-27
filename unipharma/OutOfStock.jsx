@@ -43,7 +43,8 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
 
   const weekStart = () => {
     const t = new Date(), s = new Date(t);
-    s.setDate(t.getDate() - t.getDay() + 1);
+    const day = t.getDay(); // 0=Sun, 1=Mon … 6=Sat
+    s.setDate(t.getDate() - (day === 0 ? 6 : day - 1)); // always go back to Monday
     s.setHours(0, 0, 0, 0);
     return s;
   };
@@ -139,10 +140,13 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
         if (!ok) throw new Error('save failed');
         notify(L('แจ้งแล้ว — ฝ่ายจัดซื้อจะดำเนินการ ✓', 'Reported — Purchasing will follow up ✓'), 'ok');
       } else {
-        const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
-        localStorage.setItem('uni_out_of_stock', JSON.stringify([...stored, r]));
         notify(L('บันทึกแล้ว ✓', 'Saved ✓'), 'ok');
       }
+      // Always keep localStorage in sync (fallback stays current after refresh)
+      try {
+        const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
+        localStorage.setItem('uni_out_of_stock', JSON.stringify([...stored, r]));
+      } catch(e) {}
     } catch (e) { notify(L('บันทึกไม่สำเร็จ', 'Save failed'), 'err'); loadReports(); }
   };
 

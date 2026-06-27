@@ -290,7 +290,6 @@
         var res = await client.from("suppliers").upsert(c);
         if (res.error) throw res.error;
       }
-      try { localStorage.removeItem('uni_cloud_ts'); } catch(e) {}
     },
     async saveOrdersBulk(arr) {
       if (!enabled || !arr || !arr.length) return;
@@ -298,7 +297,6 @@
         var res = await client.from("purchase_orders").upsert(c);
         if (res.error) throw res.error;
       }
-      try { localStorage.removeItem('uni_cloud_ts'); } catch(e) {}
     },
 
     async logSync(source, kind, count) {
