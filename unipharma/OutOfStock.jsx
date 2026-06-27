@@ -72,12 +72,14 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
 
   const loadReports = async () => {
     try {
-      if (cloudOn && window.UNI_DB.loadOutOfStock) {
-        const cloud = await window.UNI_DB.loadOutOfStock(weekStart().toISOString());
+      if (cloudOn && window.UNI_DB.loadOutOfStockAll) {
+        const cloud = await window.UNI_DB.loadOutOfStockAll();
         if (cloud) { setReports(cloud); return; }
       }
+      // offline fallback: show last 60 days so old unresolved items stay visible
+      const since = new Date(); since.setDate(since.getDate() - 60);
       const data = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
-      setReports(data.filter(r => new Date(r.createdAt) >= weekStart()));
+      setReports(data.filter(r => new Date(r.timestamp || r.createdAt) >= since));
     } catch (e) { console.warn('loadReports:', e); }
   };
 
