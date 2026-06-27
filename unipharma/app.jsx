@@ -11,7 +11,9 @@ function App() {
     }
   } catch (e) {}
 
-  const [page, setPage] = useState('dashboard');
+  const [page, setPage] = useState(() => {
+    try { return localStorage.getItem('uni_page') || 'dashboard'; } catch { return 'dashboard'; }
+  });
   const [lang, setLang] = useState(() => localStorage.getItem('uni_lang') || 'th');
   const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'light');
   const [drugs, setDrugs] = useState(() => {
@@ -82,6 +84,7 @@ function App() {
   useEffect(() => { persistLS('uni_suppliers', suppliers); }, [suppliers]);
   useEffect(() => { persistLS('uni_orders', orders); }, [orders]);
   useEffect(() => { persistLS('uni_categories', categories); }, [categories]);
+  useEffect(() => { try { localStorage.setItem('uni_page', page); } catch(e) {} }, [page]);
 
   // Check the auth session on startup and subscribe to changes (only when enforcing login).
   useEffect(() => {
