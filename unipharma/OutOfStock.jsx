@@ -36,6 +36,9 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
 
+  // ── manage filter ──
+  const [filterStatus, setFilterStatus] = useState(null);
+
   const cloudOn = !!(window.UNI_DB && window.UNI_DB.enabled);
 
   const weekStart = () => {
@@ -419,12 +422,15 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   // ================================================================
   const ManageTab = () => (
     <div>
-      {/* Summary bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: '1.5rem' }}>
+      {/* Summary bar — clickable to filter */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: filterStatus ? '0.75rem' : '1.5rem' }}>
         {Object.entries(OOS_STATUS).map(([key, def]) => {
           const cnt = reports.filter(r => (r.status || 'pending') === key).length;
+          const isActive = filterStatus === key;
           return (
-            <div key={key} style={{ background: def.bg, border: `1px solid ${def.border}`, borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+            <div key={key}
+              onClick={() => setFilterStatus(isActive ? null : key)}
+              style={{ background: def.bg, border: `2px solid ${isActive ? def.color : def.border}`, borderRadius: '8px', padding: '12px', textAlign: 'center', cursor: 'pointer', transition: 'border-color .15s', boxShadow: isActive ? `0 0 0 2px ${def.color}44` : 'none' }}>
               <div style={{ fontSize: '20px', fontWeight: '700', color: def.color }}>{cnt}</div>
               <div style={{ fontSize: '12px', color: 'var(--txt3)', marginTop: '2px' }}>{lang === 'th' ? def.th : def.en}</div>
             </div>
@@ -432,12 +438,29 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
         })}
       </div>
 
-      {reports.length === 0 ? (
+      {/* Active filter chip */}
+      {filterStatus && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '13px', color: 'var(--txt3)' }}>{L('กรองตาม', 'Filtered by')}:</span>
+          <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '20px', fontWeight: '600',
+            color: OOS_STATUS[filterStatus].color, background: OOS_STATUS[filterStatus].bg, border: `1px solid ${OOS_STATUS[filterStatus].border}` }}>
+            {lang === 'th' ? OOS_STATUS[filterStatus].th : OOS_STATUS[filterStatus].en}
+          </span>
+          <button onClick={() => setFilterStatus(null)}
+            style={{ background: 'none', border: 'none', color: 'var(--txt4)', cursor: 'pointer', fontSize: '13px', padding: '2px 6px' }}>
+            ✕ {L('ล้าง', 'Clear')}
+          </button>
+        </div>
+      )}
+
+      {(() => {
+        const visible = filterStatus ? reports.filter(r => (r.status || 'pending') === filterStatus) : reports;
+        return visible.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--txt4)' }}>
-          {L('ไม่มีรายการในสัปดาห์นี้', 'No reports this week')}
+          {filterStatus ? L('ไม่มีรายการในสถานะนี้', 'No items with this status') : L('ไม่มีรายการในสัปดาห์นี้', 'No reports this week')}
         </div>
       ) : (
-        reports.map(r => {
+        visible.map(r => {
           const isEditing = editingId === r.id;
           const sdef = OOS_STATUS[r.status || 'pending'] || OOS_STATUS.pending;
           return (
@@ -536,7 +559,8 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
             </div>
           );
         })
-      )}
+      );
+      })()}
     </div>
   );
 
