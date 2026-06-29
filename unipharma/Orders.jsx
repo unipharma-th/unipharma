@@ -35,7 +35,19 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
     setOrders(prev => prev.map(o => {
       if (o.id !== id) return o;
       const updated = { ...o, status: newStatus, approvedBy: newStatus === 'approved' ? 'ผู้จัดการจัดซื้อ' : o.approvedBy };
-      if (window.UNI_DB) window.UNI_DB.savePO(updated);
+      if (window.UNI_DB) {
+        window.UNI_DB.savePO(updated);
+        if (newStatus === 'approved' && updated.items && updated.items.length && window.UNI_DB.savePriceHistory) {
+          window.UNI_DB.savePriceHistory(updated.items.map(it => ({
+            drugCode: it.code,
+            supplierId: updated.supplierId,
+            costEx: it.unitPrice,
+            poNumber: updated.poNumber,
+            poDate: updated.poDate,
+            recordedBy: updated.approvedBy,
+          }))).catch(() => {});
+        }
+      }
       return updated;
     }));
     notify(L('อัปเดตสถานะสำเร็จ', 'Status updated'));

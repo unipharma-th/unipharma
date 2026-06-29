@@ -384,6 +384,28 @@
         return true;
       } catch (e) { console.warn("[UNI_DB] setOutOfStockResolved:", e); return false; }
     },
+    // ---- Price history ----
+    async savePriceHistory(entries) {
+      if (!enabled || !entries || !entries.length) return;
+      try {
+        var rows = entries.map(function(e) {
+          return { drug_code: e.drugCode, supplier_id: e.supplierId || null, cost_ex: e.costEx || 0, po_number: e.poNumber || null, po_date: e.poDate || null, recorded_by: e.recordedBy || null };
+        });
+        var res = await client.from('price_history').insert(rows);
+        if (res.error) throw res.error;
+      } catch(e) { console.warn('[UNI_DB] savePriceHistory:', e); }
+    },
+    async loadPriceHistory(drugCode, supplierId) {
+      if (!enabled) return [];
+      try {
+        var q = client.from('price_history').select('*').eq('drug_code', drugCode).order('recorded_at', { ascending: false }).limit(50);
+        if (supplierId) q = q.eq('supplier_id', supplierId);
+        var res = await q;
+        if (res.error) throw res.error;
+        return res.data || [];
+      } catch(e) { console.warn('[UNI_DB] loadPriceHistory:', e); return []; }
+    },
+
     // Live subscription for the out_of_stock table. cb() is called on any change.
     onOutOfStockChange(cb) {
       if (!enabled || !client.channel) return function () {};

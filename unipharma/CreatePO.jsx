@@ -23,6 +23,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
   const [isNonPO, setIsNonPO] = useState(() => !!editPO?.isNonPO);
   const [createdBy, setCreatedBy] = useState(() => editPO?.createdBy || '');
   const [errors, setErrors] = useState({});
+  const [priceHist, setPriceHist] = useState({}); // {[code]: {min, avg, count, lastDate, lastPO}}
   // Prevent auto-fill effects from overwriting loaded edit values on first mount
   const didInit = useRef(false);
   useEffect(() => { didInit.current = true; }, []);
@@ -117,12 +118,25 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
 
   const units = ['เม็ด', 'แคปซูล', 'ซอฟเจล', 'ขวด (ml)', 'ขวด (pcs)', 'แผง', 'ชุด', 'กระป๋อง'];
 
+  const loadPriceHist = async (code) => {
+    if (!window.UNI_DB?.loadPriceHistory || priceHist[code] !== undefined) return;
+    setPriceHist(prev => ({ ...prev, [code]: null })); // mark loading
+    const rows = await window.UNI_DB.loadPriceHistory(code, supplierId || null);
+    if (!rows.length) { setPriceHist(prev => ({ ...prev, [code]: false })); return; }
+    const prices = rows.map(r => r.cost_ex).filter(p => p > 0);
+    const min = Math.min(...prices);
+    const avg = prices.reduce((s, p) => s + p, 0) / prices.length;
+    const last = rows[0];
+    setPriceHist(prev => ({ ...prev, [code]: { min, avg, count: rows.length, lastDate: (last.po_date || (last.recorded_at || '').slice(0, 10)), lastPO: last.po_number } }));
+  };
+
   const addItem = drug => {
     setItems(prev => {
       const exists = prev.find(i => i.code === drug.code);
       if (exists) return prev.map(i => i.code === drug.code ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { code: drug.code, nameTH: drug.nameTH, nameEN: drug.nameEN, unit: drug.unit, unitMode: 'select', qty: 1, unitPrice: drug.costEx, vatRate: drug.vatRate, discount: 0 }];
     });
+    loadPriceHist(drug.code);
     setSearchDrug('');
   };
 
@@ -499,6 +513,30 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                       </td>
                       <td>
                         <input className="input input-sm" type="number" step="0.01" value={it.unitPrice} style={{ width: 90, textAlign: 'right' }} onChange={e => updateItem(it.code, 'unitPrice', e.target.value)} />
+                        {(() => {
+                          const h = priceHist[it.code];
+                          if (!h) return null;
+                          const price = parseFloat(it.unitPrice) || 0;
+                          const aboveMin = price > 0 && h.min > 0 && price > h.min * 1.01;
+                          const belowAvg = price > 0 && h.avg > 0 && price <= h.avg * 0.99;
+                          const pctVsMin = h.min > 0 ? Math.round((price - h.min) / h.min * 100) : 0;
+                          const pctVsAvg = h.avg > 0 ? Math.round((h.avg - price) / h.avg * 100) : 0;
+                          if (aboveMin) return (
+                            <div title={`ราคาต่ำสุด: ${UTILS.fmt(h.min)} ฿ (${h.count} ครั้ง)`} style={{ marginTop: 3, fontSize: 10, color: 'var(--warn)', display: 'flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>
+                              ⚠ +{pctVsMin}% vs ต่ำสุด {UTILS.fmt(h.min)} ฿
+                            </div>
+                          );
+                          if (belowAvg) return (
+                            <div title={`เฉลี่ย: ${UTILS.fmt(h.avg)} ฿ (${h.count} ครั้ง)`} style={{ marginTop: 3, fontSize: 10, color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>
+                              ✓ -{pctVsAvg}% vs เฉลี่ย
+                            </div>
+                          );
+                          return (
+                            <div style={{ marginTop: 3, fontSize: 10, color: 'var(--txt4)', whiteSpace: 'nowrap' }}>
+                              ~ เท่ากับเฉลี่ย ({h.count} ครั้ง)
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td>
                         <input className="input input-sm" type="number" min="0" max="100" value={it.discount} style={{ width: 70, textAlign: 'right' }} onChange={e => updateItem(it.code, 'discount', e.target.value)} />
