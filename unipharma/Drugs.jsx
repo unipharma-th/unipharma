@@ -273,8 +273,10 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                         {d.hasVat && <div style={{ fontSize: 10, color: 'var(--txt3)' }}>+VAT</div>}
                       </td>
                       <td className="tbl-num">
-                        <div style={{ fontWeight: 600 }}>{UTILS.fmt(d.sellEx)} ฿</div>
-                        {d.hasVat && <div style={{ fontSize: 10, color: 'var(--txt3)' }}>+VAT {UTILS.fmt(d.sellInc)} ฿</div>}
+                        {d.hasVat
+                          ? <><div style={{ fontWeight: 600 }}>{UTILS.fmt(d.sellInc)} ฿</div><div style={{ fontSize: 10, color: 'var(--txt3)' }}>ไม่รวม VAT {UTILS.fmt(d.sellEx)} ฿</div></>
+                          : <div style={{ fontWeight: 600 }}>{UTILS.fmt(d.sellEx)} ฿</div>
+                        }
                       </td>
                       <td className="tbl-num">
                         <div style={{ fontWeight: 700, color: 'var(--ok)' }}>{UTILS.fmt(d.profitEx)} ฿</div>
