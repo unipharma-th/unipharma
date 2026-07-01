@@ -22,5 +22,5 @@ window.UNI_CONFIG = {
   //   2. created at least one user (Authentication → Users → Add user),
   //   3. promoted it to admin (see bottom of auth.sql).
   // While false, the app works without login (anyone with the link, current behavior).
-  REQUIRE_LOGIN: true,
+  REQUIRE_LOGIN: false, // TEMP disabled — re-enable after Supabase connection restored
 };
