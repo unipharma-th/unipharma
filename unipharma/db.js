@@ -429,7 +429,11 @@
     // ---- Authentication ----
     async getSession() {
       if (!enabled) return null;
-      try { const { data } = await client.auth.getSession(); return (data.session && data.session.user) ? data.session : null; }
+      try {
+        const timeout = new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), 5000));
+        const { data } = await Promise.race([client.auth.getSession(), timeout]);
+        return (data.session && data.session.user) ? data.session : null;
+      }
       catch (e) { return null; }
     },
     async signIn(email, password) {
