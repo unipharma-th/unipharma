@@ -105,7 +105,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       'Stock RAM': (d.stock && d.stock.RAM) || 0,
       'Stock CNX': (d.stock && d.stock.CNX) || 0,
       [L('สต็อกขั้นต่ำ', 'Min Stock')]: d.minStock || 0,
-      [L('ผู้จัดหาย', 'Supplier')]: (UTILS.getSupplier(d.supplierId) || {}).name || d.supplierId || '',
+      [L('ผู้จัดหาย', 'Supplier')]: (() => { const s = suppliers.find(x=>x.id===d.supplierId)||suppliers.find(x=>(x.drugs||[]).includes(d.code)); return s?s.name:(d.supplierId||''); })(),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = [{wch:10},{wch:40},{wch:40},{wch:12},{wch:20},{wch:20},{wch:10},{wch:14},{wch:22},{wch:22},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:30}];
@@ -449,12 +449,12 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                               <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
                               <div style={{ fontSize: 12 }}>
                                 <span style={{ color: 'var(--acc2)', fontSize: 10, marginRight: 4 }}>หลัก</span>
-                                {suppliers.find(s=>s.id===d.supplierId)?.name || d.supplierId}
+                                {(() => { const s = suppliers.find(x=>x.id===d.supplierId) || suppliers.find(x=>(x.drugs||[]).includes(d.code)); return s ? (lang==='th'?s.name:(s.nameEN||s.name)) : d.supplierId; })()}
                               </div>
                               {(d.extraSuppliers || (d.extraSupplierIds||[]).map(id=>({id,costEx:0,sellEx:0}))).filter(s=>s.id).map((sup, i) => (
                                 <div key={sup.id} style={{ fontSize: 12, marginTop: 2 }}>
                                   <span style={{ color: 'var(--txt4)', fontSize: 10, marginRight: 4 }}>รายย่อย {i+1}</span>
-                                  {suppliers.find(s=>s.id===sup.id)?.name || sup.id}
+                                  {(() => { const s = suppliers.find(x=>x.id===sup.id); return s ? (lang==='th'?s.name:(s.nameEN||s.name)) : sup.id; })()}
                                   {(sup.costEx > 0 || sup.sellEx > 0) && (
                                     <span style={{ color: 'var(--txt3)', fontSize: 10, marginLeft: 6 }}>
                                       ต้นทุน {UTILS.fmt(sup.costEx)} · ขาย {UTILS.fmt(sup.sellEx)}
