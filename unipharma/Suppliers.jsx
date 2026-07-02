@@ -206,6 +206,22 @@ function SupplierDetail({ sup, lang, L, drugs, setDrugs, orders, onClose, onEdit
           {(!sup.promotions || sup.promotions.length === 0) && <div style={{ fontSize: 12, color: 'var(--txt4)' }}>{L('ไม่มีโปรโมชั่น', 'No promotions')}</div>}
         </div>
       </div>
+
+      {sup.reps?.length > 0 && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontWeight:700, fontSize:12, color:'var(--txt3)', marginBottom:8 }}>👥 {L('ผู้แทน / Brand','Sales Reps')}</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {sup.reps.map(r => (
+              <div key={r.id} style={{ background:'var(--card2)', border:'1px solid var(--bdr)', borderRadius:8, padding:'8px 12px', minWidth:140 }}>
+                <div style={{ fontWeight:600, fontSize:13 }}>{r.name}</div>
+                <div style={{ fontSize:11, color:'var(--acc2)', marginTop:2 }}>{lang==='en'?(r.brandEN||r.brand):r.brand}</div>
+                {r.phone && <div style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>📞 {r.phone}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(() => {
         const drugDeals = drugs.filter(d => { const deal = d.supplierDeals?.[sup.id]; return deal && (deal.buyQty>0||deal.freeQty>0||deal.freeItems||deal.specialDiscount>0||deal.note); });
         return (
@@ -367,8 +383,8 @@ function DealEditorModal({ lang, L, drugs, supId, initialDrugCode, initialDeal, 
 function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(() => {
-    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', category:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'' };
-    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'' };
+    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', category:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[] };
+    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: sup.reps||[] };
   });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -384,6 +400,11 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const addPromo = () => setForm(f => ({ ...f, promotions: [...(f.promotions || []), { id: 'P' + Date.now(), name: '', type: 'percent', discount: 0, validUntil: '' }] }));
   const updatePromo = (id, k, v) => setForm(f => ({ ...f, promotions: (f.promotions || []).map(p => p.id === id ? { ...p, [k]: v } : p) }));
   const removePromo = (id) => setForm(f => ({ ...f, promotions: (f.promotions || []).filter(p => p.id !== id) }));
+
+  const reps = form.reps || [];
+  const addRep = () => setForm(f => ({ ...f, reps: [...(f.reps||[]), { id:'REP'+Date.now(), name:'', brand:'', brandEN:'', phone:'' }] }));
+  const updateRep = (id, k, v) => setForm(f => ({ ...f, reps: (f.reps||[]).map(r => r.id===id ? {...r,[k]:v} : r) }));
+  const removeRep = (id) => setForm(f => ({ ...f, reps: (f.reps||[]).filter(r => r.id!==id) }));
 
   const addDrug = (drug) => {
     setForm(f => ({
@@ -495,6 +516,40 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
             value={form.returnPolicyEN||''} onChange={e=>set('returnPolicyEN',e.target.value)} />
         </div>
       </div>
+
+      {/* ── Reps / Brand section ── */}
+      <div className="divider" />
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+        <label className="label" style={{ margin:0 }}>👥 {L('ผู้แทน / Brand','Sales Reps / Brand')}</label>
+        <button type="button" className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:12 }} onClick={addRep}>
+          + {L('เพิ่มผู้แทน','Add Rep')}
+        </button>
+      </div>
+      {reps.length === 0 && (
+        <div style={{ fontSize:12, color:'var(--txt4)', marginBottom:8 }}>{L('ยังไม่มีผู้แทน — กด + เพิ่มผู้แทน','No reps yet — click + Add Rep')}</div>
+      )}
+      {reps.map(r => (
+        <div key={r.id} style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8, padding:'8px 10px', background:'var(--card2)', borderRadius:8 }}>
+          <div className="form-group" style={{ flex:2, margin:0 }}>
+            <label className="label" style={{ fontSize:11 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
+            <input className="input" value={r.name||''} onChange={e=>updateRep(r.id,'name',e.target.value)} placeholder={L('เช่น คุณนิ้ง','e.g. Ning')} />
+          </div>
+          <div className="form-group" style={{ flex:2, margin:0 }}>
+            <label className="label" style={{ fontSize:11 }}>{L('Brand (ไทย)','Brand (TH)')}</label>
+            <input className="input" value={r.brand||''} onChange={e=>updateRep(r.id,'brand',e.target.value)} placeholder="Sandoz" />
+          </div>
+          <div className="form-group" style={{ flex:2, margin:0 }}>
+            <label className="label" style={{ fontSize:11 }}>Brand (EN)</label>
+            <input className="input" value={r.brandEN||''} onChange={e=>updateRep(r.id,'brandEN',e.target.value)} placeholder="Sandoz" />
+          </div>
+          <div className="form-group" style={{ flex:2, margin:0 }}>
+            <label className="label" style={{ fontSize:11 }}>{L('เบอร์โทร','Phone')}</label>
+            <input className="input" value={r.phone||''} onChange={e=>updateRep(r.id,'phone',e.target.value)} placeholder="08x-xxx-xxxx" />
+          </div>
+          <button type="button" className="btn btn-ghost" style={{ padding:'8px 10px', color:'var(--err)', flexShrink:0 }}
+            title={L('ลบ','Remove')} onClick={()=>removeRep(r.id)}>🗑</button>
+        </div>
+      ))}
 
       {/* ── Drug catalog section ── */}
       <div className="divider" />

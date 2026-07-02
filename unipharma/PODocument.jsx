@@ -115,13 +115,15 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
               <div style={{ padding: '10px 12px', borderRight: '1px solid #ccc' }}>
                 {[
                   ['Name', lang==='th'?(supplier.name||'-'):(supplier.nameEN||supplier.name||'-')],
+                  po.repBrand ? ['Division / Brand', lang==='en'?(po.repBrandEN||po.repBrand):po.repBrand] : null,
                   ['Address', supplier.address || '-'],
                   ['Branch No.', branch.code ? `${branch.id} (${branch.code})` : '-'],
                   ['Tax ID', supplier.taxId || '-'],
-                  ['Contact', supplier.contact || '-'],
-                  ['Tel', supplier.phone || '-'],
+                  po.repName ? ['Sales Rep', `${po.repName}${po.repPhone?' · '+po.repPhone:''}`] : null,
+                  !po.repName ? ['Contact', supplier.contact || '-'] : null,
+                  !po.repName ? ['Tel', supplier.phone || '-'] : null,
                   ['Credit Term', `${po.creditTerm || 30} Days`],
-                ].map(([lbl, val]) => (
+                ].filter(Boolean).map(([lbl, val]) => (
                   <div key={lbl} style={{ marginBottom: 4, fontSize: '9.5pt', lineHeight: 1.4 }}>
                     <b>{lbl}:</b> <span style={{ color: '#333' }}>{val}</span>
                   </div>

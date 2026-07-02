@@ -25,6 +25,10 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
   const [errors, setErrors] = useState({});
   const [priceHist, setPriceHist] = useState({}); // {[code]: {min, avg, count, lastDate, lastPO}}
   const [cwStock, setCwStock] = useState({});
+  const [selectedRep, setSelectedRep] = useState(() => {
+    if (editPO?.repId) return { id:editPO.repId, name:editPO.repName||'', brand:editPO.repBrand||'', brandEN:editPO.repBrandEN||'', phone:editPO.repPhone||'' };
+    return null;
+  });
   // Prevent auto-fill effects from overwriting loaded edit values on first mount
   const didInit = useRef(false);
   useEffect(() => { didInit.current = true; }, []);
@@ -61,6 +65,8 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       setDealDiscount(0);
       setShowDealEditor(false);
       setDealName(''); setDealPct('');
+      if ((supplier.reps||[]).length === 1) setSelectedRep(supplier.reps[0]);
+      else setSelectedRep(null);
     }
   }, [supplierId]);
 
@@ -226,6 +232,11 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
         creditTerm: parseInt(creditTerm),
         deliveryBranch, location, memo, isNonPO,
         dealNote: promo ? promo.name : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : editPO.dealNote || '-'),
+        repId: selectedRep?.id || '',
+        repName: selectedRep?.name || '',
+        repBrand: selectedRep?.brand || '',
+        repBrandEN: selectedRep?.brandEN || '',
+        repPhone: selectedRep?.phone || '',
         items: mappedItems,
         grossTotal: summary.gross,
         discount: summary.discount,
@@ -252,6 +263,11 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       location,
       memo,
       dealNote: promo ? promo.name : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : '-'),
+      repId: selectedRep?.id || '',
+      repName: selectedRep?.name || '',
+      repBrand: selectedRep?.brand || '',
+      repBrandEN: selectedRep?.brandEN || '',
+      repPhone: selectedRep?.phone || '',
       isNonPO,
       items: mappedItems,
       grossTotal: summary.gross,
@@ -351,6 +367,27 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
               {supplier && (
                 <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 3 }}>
                   📞 {supplier.phone} · เครดิต {supplier.creditTerm} วัน · ส่ง {supplier.deliveryDays} วัน
+                </div>
+              )}
+              {supplier && (supplier.reps||[]).length > 0 && (
+                <div style={{ marginTop:10 }}>
+                  <label className="label">👥 {L('ผู้แทน / Brand','Sales Rep / Brand')}</label>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:6 }}>
+                    {(supplier.reps||[]).map(r => (
+                      <div key={r.id}
+                        onClick={() => setSelectedRep(selectedRep?.id===r.id ? null : r)}
+                        style={{ padding:'8px 12px', border:`1px solid ${selectedRep?.id===r.id?'var(--acc2)':'var(--bdr)'}`, borderRadius:8, cursor:'pointer', background:selectedRep?.id===r.id?'var(--acc-bg)':'var(--card2)' }}>
+                        <div style={{ fontWeight:600, fontSize:12, color:selectedRep?.id===r.id?'var(--acc2)':'var(--txt)' }}>{r.name}</div>
+                        <div style={{ fontSize:11, color:'var(--txt3)' }}>{lang==='en'?(r.brandEN||r.brand):r.brand}</div>
+                        {r.phone && <div style={{ fontSize:10, color:'var(--txt4)' }}>{r.phone}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  {selectedRep && (
+                    <div style={{ fontSize:11, color:'var(--ok)' }}>
+                      ✓ {selectedRep.name} · {lang==='en'?(selectedRep.brandEN||selectedRep.brand):selectedRep.brand}{selectedRep.phone?' · '+selectedRep.phone:''}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
