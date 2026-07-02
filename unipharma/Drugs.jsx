@@ -449,12 +449,12 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                               <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
                               <div style={{ fontSize: 12 }}>
                                 <span style={{ color: 'var(--acc2)', fontSize: 10, marginRight: 4 }}>หลัก</span>
-                                {UTILS.getSupplier(d.supplierId).name}
+                                {suppliers.find(s=>s.id===d.supplierId)?.name || d.supplierId}
                               </div>
                               {(d.extraSuppliers || (d.extraSupplierIds||[]).map(id=>({id,costEx:0,sellEx:0}))).filter(s=>s.id).map((sup, i) => (
                                 <div key={sup.id} style={{ fontSize: 12, marginTop: 2 }}>
                                   <span style={{ color: 'var(--txt4)', fontSize: 10, marginRight: 4 }}>รายย่อย {i+1}</span>
-                                  {UTILS.getSupplier(sup.id).name || sup.id}
+                                  {suppliers.find(s=>s.id===sup.id)?.name || sup.id}
                                   {(sup.costEx > 0 || sup.sellEx > 0) && (
                                     <span style={{ color: 'var(--txt3)', fontSize: 10, marginLeft: 6 }}>
                                       ต้นทุน {UTILS.fmt(sup.costEx)} · ขาย {UTILS.fmt(sup.sellEx)}

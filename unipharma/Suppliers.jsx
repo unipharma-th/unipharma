@@ -10,7 +10,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, orders, notify
   const filtered = useMemo(() => {
     if (!search) return suppliers;
     const q = search.toLowerCase();
-    return suppliers.filter(s => s.name.toLowerCase().includes(q) || s.nameEN.toLowerCase().includes(q) || s.contact.toLowerCase().includes(q));
+    return suppliers.filter(s => s.name.toLowerCase().includes(q) || s.nameEN.toLowerCase().includes(q) || (s.contact||'').toLowerCase().includes(q) || (s.contacts||[]).some(c=>(c.name||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q)));
   }, [suppliers, search]);
 
   const exportSuppliers = () => {
@@ -150,12 +150,24 @@ function SupplierDetail({ sup, lang, L, drugs, orders, onClose, onEdit }) {
       <div className="grid-2" style={{ marginBottom: 16 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>{L('ข้อมูลทั่วไป', 'General Info')}</div>
-          {[['Tax ID', sup.taxId], [L('ที่อยู่', 'Address'), sup.address], [L('ผู้ติดต่อ', 'Contact'), sup.contact], [L('โทร', 'Phone'), sup.phone], ['Email', sup.email], [L('เครดิต', 'Credit Term'), `${sup.creditTerm} ${lang==='th'?'วัน':'days'}`], [L('ระยะส่ง', 'Delivery'), `${sup.deliveryDays} ${lang==='th'?'วัน':'days'}`], [L('สั่งขั้นต่ำ', 'Min Order'), `฿${UTILS.fmt(sup.minOrder, 0)}`]].map(([k, v]) => (
+          {[['Tax ID', sup.taxId], [L('ที่อยู่', 'Address'), sup.address], ['Email', sup.email], [L('เครดิต', 'Credit Term'), `${sup.creditTerm} ${lang==='th'?'วัน':'days'}`], [L('ระยะส่ง', 'Delivery'), `${sup.deliveryDays} ${lang==='th'?'วัน':'days'}`], [L('สั่งขั้นต่ำ', 'Min Order'), `฿${UTILS.fmt(sup.minOrder, 0)}`]].filter(([,v])=>v).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', gap: 8, marginBottom: 5, fontSize: 12 }}>
               <span style={{ color: 'var(--txt3)', minWidth: 80, flexShrink: 0 }}>{k}:</span>
               <span style={{ color: 'var(--txt)' }}>{v}</span>
             </div>
           ))}
+          {(sup.contacts?.filter(c=>c.name||c.phone) || (sup.contact?[{name:sup.contact,phone:sup.phone}]:[])).map((c,i,arr) => (
+            <div key={i} style={{ display:'flex', gap:8, marginBottom:5, fontSize:12 }}>
+              <span style={{ color:'var(--txt3)', minWidth:80, flexShrink:0 }}>{L('ผู้ติดต่อ','Contact')}{arr.length>1?` ${i+1}`:''}:</span>
+              <span style={{ color:'var(--txt)' }}>{c.name}{c.name&&c.phone?' · ':''}{c.phone}</span>
+            </div>
+          ))}
+          {sup.returnPolicy && (
+            <div style={{ display:'flex', gap:8, marginBottom:5, fontSize:12 }}>
+              <span style={{ color:'var(--txt3)', minWidth:80, flexShrink:0 }}>↩ {L('นโยบายคืน','Return')}:</span>
+              <span style={{ color:'var(--txt)' }}>{sup.returnPolicy}</span>
+            </div>
+          )}
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>🎁 {L('โปรโมชั่น', 'Promotions')}</div>
@@ -168,6 +180,32 @@ function SupplierDetail({ sup, lang, L, drugs, orders, onClose, onEdit }) {
           {(!sup.promotions || sup.promotions.length === 0) && <div style={{ fontSize: 12, color: 'var(--txt4)' }}>{L('ไม่มีโปรโมชั่น', 'No promotions')}</div>}
         </div>
       </div>
+      {(() => {
+        const drugDeals = drugs.filter(d => { const deal = d.supplierDeals?.[sup.id]; return deal && (deal.buyQty>0||deal.freeQty>0||deal.freeItems||deal.specialDiscount>0||deal.note); });
+        if (!drugDeals.length) return null;
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight:700, fontSize:12, color:'var(--txt3)', marginBottom:8 }}>🎁 {L('ดีลต่อสินค้า','Per-Drug Deals')} ({drugDeals.length})</div>
+            <div className="tbl-wrap" style={{ maxHeight:160 }}>
+              <table>
+                <thead><tr><th>{L('รหัส','Code')}</th><th>{L('ชื่อ','Name')}</th><th>{L('ซื้อ/แถม','Buy/Free')}</th><th className="tbl-num">{L('ส่วนลด%','Disc%')}</th><th>{L('หมายเหตุ','Note')}</th></tr></thead>
+                <tbody>{drugDeals.map(d => {
+                  const deal = d.supplierDeals[sup.id];
+                  return (
+                    <tr key={d.code}>
+                      <td style={{ fontFamily:'monospace', fontSize:11, color:'var(--acc2)' }}>{d.code}</td>
+                      <td style={{ fontSize:12 }}>{lang==='th'?d.nameTH:(d.nameEN||d.nameTH)}</td>
+                      <td style={{ fontSize:11 }}>{deal.buyQty>0&&deal.freeQty>0?`${deal.buyQty}+${deal.freeQty}`:deal.freeItems||'-'}</td>
+                      <td className="tbl-num" style={{ fontSize:11 }}>{deal.specialDiscount>0?`${deal.specialDiscount}%`:'-'}</td>
+                      <td style={{ fontSize:11, color:'var(--txt3)' }}>{deal.note||'-'}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>📦 {L('รายการสินค้า', 'Products')} ({supDrugs.length})</div>
       <div className="tbl-wrap" style={{ maxHeight: 200, marginBottom: 16 }}>
         <table>
@@ -209,9 +247,17 @@ function SupplierDetail({ sup, lang, L, drugs, orders, onClose, onEdit }) {
 
 function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const isEdit = !!sup;
-  const [form, setForm] = useState(sup || { id: 'SUP' + Date.now(), code: '', name: '', nameEN: '', contact: '', phone: '', email: '', taxId: '', creditTerm: 30, deliveryDays: 3, rating: 4.0, minOrder: 5000, address: '', category: '', promotions: [], drugs: [], drugPrices: {} });
+  const [form, setForm] = useState(() => {
+    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', category:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}], returnPolicy:'' };
+    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'' };
+  });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setContact = (i, k, v) => setForm(f => {
+    const contacts = [...(f.contacts||[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}])];
+    contacts[i] = { ...contacts[i], [k]: v };
+    return { ...f, contacts, contact: contacts[0].name, phone: contacts[0].phone };
+  });
   const promos = form.promotions || [];
   const drugList = form.drugs || [];
   const drugPrices = form.drugPrices || {};
@@ -255,9 +301,20 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
         {inp('name', L('ชื่อบริษัท (ไทย)', 'Thai Name'))}
         {inp('nameEN', L('ชื่อบริษัท (อังกฤษ)', 'English Name'))}
       </div>
-      <div className="form-row">
-        {inp('contact', L('ผู้ติดต่อ', 'Contact Person'))}
-        {inp('phone', L('โทรศัพท์', 'Phone'))}
+      <div style={{ marginBottom:12 }}>
+        <label className="label">👤 {L('ผู้ติดต่อ / โทรศัพท์', 'Contact / Phone')}</label>
+        {[0,1,2].map(i => (
+          <div key={i} className="form-row" style={{ marginBottom: i<2?6:0 }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <input className="input" placeholder={L(`ผู้ติดต่อ ${i+1}`,`Contact ${i+1}`)}
+                value={form.contacts?.[i]?.name||''} onChange={e=>setContact(i,'name',e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <input className="input" placeholder={L(`เบอร์โทร ${i+1}`,`Phone ${i+1}`)}
+                value={form.contacts?.[i]?.phone||''} onChange={e=>setContact(i,'phone',e.target.value)} />
+            </div>
+          </div>
+        ))}
       </div>
       <div className="form-row">
         {inp('email', 'Email', 'email')}
@@ -303,6 +360,14 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
             title={L('ลบ', 'Remove')} onClick={() => removePromo(p.id)}>🗑</button>
         </div>
       ))}
+
+      <div className="divider" />
+      <div className="form-group">
+        <label className="label">↩ {L('นโยบายการรับคืนสินค้า','Return Policy')}</label>
+        <textarea className="input" rows={2} style={{ resize:'vertical' }}
+          placeholder={L('เช่น คืนได้ภายใน 30 วัน, สินค้าไม่เปิดซอง, แจ้ง Rep ก่อน...','e.g., Returns within 30 days, unopened only, notify rep first...')}
+          value={form.returnPolicy||''} onChange={e=>set('returnPolicy',e.target.value)} />
+      </div>
 
       {/* ── Drug catalog section ── */}
       <div className="divider" />
