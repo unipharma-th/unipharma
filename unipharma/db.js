@@ -437,10 +437,21 @@
     // ---- Drug categories (shared master list) ----
     async loadCategories() {
       if (!enabled) return null;
+      // Cache 24 h — categories change only when admin edits them
+      try {
+        var CAT_TTL = 24 * 3600 * 1000;
+        var ts = parseInt(localStorage.getItem('uni_cat_ts') || '0', 10);
+        if (ts && (Date.now() - ts) < CAT_TTL) {
+          var cc = JSON.parse(localStorage.getItem('uni_cat_cache') || 'null');
+          if (cc && cc.length) { console.info('[UNI_DB] category cache hit'); return cc; }
+        }
+      } catch(e) {}
       try {
         var res = await client.from("categories").select("*").order("id", { ascending: true });
         if (res.error) throw res.error;
-        return (res.data || []).map(categoryFromRow);
+        var cats = (res.data || []).map(categoryFromRow);
+        try { localStorage.setItem('uni_cat_cache', JSON.stringify(cats)); localStorage.setItem('uni_cat_ts', Date.now().toString()); } catch(e) {}
+        return cats;
       } catch (e) { console.warn("[UNI_DB] loadCategories:", e); return null; }
     },
     async saveCategoriesBulk(arr) {
@@ -448,12 +459,13 @@
       try {
         var res = await client.from("categories").upsert(arr.map(categoryRow));
         if (res.error) throw res.error;
+        try { localStorage.removeItem('uni_cat_ts'); } catch(e) {}
         return true;
       } catch (e) { console.warn("[UNI_DB] saveCategoriesBulk:", e); return false; }
     },
     async deleteCategory(id) {
       if (!enabled) return;
-      try { await client.from("categories").delete().eq("id", id); }
+      try { await client.from("categories").delete().eq("id", id); try { localStorage.removeItem('uni_cat_ts'); } catch(_) {} }
       catch (e) { console.warn("[UNI_DB] deleteCategory:", e); }
     },
 
