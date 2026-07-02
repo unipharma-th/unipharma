@@ -82,6 +82,7 @@ function App() {
   useEffect(() => { persistLS('uni_lang', lang, 0); }, [lang]);
   useEffect(() => { persistLS('uni_drugs', drugs); }, [drugs]);
   useEffect(() => { persistLS('uni_suppliers', suppliers); }, [suppliers]);
+  useEffect(() => { UTILS.setRuntimeSuppliers(suppliers); }, [suppliers]);
   useEffect(() => { persistLS('uni_orders', orders); }, [orders]);
   useEffect(() => { persistLS('uni_categories', categories); }, [categories]);
   useEffect(() => { try { localStorage.setItem('uni_page', page); } catch(e) {} }, [page]);
