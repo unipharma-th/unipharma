@@ -3636,7 +3636,10 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
                   <div style={{ fontSize: 10, color: 'var(--txt4)', marginBottom: 4, fontWeight: 600 }}>🎁 {L('โปรโมชั่น', 'Promotions')}</div>
                   {sup.promotions.map(p => (
                     <div key={p.id} style={{ fontSize: 11, color: 'var(--ok)', background: 'var(--ok-bg)', borderRadius: 4, padding: '3px 8px', marginBottom: 3 }}>
-                      {p.name} · {L('ถึง', 'until')} {UTILS.fmtDate(p.validUntil, lang)}
+                      {lang==='th'?`ซื้อ ${p.buyQty||0} แถม ${p.freeQty||0}`:
+                       `Buy ${p.buyQty||0} → Free ${p.freeQty||0}`}
+                      {p.discount>0 && ` · ${p.discount}%`}
+                      {p.dealNote && ` (${p.dealNote})`}
                     </div>
                   ))}
                 </div>
@@ -3707,14 +3710,19 @@ function SupplierDetail({ sup, lang, L, drugs, setDrugs, orders, onClose, onEdit
           )}
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>🎁 {L('โปรโมชั่น', 'Promotions')}</div>
+          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>🎁 {L('ดีล / โปรโมชั่น', 'Deals / Promotions')}</div>
           {sup.promotions?.map(p => (
             <div key={p.id} className="card-sm" style={{ marginBottom: 8, borderColor: 'rgba(52,211,153,.3)' }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--ok)', marginBottom: 4 }}>{p.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{L('ถึง', 'Valid until')} {UTILS.fmtDate(p.validUntil, lang)}</div>
+              <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--ok)', marginBottom: 4 }}>
+                {lang==='th'?`ซื้อ ${p.buyQty||0} → แถม ${p.freeQty||0}`:
+                 `Buy ${p.buyQty||0} → Free ${p.freeQty||0}`}
+                {p.discount>0 && <span style={{ marginLeft:8, fontWeight:400 }}>💲 {p.discount}%</span>}
+              </div>
+              {p.bonusItems && <div style={{ fontSize:11, color:'var(--txt3)', marginBottom:2 }}>🎁 {p.bonusItems}</div>}
+              {p.dealNote && <div style={{ fontSize:11, color:'var(--txt4)', fontStyle:'italic' }}>📝 {p.dealNote}</div>}
             </div>
           ))}
-          {(!sup.promotions || sup.promotions.length === 0) && <div style={{ fontSize: 12, color: 'var(--txt4)' }}>{L('ไม่มีโปรโมชั่น', 'No promotions')}</div>}
+          {(!sup.promotions || sup.promotions.length === 0) && <div style={{ fontSize: 12, color: 'var(--txt4)' }}>{L('ยังไม่มีดีล', 'No deals yet')}</div>}
         </div>
       </div>
 
@@ -3905,7 +3913,7 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const drugList = form.drugs || [];
   const drugPrices = form.drugPrices || {};
 
-  const addPromo = () => setForm(f => ({ ...f, promotions: [...(f.promotions || []), { id: 'P' + Date.now(), name: '', type: 'percent', discount: 0, validUntil: '' }] }));
+  const addPromo = () => setForm(f => ({ ...f, promotions: [...(f.promotions || []), { id:'P'+Date.now(), buyQty:0, freeQty:0, bonusItems:'', discount:0, dealNote:'' }] }));
   const updatePromo = (id, k, v) => setForm(f => ({ ...f, promotions: (f.promotions || []).map(p => p.id === id ? { ...p, [k]: v } : p) }));
   const removePromo = (id) => setForm(f => ({ ...f, promotions: (f.promotions || []).filter(p => p.id !== id) }));
 
@@ -3983,29 +3991,40 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <label className="label" style={{ margin: 0 }}>🎁 {L('โปรโมชั่น / ดีล', 'Promotions / Deals')}</label>
         <button type="button" className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={addPromo}>
-          + {L('เพิ่มโปรโมชั่น', 'Add promotion')}
+          + {L('เพิ่มดีล', 'Add Deal')}
         </button>
       </div>
       {promos.length === 0 && (
-        <div style={{ fontSize: 12, color: 'var(--txt4)', marginBottom: 8 }}>{L('ยังไม่มีโปรโมชั่น', 'No promotions yet')}</div>
+        <div style={{ fontSize: 12, color: 'var(--txt4)', marginBottom: 8 }}>{L('ยังไม่มีดีล — กด + เพิ่มดีล', 'No deals yet — click + Add Deal')}</div>
       )}
       {promos.map(p => (
-        <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 8 }}>
-          <div className="form-group" style={{ flex: 2, margin: 0 }}>
-            <label className="label" style={{ fontSize: 11 }}>{L('ชื่อโปรโมชั่น', 'Promotion name')}</label>
-            <input className="input" value={p.name || ''} onChange={e => updatePromo(p.id, 'name', e.target.value)}
-              placeholder={L('เช่น ส่วนลด 5% สั่งเกิน 10,000', 'e.g., 5% off over 10,000')} />
+        <div key={p.id} style={{ background:'var(--card2)', border:'1px solid var(--bdr)', borderRadius:8, padding:12, marginBottom:10 }}>
+          <div style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8 }}>
+            <div className="form-group" style={{ width:90, margin:0 }}>
+              <label className="label" style={{ fontSize:11 }}>{L('ซื้อ (จำนวน)', 'Buy (qty)')}</label>
+              <input className="input" type="number" min="0" value={p.buyQty||0} onChange={e => updatePromo(p.id,'buyQty',parseInt(e.target.value)||0)} />
+            </div>
+            <div className="form-group" style={{ width:90, margin:0 }}>
+              <label className="label" style={{ fontSize:11 }}>{L('แถม (จำนวน)', 'Free (qty)')}</label>
+              <input className="input" type="number" min="0" value={p.freeQty||0} onChange={e => updatePromo(p.id,'freeQty',parseInt(e.target.value)||0)} />
+            </div>
+            <div className="form-group" style={{ width:90, margin:0 }}>
+              <label className="label" style={{ fontSize:11 }}>{L('ส่วนลดพิเศษ %', 'Special Discount %')}</label>
+              <input className="input" type="number" min="0" max="100" value={p.discount||0} onChange={e => updatePromo(p.id,'discount',parseFloat(e.target.value)||0)} />
+            </div>
+            <button type="button" className="btn btn-ghost" style={{ padding:'8px 10px', color:'var(--err)' }}
+              title={L('ลบ','Remove')} onClick={() => removePromo(p.id)}>🗑</button>
           </div>
-          <div className="form-group" style={{ width: 90, margin: 0 }}>
-            <label className="label" style={{ fontSize: 11 }}>{L('ส่วนลด %', 'Discount %')}</label>
-            <input className="input" type="number" value={p.discount || 0} onChange={e => updatePromo(p.id, 'discount', parseFloat(e.target.value) || 0)} />
+          <div className="form-group" style={{ margin:'0 0 8px' }}>
+            <label className="label" style={{ fontSize:11 }}>{L('สินค้าแถม / ของแถม', 'Bonus Items to Request')}</label>
+            <input className="input" value={p.bonusItems||''} onChange={e => updatePromo(p.id,'bonusItems',e.target.value)}
+              placeholder={L('เช่น ถุงมือ, กล่อง, อุปกรณ์...', 'e.g. gloves, box, accessories...')} />
           </div>
-          <div className="form-group" style={{ width: 150, margin: 0 }}>
-            <label className="label" style={{ fontSize: 11 }}>{L('ใช้ได้ถึง', 'Valid until')}</label>
-            <input className="input" type="date" value={p.validUntil || ''} onChange={e => updatePromo(p.id, 'validUntil', e.target.value)} />
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="label" style={{ fontSize:11 }}>{L('หมายเหตุดีล', 'Deal Note')}</label>
+            <input className="input" value={p.dealNote||''} onChange={e => updatePromo(p.id,'dealNote',e.target.value)}
+              placeholder={L('เช่น แจ้ง Rep ก่อนสั่ง, ออนไลน์เท่านั้น...', 'e.g. Call before ordering, online only...')} />
           </div>
-          <button type="button" className="btn btn-ghost" style={{ padding: '8px 10px', color: 'var(--err)' }}
-            title={L('ลบ', 'Remove')} onClick={() => removePromo(p.id)}>🗑</button>
         </div>
       ))}
 
