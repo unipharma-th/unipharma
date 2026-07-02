@@ -130,9 +130,9 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
                   ))}
                 </div>
               )}
-              {sup.returnPolicy && (
-                <div style={{ fontSize: 11, color: 'var(--txt3)', background: 'var(--card2)', borderRadius: 6, padding: '5px 8px', marginTop: sup.promotions?.length ? 0 : 0 }}>
-                  <span style={{ color: 'var(--txt4)', marginRight: 4 }}>↩</span>{sup.returnPolicy}
+              {(sup.returnPolicy || sup.returnPolicyEN) && (
+                <div style={{ fontSize: 11, color: 'var(--txt3)', background: 'var(--card2)', borderRadius: 6, padding: '5px 8px' }}>
+                  <span style={{ color: 'var(--txt4)', marginRight: 4 }}>↩</span>{lang==='en' ? (sup.returnPolicyEN || sup.returnPolicy) : (sup.returnPolicy || sup.returnPolicyEN)}
                 </div>
               )}
             </div>
@@ -188,10 +188,10 @@ function SupplierDetail({ sup, lang, L, drugs, setDrugs, orders, onClose, onEdit
               <span style={{ color:'var(--txt)' }}>{c.name}{c.name&&c.phone?' · ':''}{c.phone}</span>
             </div>
           ))}
-          {sup.returnPolicy && (
+          {(sup.returnPolicy || sup.returnPolicyEN) && (
             <div style={{ display:'flex', gap:8, marginBottom:5, fontSize:12 }}>
               <span style={{ color:'var(--txt3)', minWidth:80, flexShrink:0 }}>↩ {L('นโยบายคืน','Return')}:</span>
-              <span style={{ color:'var(--txt)' }}>{sup.returnPolicy}</span>
+              <span style={{ color:'var(--txt)' }}>{lang==='en' ? (sup.returnPolicyEN || sup.returnPolicy) : (sup.returnPolicy || sup.returnPolicyEN)}</span>
             </div>
           )}
         </div>
@@ -367,8 +367,8 @@ function DealEditorModal({ lang, L, drugs, supId, initialDrugCode, initialDeal, 
 function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(() => {
-    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', category:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}], returnPolicy:'' };
-    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'' };
+    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', category:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'' };
+    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'' };
   });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -481,11 +481,19 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
       ))}
 
       <div className="divider" />
-      <div className="form-group">
-        <label className="label">↩ {L('นโยบายการรับคืนสินค้า','Return Policy')}</label>
-        <textarea className="input" rows={2} style={{ resize:'vertical' }}
-          placeholder={L('เช่น คืนได้ภายใน 30 วัน, สินค้าไม่เปิดซอง, แจ้ง Rep ก่อน...','e.g., Returns within 30 days, unopened only, notify rep first...')}
-          value={form.returnPolicy||''} onChange={e=>set('returnPolicy',e.target.value)} />
+      <div className="form-row">
+        <div className="form-group">
+          <label className="label">↩ {L('นโยบายการรับคืนสินค้า (ไทย)','Return Policy (TH)')}</label>
+          <textarea className="input" rows={2} style={{ resize:'vertical' }}
+            placeholder="เช่น คืนได้ภายใน 30 วัน, สินค้าไม่เปิดซอง, แจ้ง Rep ก่อน..."
+            value={form.returnPolicy||''} onChange={e=>set('returnPolicy',e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="label">↩ Return Policy (EN)</label>
+          <textarea className="input" rows={2} style={{ resize:'vertical' }}
+            placeholder="e.g., Returns within 30 days, unopened only, notify rep first..."
+            value={form.returnPolicyEN||''} onChange={e=>set('returnPolicyEN',e.target.value)} />
+        </div>
       </div>
 
       {/* ── Drug catalog section ── */}
