@@ -1465,39 +1465,26 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
       {inp('minStock', L('สต็อกขั้นต่ำ (แจ้งเตือน)', 'Min Stock (Alert)'), 'number')}
 
       <div className="divider" />
-      <div style={{ marginBottom:8, fontSize:12, fontWeight:700, color:'var(--txt2)' }}>
-        📝 {L('หมายเหตุสินค้า','Product Remarks')}
-        <span style={{ fontWeight:400, color:'var(--txt4)', marginLeft:8, fontSize:11 }}>
-          {L('(เหตุผลที่ไม่สต็อก หรือมีเงื่อนไขพิเศษ)','(reason for non-stock or special condition)')}
-        </span>
-      </div>
-      <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
-        {DRUG_REMARKS.map(r => {
-          const active = form.remark === r.code;
-          return (
-            <button key={r.code} type="button"
-              onClick={() => set('remark', active ? '' : r.code)}
-              style={{
-                padding:'5px 12px', borderRadius:20, fontSize:12,
-                border:`1px solid ${active?'var(--acc2)':'var(--bdr)'}`,
-                background: active ? 'var(--acc2)' : 'var(--card2)',
-                color: active ? '#fff' : 'var(--txt)',
-                cursor:'pointer', fontWeight: active ? 600 : 400
-              }}>
-              {lang==='th' ? r.th : r.en}
-            </button>
-          );
-        })}
-      </div>
-      {form.remark && (
-        <div style={{ fontSize:11, color:'var(--txt3)', background:'var(--card2)', borderRadius:6, padding:'6px 10px', marginBottom:8, border:'1px solid var(--bdr)' }}>
-          {lang==='th' ? DRUG_REMARKS.find(r=>r.code===form.remark)?.detailTH : DRUG_REMARKS.find(r=>r.code===form.remark)?.detailEN}
+      <div className="form-row">
+        <div className="form-group">
+          <label className="label">📝 {L('หมายเหตุสินค้า','Product Remarks')}</label>
+          <select className="input" value={form.remark||''} onChange={e=>set('remark',e.target.value)}>
+            <option value="">— {L('ไม่ระบุ','None')} —</option>
+            {DRUG_REMARKS.map(r => (
+              <option key={r.code} value={r.code}>{lang==='th'?r.th:r.en}</option>
+            ))}
+          </select>
+          {form.remark && (
+            <div style={{ fontSize:11, color:'var(--txt3)', marginTop:4, lineHeight:1.5 }}>
+              {lang==='th' ? DRUG_REMARKS.find(r=>r.code===form.remark)?.detailTH : DRUG_REMARKS.find(r=>r.code===form.remark)?.detailEN}
+            </div>
+          )}
         </div>
-      )}
-      <div className="form-group" style={{ marginBottom:16 }}>
-        <label className="label" style={{ fontSize:11 }}>{L('หมายเหตุเพิ่มเติม','Additional Note')}</label>
-        <input className="input" value={form.remarkNote||''} onChange={e=>set('remarkNote',e.target.value)}
-          placeholder={L('หมายเหตุเพิ่มเติม (ถ้ามี)','Additional note (optional)')} />
+        <div className="form-group">
+          <label className="label">{L('หมายเหตุเพิ่มเติม','Additional Note')}</label>
+          <input className="input" value={form.remarkNote||''} onChange={e=>set('remarkNote',e.target.value)}
+            placeholder={L('หมายเหตุเพิ่มเติม (ถ้ามี)','Additional note (optional)')} />
+        </div>
       </div>
 
       <div className="divider" />
