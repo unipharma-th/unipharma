@@ -6033,6 +6033,8 @@ const DRUG_ALIASES = {
   costPTN:['costptn','cost_ptn','ต้นทุนptn','ต้นทุน ptn','ราคาต้นทุนptn','ptn_cost'],
   costRAM:['costram','cost_ram','ต้นทุนram','ต้นทุน ram','ราคาต้นทุนram','ram_cost'],
   costCNX:['costcnx','cost_cnx','ต้นทุนcnx','ต้นทุน cnx','ราคาต้นทุนcnx','cnx_cost'],
+  remark:['remark','หมายเหตุสินค้า','product_remark','remark_code'],
+  remarkNote:['remarknote','remark_note','หมายเหตุเพิ่มเติม','additional_note'],
 };
 const SUP_ALIASES = {
   id:['id','รหัส','supplier_id','sup_id'],
@@ -6048,6 +6050,8 @@ const SUP_ALIASES = {
   address:['address','ที่อยู่'],
   category:['category','ประเภท','ประเภทสินค้า','หมวด','หมวดหมู่'],
   minOrder:['minorder','min_order','ขั้นต่ำ','minimum_order','ยอดสั่งขั้นต่ำ'],
+  returnPolicy:['returnpolicy','return_policy','นโยบายคืนสินค้า','return_th'],
+  returnPolicyEN:['returnpolicyen','return_policy_en','return_policy_english','return_en'],
 };
 
 function detectMap(headers, aliases) {
@@ -6108,6 +6112,8 @@ function parseDrugs(rows, map, cats) {
         RAM: (map.costRAM && r[map.costRAM] !== '' && r[map.costRAM] != null) ? parseFloat(r[map.costRAM]) || null : null,
         CNX: (map.costCNX && r[map.costCNX] !== '' && r[map.costCNX] != null) ? parseFloat(r[map.costCNX]) || null : null,
       },
+      remark: (map.remark && r[map.remark]) ? String(r[map.remark]).trim() : '',
+      remarkNote: (map.remarkNote && r[map.remarkNote]) ? String(r[map.remarkNote]).trim() : '',
     };
   });
 }
@@ -6126,7 +6132,9 @@ function parseSuppliers(rows, map) {
     taxId:r[map.taxId]||'', creditTerm:parseInt(r[map.creditTerm])||30,
     deliveryDays:parseInt(r[map.deliveryDays])||3, rating:parseFloat(r[map.rating])||4.0,
     minOrder:parseInt(r[map.minOrder])||5000, address:r[map.address]||'',
-    category:r[map.category]||'ยาทั่วไป', promotions:[], drugs:[]
+    category:r[map.category]||'ยาทั่วไป',
+    returnPolicy:r[map.returnPolicy]||'', returnPolicyEN:r[map.returnPolicyEN]||'',
+    promotions:[], drugs:[]
   }));
 }
 
@@ -6156,30 +6164,32 @@ function downloadTemplate(type) {
     ];
     const UNITS = ['เม็ด','แคปซูล','ขวด','แผง','หลอด','ซอง','กล่อง','ml','mg','หน่วย'];
 
+    const REMARK_CODES = ['on_demand','low_demand','high_value','short_shelf','substitute','supply_constraint','storage_constraint','policy'];
     const ws = XLSX.utils.aoa_to_sheet([
-      ['code','nameTH','nameEN','unit','catId','subId','hasVat','costEx','sellEx','stockPTN','stockRAM','stockCNX','minStock','supplierId','costPTN','costRAM','costCNX'],
-      ['#คำอธิบาย','ชื่อยาภาษาไทย','ชื่อยาภาษาอังกฤษ','หน่วย (เลือก ▼)','หมวดหมู่ (เลือก ▼)','หมวดย่อย (เลือก ▼)','0=ไม่มีVAT / 1=มีVAT','ราคาต้นทุนหลัก (ไม่รวมVAT)','ราคาขาย (ไม่รวมVAT)','สต็อก PTN','สต็อก RAM','สต็อก CNX','สต็อกขั้นต่ำ','รหัส Supplier','ต้นทุน PTN (เว้นว่าง=ใช้หลัก)','ต้นทุน RAM (เว้นว่าง=ใช้หลัก)','ต้นทุน CNX (เว้นว่าง=ใช้หลัก)'],
-      ['AMX001','อะม็อกซิซิลลิน 500มก.','Amoxicillin 500mg','เม็ด','โรคติดเชื้อ','ยาปฏิชีวนะ',0,18,38,500,400,300,100,'SUP001','','',''],
-      ['PAR500','พาราเซตามอล 500มก.','Paracetamol 500mg','เม็ด','ยาจำหน่ายหน้าเคาเตอร์','ยาแก้ปวด/พาราเซตามอล',0,5,15,1000,800,600,200,'SUP001',5.5,5,4.8],
-      ['IBU400','ไอบูโพรเฟน 400มก.','Ibuprofen 400mg','เม็ด','ยาจำหน่ายหน้าเคาเตอร์','ยาแก้ปวด/ลดไข้',0,12,28,300,200,100,50,'SUP002','','',''],
-      ['VIT001','วิตามินซี 1000มก.','Vitamin C 1000mg','เม็ด','อาหารเสริมและวิตามิน','วิตามินรวม',1,25,55,200,150,100,50,'SUP002','','',''],
+      ['code','nameTH','nameEN','unit','catId','subId','hasVat','costEx','sellEx','stockPTN','stockRAM','stockCNX','minStock','supplierId','costPTN','costRAM','costCNX','remark','remarkNote'],
+      ['#คำอธิบาย','ชื่อยาภาษาไทย','ชื่อยาภาษาอังกฤษ','หน่วย (เลือก ▼)','หมวดหมู่ (เลือก ▼)','หมวดย่อย (เลือก ▼)','0=ไม่มีVAT / 1=มีVAT','ราคาต้นทุนหลัก (ไม่รวมVAT)','ราคาขาย (ไม่รวมVAT)','สต็อก PTN','สต็อก RAM','สต็อก CNX','สต็อกขั้นต่ำ','รหัส Supplier','ต้นทุน PTN (เว้นว่าง=ใช้หลัก)','ต้นทุน RAM (เว้นว่าง=ใช้หลัก)','ต้นทุน CNX (เว้นว่าง=ใช้หลัก)','หมายเหตุสินค้า (เลือก ▼)','หมายเหตุเพิ่มเติม'],
+      ['AMX001','อะม็อกซิซิลลิน 500มก.','Amoxicillin 500mg','เม็ด','โรคติดเชื้อ','ยาปฏิชีวนะ',0,18,38,500,400,300,100,'SUP001','','','','',''],
+      ['PAR500','พาราเซตามอล 500มก.','Paracetamol 500mg','เม็ด','ยาจำหน่ายหน้าเคาเตอร์','ยาแก้ปวด/พาราเซตามอล',0,5,15,1000,800,600,200,'SUP001',5.5,5,4.8,'low_demand','ขายช้าในบางสาขา'],
+      ['IBU400','ไอบูโพรเฟน 400มก.','Ibuprofen 400mg','เม็ด','ยาจำหน่ายหน้าเคาเตอร์','ยาแก้ปวด/ลดไข้',0,12,28,300,200,100,50,'SUP002','','','','',''],
+      ['VIT001','วิตามินซี 1000มก.','Vitamin C 1000mg','เม็ด','อาหารเสริมและวิตามิน','วิตามินรวม',1,25,55,200,150,100,50,'SUP002','','','','high_value',''],
     ]);
-    ws['!cols'] = [10,30,28,12,26,26,10,10,10,10,10,10,12,16,12,12,12].map(wch=>({wch}));
+    ws['!cols'] = [10,30,28,12,26,26,10,10,10,10,10,10,12,16,12,12,12,22,30].map(wch=>({wch}));
     ws['!views'] = [{ state:'frozen', xSplit:0, ySplit:1 }];
 
     // Hidden Lists sheet — dropdown values stored here, referenced by data validation
-    const maxL = Math.max(CATS.length, SUBS.length, UNITS.length);
-    const listsRows = [['หน่วย','หมวดหมู่','หมวดย่อย']];
-    for (let i = 0; i < maxL; i++) listsRows.push([UNITS[i]||'', CATS[i]||'', SUBS[i]||'']);
+    const maxL = Math.max(CATS.length, SUBS.length, UNITS.length, REMARK_CODES.length);
+    const listsRows = [['หน่วย','หมวดหมู่','หมวดย่อย','หมายเหตุสินค้า']];
+    for (let i = 0; i < maxL; i++) listsRows.push([UNITS[i]||'', CATS[i]||'', SUBS[i]||'', REMARK_CODES[i]||'']);
     const listsWs = XLSX.utils.aoa_to_sheet(listsRows);
-    listsWs['!cols'] = [{wch:20},{wch:30},{wch:32}];
+    listsWs['!cols'] = [{wch:20},{wch:30},{wch:32},{wch:22}];
 
     ws['!dataValidations'] = [
       { sqref:'D3:D10000', type:'list', formula1:`Lists!$A$2:$A${1+UNITS.length}`, showDropDown:false },
       { sqref:'E3:E10000', type:'list', formula1:`Lists!$B$2:$B${1+CATS.length}`, showDropDown:false },
       { sqref:'F3:F10000', type:'list', formula1:`Lists!$C$2:$C${1+SUBS.length}`, showDropDown:false },
       { sqref:'G3:G10000', type:'list', formula1:'"0,1"', showDropDown:false },
-      // O:Q (costPTN/RAM/CNX) are free-form numeric — no dropdown
+      { sqref:'R3:R10000', type:'list', formula1:`Lists!$D$2:$D${1+REMARK_CODES.length}`, showDropDown:false },
+      // O:Q (costPTN/RAM/CNX) and S (remarkNote) are free-form — no dropdown
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, 'ยา');
@@ -6191,12 +6201,12 @@ function downloadTemplate(type) {
     const SUP_CATS = ['ยาทั่วไป','วิตามินและอาหารเสริม','เวชภัณฑ์และอุปกรณ์','ยาเฉพาะทาง','ยาสามัญประจำบ้าน'];
 
     const ws = XLSX.utils.aoa_to_sheet([
-      ['id','name','nameEN','contact','phone','email','taxId','creditTerm','deliveryDays','rating','address','category','minOrder'],
-      ['#คำอธิบาย','ชื่อบริษัท (ไทย)','ชื่อบริษัท (อังกฤษ)','ชื่อผู้ติดต่อ','เบอร์โทร','อีเมล','เลขผู้เสียภาษี (13 หลัก)','เครดิต (วัน)','ระยะส่ง (วัน)','คะแนน 1-5','ที่อยู่','ประเภท (เลือก ▼)','ยอดขั้นต่ำ (บาท)'],
-      ['SUP001','บริษัท ยูนิไทย ฟาร์มา จำกัด','Unithai Pharma Co. Ltd.','คุณ สมชาย ใจดี','02-123-4567','contact@unithai.com','0105560012345',30,3,4.5,'123 ถนนพระราม9 กรุงเทพ','ยาทั่วไป',5000],
-      ['SUP002','บริษัท เมดิซัพพลาย จำกัด','Medisupply Co. Ltd.','คุณ สมหญิง รักดี','02-987-6543','info@medisupply.co.th','0105561098765',45,5,4.0,'456 ถนนวิทยุ กรุงเทพ','วิตามินและอาหารเสริม',10000],
+      ['id','name','nameEN','contact','phone','email','taxId','creditTerm','deliveryDays','rating','address','category','minOrder','returnPolicy','returnPolicyEN'],
+      ['#คำอธิบาย','ชื่อบริษัท (ไทย)','ชื่อบริษัท (อังกฤษ)','ชื่อผู้ติดต่อ','เบอร์โทร','อีเมล','เลขผู้เสียภาษี (13 หลัก)','เครดิต (วัน)','ระยะส่ง (วัน)','คะแนน 1-5','ที่อยู่','ประเภท (เลือก ▼)','ยอดขั้นต่ำ (บาท)','นโยบายคืนสินค้า (ไทย)','Return Policy (English)'],
+      ['SUP001','บริษัท ยูนิไทย ฟาร์มา จำกัด','Unithai Pharma Co. Ltd.','คุณ สมชาย ใจดี','02-123-4567','contact@unithai.com','0105560012345',30,3,4.5,'123 ถนนพระราม9 กรุงเทพ','ยาทั่วไป',5000,'คืนได้ภายใน 7 วัน สินค้าต้องไม่เปิดซีล','Return within 7 days, unopened only'],
+      ['SUP002','บริษัท เมดิซัพพลาย จำกัด','Medisupply Co. Ltd.','คุณ สมหญิง รักดี','02-987-6543','info@medisupply.co.th','0105561098765',45,5,4.0,'456 ถนนวิทยุ กรุงเทพ','วิตามินและอาหารเสริม',10000,'ไม่รับคืนสินค้า','No returns accepted'],
     ]);
-    ws['!cols'] = [10,28,26,18,14,24,16,10,10,8,28,20,14].map(wch=>({wch}));
+    ws['!cols'] = [10,28,26,18,14,24,16,10,10,8,28,20,14,32,32].map(wch=>({wch}));
     ws['!views'] = [{ state:'frozen', xSplit:0, ySplit:1 }];
 
     const listsWs = XLSX.utils.aoa_to_sheet([['ประเภทสินค้า'], ...SUP_CATS.map(c=>[c])]);
