@@ -2738,7 +2738,18 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       setSelectedDeal('');
       setDealDiscount(0);
       setShowNewDeal(false);
-      setNewDeal({ buyQty:'', freeQty:'', discount:'', bonusItems:'', dealNote:'' });
+      const firstPromo = (supplier.promotions || [])[0];
+      if (firstPromo) {
+        setNewDeal({
+          buyQty: firstPromo.buyQty ? String(firstPromo.buyQty) : '',
+          freeQty: firstPromo.freeQty ? String(firstPromo.freeQty) : '',
+          discount: firstPromo.discount ? String(firstPromo.discount) : '',
+          bonusItems: firstPromo.bonusItems || '',
+          dealNote: firstPromo.dealNote || '',
+        });
+      } else {
+        setNewDeal({ buyQty:'', freeQty:'', discount:'', bonusItems:'', dealNote:'' });
+      }
       if ((supplier.reps||[]).length === 1) setSelectedRep(supplier.reps[0]);
       else setSelectedRep(null);
     }
@@ -2868,9 +2879,22 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
 
   const handleDealChange = val => {
     setSelectedDeal(val);
-    if (!val) { setDealDiscount(0); return; }
+    if (!val) {
+      setDealDiscount(0);
+      setNewDeal({ buyQty:'', freeQty:'', discount:'', bonusItems:'', dealNote:'' });
+      return;
+    }
     const promo = supplier?.promotions.find(p => p.id === val);
     setDealDiscount(promo?.discount || 0);
+    if (promo) {
+      setNewDeal({
+        buyQty: promo.buyQty ? String(promo.buyQty) : '',
+        freeQty: promo.freeQty ? String(promo.freeQty) : '',
+        discount: promo.discount ? String(promo.discount) : '',
+        bonusItems: promo.bonusItems || '',
+        dealNote: promo.dealNote || '',
+      });
+    }
   };
 
   const saveNewDeal = async () => {
@@ -3092,64 +3116,49 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
             </div>
           </div>
 
-          {/* Deal / Promotion */}
+          {/* Deal / Promotion — dropdown selector */}
           {supplier && (
             <div className="form-group">
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                <label className="label" style={{ margin:0 }}>🎁 {L('โปรโมชั่น / ดีล', 'Promotions / Deals')}</label>
-                <button type="button" className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:12 }}
-                  onClick={() => setShowNewDeal(s => !s)}>
-                  {showNewDeal ? '▲' : '+'} {L('เพิ่มดีล', 'Add Deal')}
-                </button>
-              </div>
-
-              {(supplier.promotions || []).length > 0 && (
-                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom: showNewDeal ? 10 : 0 }}>
-                  {(supplier.promotions || []).map(p => {
-                    const isSelected = selectedDeal === p.id;
-                    const isNewFmt = p.buyQty > 0 || p.freeQty > 0 || p.bonusItems || p.dealNote;
-                    return (
-                      <div key={p.id}
-                        onClick={() => handleDealChange(isSelected ? '' : p.id)}
-                        style={{ padding:'10px 14px', border:`1.5px solid ${isSelected?'var(--acc2)':'var(--border)'}`, borderRadius:10, cursor:'pointer', background:isSelected?'var(--acc-bg)':'var(--card2)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                        <div style={{ flex:1 }}>
-                          {isNewFmt ? (<>
-                            {(p.buyQty > 0 || p.freeQty > 0) && (
-                              <div style={{ fontWeight:700, fontSize:13, color:isSelected?'var(--acc2)':'var(--ok)' }}>
-                                🎁 {lang==='th'?`ซื้อ ${p.buyQty||0} → แถม ${p.freeQty||0} ชิ้น`:`Buy ${p.buyQty||0} → Free ${p.freeQty||0} pcs`}
-                              </div>
-                            )}
-                            {p.discount > 0 && <div style={{ fontSize:12, color:'var(--warn)', marginTop:2 }}>💲 {L('ส่วนลดพิเศษ','Special Discount')} {p.discount}%</div>}
-                            {p.bonusItems && <div style={{ fontSize:11, color:'var(--txt3)', marginTop:3 }}>📦 {lang==='th'?'ของแถม:':'Bonus:'} {p.bonusItems}</div>}
-                            {p.dealNote && <div style={{ fontSize:11, color:'var(--txt4)', marginTop:3, fontStyle:'italic' }}>📝 {p.dealNote}</div>}
-                          </>) : (
-                            <div style={{ fontWeight:600, fontSize:13, color:isSelected?'var(--acc2)':'var(--txt)' }}>
-                              🎁 {p.name}{p.discount>0?` — ${p.discount}%`:''}
-                            </div>
-                          )}
-                        </div>
-                        {isSelected && <span style={{ color:'var(--ok)', fontSize:16, fontWeight:700, marginLeft:10 }}>✓</span>}
-                      </div>
-                    );
-                  })}
+              <label className="label">🎁 {L('ดีล/โปรโมชั่น', 'Deal/Promotion')}</label>
+              <select className="input" value={selectedDeal} onChange={e => handleDealChange(e.target.value)}>
+                <option value="">{L('ไม่มีโปรโมชั่น', 'No promotion')}</option>
+                {(supplier.promotions || []).map(p => {
+                  const label = p.buyQty > 0
+                    ? `ซื้อ ${p.buyQty} แถม ${p.freeQty||0}${p.discount>0?` ลด${p.discount}%`:''}`
+                    : (p.name || `ส่วนลด ${p.discount||0}%`);
+                  return <option key={p.id} value={p.id}>{label}</option>;
+                })}
+              </select>
+              {dealDiscount > 0 && (
+                <div style={{ fontSize:12, color:'var(--ok)', marginTop:4 }}>
+                  ✓ {L('ส่วนลด','Discount')} {dealDiscount}% {L('จะถูกคำนวณในยอดรวม','applied to total')}
                 </div>
               )}
-
+              <button type="button" className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:12, marginTop:8 }}
+                onClick={() => setShowNewDeal(s => !s)}>
+                {showNewDeal ? '▲' : '+'} {L('เพิ่มดีลใหม่', 'Add New Deal')}
+              </button>
               {showNewDeal && (
-                <div style={{ padding:12, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8 }}>
-                  <div style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:10 }}>
+                <div style={{ marginTop:8, padding:12, background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8 }}>
+                  <div style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8 }}>
                     <div className="form-group" style={{ flex:1, margin:0 }}>
-                      <label className="label" style={{ fontSize:11 }}>{L('ซื้อ (จำนวน)','Buy (qty)')}</label>
+                      <label className="label" style={{ fontSize:11 }}>{L('ซื้อ (ชิ้น)','Buy (pcs)')}</label>
                       <input className="input" type="number" min="0" value={newDeal.buyQty}
                         onChange={e => setNewDeal(d => ({...d, buyQty:e.target.value}))} placeholder="0" />
                     </div>
                     <div className="form-group" style={{ flex:1, margin:0 }}>
-                      <label className="label" style={{ fontSize:11 }}>{L('แถม (จำนวน)','Free (qty)')}</label>
+                      <label className="label" style={{ fontSize:11 }}>{L('แถม (ชิ้น)','Free (pcs)')}</label>
                       <input className="input" type="number" min="0" value={newDeal.freeQty}
                         onChange={e => setNewDeal(d => ({...d, freeQty:e.target.value}))} placeholder="0" />
                     </div>
+                    <div className="form-group" style={{ flex:2, margin:0 }}>
+                      <label className="label" style={{ fontSize:11 }}>{L('รายการขอแถม','Bonus Items')}</label>
+                      <input className="input" value={newDeal.bonusItems}
+                        onChange={e => setNewDeal(d => ({...d, bonusItems:e.target.value}))}
+                        placeholder={L('เช่น ถุงมือ, กล่อง, อุปกรณ์…','e.g. gloves...')} />
+                    </div>
                     <div className="form-group" style={{ flex:1, margin:0 }}>
-                      <label className="label" style={{ fontSize:11 }}>{L('ส่วนลดพิเศษ %','Discount %')}</label>
+                      <label className="label" style={{ fontSize:11 }}>Special Discount %</label>
                       <input className="input" type="number" min="0" max="100" value={newDeal.discount}
                         onChange={e => setNewDeal(d => ({...d, discount:e.target.value}))} placeholder="0" />
                     </div>
@@ -3157,12 +3166,6 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                       onClick={() => { setShowNewDeal(false); setNewDeal({buyQty:'',freeQty:'',discount:'',bonusItems:'',dealNote:''}); }}>🗑</button>
                   </div>
                   <div className="form-group" style={{ margin:'0 0 8px' }}>
-                    <label className="label" style={{ fontSize:11 }}>{L('สินค้าแถม / ของแถม','Bonus Items to Request')}</label>
-                    <input className="input" value={newDeal.bonusItems}
-                      onChange={e => setNewDeal(d => ({...d, bonusItems:e.target.value}))}
-                      placeholder={L('เช่น ถุงมือ, กล่อง, อุปกรณ์…','e.g. gloves, boxes…')} />
-                  </div>
-                  <div className="form-group" style={{ margin:'0 0 10px' }}>
                     <label className="label" style={{ fontSize:11 }}>{L('หมายเหตุดีล','Deal Note')}</label>
                     <input className="input" value={newDeal.dealNote}
                       onChange={e => setNewDeal(d => ({...d, dealNote:e.target.value}))}
@@ -3175,18 +3178,6 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                   <span style={{ fontSize:11, color:'var(--txt4)', marginLeft:10 }}>
                     {L('บันทึกแล้วจะอยู่กับ Supplier นี้ทุกครั้ง','Saved to this supplier permanently')}
                   </span>
-                </div>
-              )}
-
-              {!showNewDeal && (supplier.promotions||[]).length === 0 && (
-                <div style={{ fontSize:12, color:'var(--txt4)', padding:'8px 12px', background:'var(--card2)', borderRadius:8, border:'1px dashed var(--border)' }}>
-                  {L('ยังไม่มีดีล — กด + เพิ่มดีล เพื่อเพิ่มดีลใหม่','No deals yet — click + Add Deal to create one')}
-                </div>
-              )}
-
-              {dealDiscount > 0 && (
-                <div style={{ fontSize:12, color:'var(--ok)', marginTop:6 }}>
-                  ✓ {L('ส่วนลด','Discount')} {dealDiscount}% {L('จะถูกคำนวณในยอดรวม','applied to total')}
                 </div>
               )}
             </div>
@@ -3406,11 +3397,60 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
             </div>
           )}
 
-          {/* Summary */}
+          {/* Summary + Deal reminder (side by side) */}
           {items.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <div style={{ minWidth: 300 }}>
-                <div className="card-sm" style={{ padding: 16 }}>
+            <div style={{ display:'flex', gap:20, marginBottom:16, alignItems:'flex-start' }}>
+              {/* Left: Deal reminder */}
+              {supplier && (
+                <div style={{ flex:1, minWidth:0, padding:14, background:'var(--card2)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--ok)', marginBottom:4 }}>
+                    🎁 {L('ดีลแต่ละผู้จัดจำหน่าย','Deal per Supplier')}
+                    <span style={{ fontWeight:400, fontSize:11, color:'var(--txt4)', marginLeft:4 }}>
+                      ({L('แสดงเป็น reminder ตอนสั่งซื้อ','shown as reminder when ordering')})
+                    </span>
+                  </div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--warn)', marginBottom:10 }}>
+                    ⭐ {lang==='th'?supplier.name:(supplier.nameEN||supplier.name)} {L('(ผู้จัดจำหน่ายหลัก)','(main supplier)')}
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 2fr 1fr', gap:6, marginBottom:6 }}>
+                    <div className="form-group" style={{ margin:0 }}>
+                      <label className="label" style={{ fontSize:10 }}>{L('ซื้อ (ชิ้น)','Buy (pcs)')}</label>
+                      <input className="input input-sm" type="number" min="0" value={newDeal.buyQty}
+                        onChange={e => setNewDeal(d => ({...d, buyQty:e.target.value}))} placeholder="0" />
+                    </div>
+                    <div className="form-group" style={{ margin:0 }}>
+                      <label className="label" style={{ fontSize:10 }}>{L('แถม (ชิ้น)','Free (pcs)')}</label>
+                      <input className="input input-sm" type="number" min="0" value={newDeal.freeQty}
+                        onChange={e => setNewDeal(d => ({...d, freeQty:e.target.value}))} placeholder="0" />
+                    </div>
+                    <div className="form-group" style={{ margin:0 }}>
+                      <label className="label" style={{ fontSize:10 }}>{L('รายการขอแถม','Bonus Items')}</label>
+                      <input className="input input-sm" value={newDeal.bonusItems}
+                        onChange={e => setNewDeal(d => ({...d, bonusItems:e.target.value}))}
+                        placeholder={L('เช่น ถุงมือ, กล่อง, อุปกรณ์…','e.g. gloves, boxes…')} />
+                    </div>
+                    <div className="form-group" style={{ margin:0 }}>
+                      <label className="label" style={{ fontSize:10 }}>Special Discount %</label>
+                      <input className="input input-sm" type="number" min="0" max="100" value={newDeal.discount}
+                        onChange={e => setNewDeal(d => ({...d, discount:e.target.value}))} placeholder="0" />
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ margin:'0 0 8px' }}>
+                    <label className="label" style={{ fontSize:10 }}>{L('หมายเหตุ / Note','Note')}</label>
+                    <input className="input input-sm" value={newDeal.dealNote}
+                      onChange={e => setNewDeal(d => ({...d, dealNote:e.target.value}))}
+                      placeholder={L('เช่น โทรขอก่อนสั่ง, เฉพาะออนไลน์, ต้องสั่งขั้นต่ำ…','e.g. call first, online only…')} />
+                  </div>
+                  <button type="button" className="btn btn-ghost" style={{ fontSize:11, padding:'4px 10px' }}
+                    onClick={saveNewDeal}>
+                    💾 {L('บันทึกดีลนี้ให้ Supplier','Save deal to Supplier')}
+                  </button>
+                </div>
+              )}
+
+              {/* Right: Summary */}
+              <div style={{ minWidth:300 }}>
+                <div className="card-sm" style={{ padding:16 }}>
                   {[
                     [L('ยอดรวมก่อนส่วนลด (Gross)', 'Gross Total'), UTILS.fmt(summary.gross)],
                     dealDiscount > 0 ? [L(`ส่วนลดดีล ${dealDiscount}%`, `Deal Discount ${dealDiscount}%`), `- ${UTILS.fmt(summary.discount)}`, 'var(--ok)'] : null,
@@ -3418,15 +3458,15 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                     [L('รายการมี VAT', 'Taxable Amount'), UTILS.fmt(summary.taxable)],
                     [L('ภาษีมูลค่าเพิ่ม 7%', 'VAT 7%'), UTILS.fmt(summary.vat)],
                   ].filter(Boolean).map(([lbl, val, color]) => (
-                    <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                      <span style={{ color: 'var(--txt3)' }}>{lbl}</span>
-                      <span style={{ fontWeight: 600, color: color || 'var(--txt)' }}>฿{val}</span>
+                    <div key={lbl} style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:13 }}>
+                      <span style={{ color:'var(--txt3)' }}>{lbl}</span>
+                      <span style={{ fontWeight:600, color: color || 'var(--txt)' }}>฿{val}</span>
                     </div>
                   ))}
                   <div className="divider" />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 800 }}>
-                    <span style={{ color: 'var(--acc2)' }}>{L('ยอดสุทธิ', 'Grand Total')}</span>
-                    <span style={{ color: 'var(--acc2)' }}>฿{UTILS.fmt(summary.grandTotal)}</span>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:16, fontWeight:800 }}>
+                    <span style={{ color:'var(--acc2)' }}>{L('ยอดสุทธิ', 'Grand Total')}</span>
+                    <span style={{ color:'var(--acc2)' }}>฿{UTILS.fmt(summary.grandTotal)}</span>
                   </div>
                 </div>
               </div>
