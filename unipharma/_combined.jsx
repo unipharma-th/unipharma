@@ -8187,7 +8187,7 @@ function App() {
 
   const [page, setPage] = useState('dashboard');
   const [lang, setLang] = useState(() => localStorage.getItem('uni_lang') || 'th');
-  const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'earth');
   const [drugs, setDrugs] = useState(() => {
     try { const s = localStorage.getItem('uni_drugs'); return s ? JSON.parse(s) : DB.DRUGS; } catch { return DB.DRUGS; }
   });
@@ -8458,8 +8458,8 @@ function App() {
           <button className="lang-toggle" onClick={() => setLang(l => l === 'th' ? 'en' : 'th')}>
             {lang === 'th' ? 'EN' : 'ไทย'}
           </button>
-          <button className="icon-btn" title="Toggle theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? '☀' : '🌙'}
+          <button className="icon-btn" title={L('เปลี่ยนโทนสี','Change theme')} onClick={() => setTheme(t => t === 'earth' ? 'light' : t === 'light' ? 'dark' : 'earth')}>
+            {theme === 'dark' ? '🌿' : theme === 'light' ? '🌙' : '☀'}
           </button>
           {perm.canWrite && (
             <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>

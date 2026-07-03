@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th" data-theme="light">
+<html lang="th" data-theme="earth">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -42,6 +42,21 @@
   --shadow:0 4px 20px rgba(0,0,0,.45);
   --shadow2:0 8px 40px rgba(0,0,0,.55);
 }
+[data-theme="earth"]{
+  /* Earth tone — warm cream, sienna, terracotta */
+  --bg0:#f2ebe0;--bg1:#faf5ec;--bg2:#faf5ec;--bg3:#ecdec8;--bg4:#dccfb2;
+  --border:rgba(120,68,28,.14);--border2:rgba(120,68,28,.30);
+  --acc:#7c4010;--acc2:#9a5020;--acc3:#c47840;--glow:rgba(124,64,16,.10);
+  --txt:#2c1a08;--txt2:#543010;--txt3:#8a5e3a;--txt4:#b8906a;
+  --ok:#4e7a28;--ok-bg:rgba(78,122,40,.10);
+  --warn:#b87a08;--warn-bg:rgba(184,122,8,.10);
+  --err:#a83018;--err-bg:rgba(168,48,24,.09);
+  --info:#2e607a;--info-bg:rgba(46,96,122,.10);
+  --red:#d4a898;--red-bg:rgba(212,168,152,.10);
+  --shadow:0 2px 12px rgba(100,50,10,.10);
+  --shadow2:0 8px 32px rgba(100,50,10,.18);
+}
+[data-theme="earth"] .topnav-logo img{background:transparent;padding:0}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg0);color:var(--txt);font-family:'Noto Sans Thai','Inter',sans-serif;font-size:var(--density-fs);line-height:1.5;transition:background .3s,color .3s}
@@ -266,7 +281,7 @@ select.input{cursor:pointer}
   preloadAsync('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
   preloadAsync('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
 
-  var v = '?v=20260703t';
+  var v = '?v=20260703u';
   function loadJS(src, type){
     var el = document.createElement('script');
     el.src = src + v;
