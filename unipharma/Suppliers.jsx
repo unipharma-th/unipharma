@@ -391,9 +391,9 @@ function DealEditorModal({ lang, L, drugs, supId, initialDrugCode, initialDeal, 
 function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(() => {
-    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[] };
+    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[], repDrugDeals:[] };
     const existingContacts = (sup.contacts||[]).filter(c=>c.name||c.phone);
-    return { ...sup, contacts: existingContacts.length ? existingContacts : (sup.contact ? [{name:sup.contact,phone:sup.phone||''}] : [{name:'',phone:''}]), returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: (sup.reps||[]).map(r=>({...r, drugs:r.drugs||[]})) };
+    return { ...sup, contacts: existingContacts.length ? existingContacts : (sup.contact ? [{name:sup.contact,phone:sup.phone||''}] : [{name:'',phone:''}]), returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: (sup.reps||[]).map(r=>({...r, drugs:r.drugs||[]})), repDrugDeals: sup.repDrugDeals||[] };
   });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -411,6 +411,9 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const promos = form.promotions || [];
   const drugList = form.drugs || [];
   const drugPrices = form.drugPrices || {};
+  const addRepDrugDeal = () => setForm(f => ({...f, repDrugDeals:[...(f.repDrugDeals||[]),{id:'RDD'+Date.now(),drugCode:'',repId:'',buyQty:0,freeQty:0,discount:0,note:'',returnPolicy:''}]}));
+  const updRDD = (id,k,v) => setForm(f => ({...f, repDrugDeals:(f.repDrugDeals||[]).map(d=>d.id===id?{...d,[k]:v}:d)}));
+  const removeRDD = (id) => setForm(f => ({...f, repDrugDeals:(f.repDrugDeals||[]).filter(d=>d.id!==id)}));
 
   const addPromo = () => setForm(f => ({ ...f, promotions: [...(f.promotions || []), { id:'P'+Date.now(), buyQty:0, freeQty:0, bonusItems:'', discount:0, dealNote:'' }] }));
   const updatePromo = (id, k, v) => setForm(f => ({ ...f, promotions: (f.promotions || []).map(p => p.id === id ? { ...p, [k]: v } : p) }));
@@ -756,6 +759,66 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
           {L('ยังไม่มีรายการ — ค้นหาสินค้าด้านบนเพื่อเพิ่ม', 'No items yet — search above to add products')}
         </div>
       )}
+
+      {/* ── Section 11: Per-drug per-rep deals + return policy ── */}
+      <div className="divider" />
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+        <label className="label" style={{ margin:0 }}>🏷 {L('ดีลต่อสินค้า (แยกตามผู้แทน)','Per-Drug Deals (by Rep)')}</label>
+        <button type="button" className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:12 }} onClick={addRepDrugDeal}>
+          + {L('เพิ่มดีลสินค้า','Add Drug Deal')}
+        </button>
+      </div>
+      {(form.repDrugDeals||[]).length === 0 && (
+        <div style={{ fontSize:12, color:'var(--txt4)', marginBottom:8 }}>
+          {L('ยังไม่มีดีลต่อสินค้า — กด + เพิ่มดีลสินค้า','No per-drug deals yet — click + Add Drug Deal')}
+        </div>
+      )}
+      {(form.repDrugDeals||[]).map(d => {
+        const drug = allDrugs.find(x=>x.code===d.drugCode);
+        return (
+          <div key={d.id} style={{ background:'var(--card2)', border:'1px solid var(--bdr)', borderRadius:10, padding:12, marginBottom:10 }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:10 }}>
+              {drug && <span style={{ background:'var(--acc-bg)', color:'var(--acc2)', borderRadius:99, fontSize:11, padding:'2px 8px', fontFamily:'monospace', flexShrink:0 }}>{d.drugCode}</span>}
+              <div style={{ flex:1 }}>
+                {drug
+                  ? <div style={{ fontSize:12, fontWeight:600 }}>{lang==='th'?drug.nameTH:(drug.nameEN||drug.nameTH)}</div>
+                  : <select className="input" value={d.drugCode} onChange={e=>updRDD(d.id,'drugCode',e.target.value)} style={{ fontSize:12 }}>
+                      <option value="">{L('เลือกสินค้า...','Select drug...')}</option>
+                      {drugList.map(code=>{ const dr=allDrugs.find(x=>x.code===code); return dr?<option key={code} value={code}>{code} — {dr.nameTH}</option>:null; })}
+                    </select>
+                }
+              </div>
+              <select className="input" value={d.repId} onChange={e=>updRDD(d.id,'repId',e.target.value)} style={{ fontSize:11, maxWidth:180, flexShrink:0 }}>
+                <option value="">{L('เลือกผู้แทน...','Select rep...')}</option>
+                {(form.reps||[]).map(r=><option key={r.id} value={r.id}>{lang==='th'?(r.brand||r.brandEN):(r.brandEN||r.brand)} · {r.name}</option>)}
+              </select>
+              <button type="button" className="btn btn-ghost" style={{ padding:'6px 8px', color:'var(--err)', flexShrink:0 }} onClick={()=>removeRDD(d.id)}>🗑</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'80px 80px 80px 1fr', gap:8, marginBottom:8 }}>
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('ซื้อ (ชิ้น)','Buy')}</label>
+                <input className="input" type="number" min="0" value={d.buyQty||0} onChange={e=>updRDD(d.id,'buyQty',parseInt(e.target.value)||0)} />
+              </div>
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('แถม (ชิ้น)','Free')}</label>
+                <input className="input" type="number" min="0" value={d.freeQty||0} onChange={e=>updRDD(d.id,'freeQty',parseInt(e.target.value)||0)} />
+              </div>
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('ส่วนลด %','Disc%')}</label>
+                <input className="input" type="number" min="0" max="100" value={d.discount||0} onChange={e=>updRDD(d.id,'discount',parseFloat(e.target.value)||0)} />
+              </div>
+              <div className="form-group" style={{ margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('หมายเหตุดีล','Deal Note')}</label>
+                <input className="input" value={d.note||''} onChange={e=>updRDD(d.id,'note',e.target.value)} placeholder={L('เงื่อนไข เช่น แจ้งล่วงหน้า...','e.g. notify in advance...')} />
+              </div>
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="label" style={{ fontSize:10 }}>↩ {L('นโยบายการคืนสินค้า (รายการนี้)','Return Policy (this item)')}</label>
+              <input className="input" value={d.returnPolicy||''} onChange={e=>updRDD(d.id,'returnPolicy',e.target.value)} placeholder={L('เช่น คืนได้ภายใน 7 วัน หากสินค้าเสียหาย','e.g. return within 7 days if damaged')} />
+            </div>
+          </div>
+        );
+      })}
     </Modal>
   );
 }
