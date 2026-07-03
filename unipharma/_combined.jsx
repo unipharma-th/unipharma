@@ -3764,16 +3764,24 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
     notify(L('บันทึกข้อมูลผู้จัดจำหน่ายสำเร็จ', 'Supplier saved'));
   };
 
+  const showForm = showAdd || !!editSup;
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
-          <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
+          {!showForm && <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>}
         </div>
-        {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+        {!showForm && <div style={{ display: 'flex', gap: 8 }}>
+          {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel', 'Export Excel')}</button>}
+          {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+        </div>}
       </div>
 
+      {showForm ? (
+        <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />
+      ) : (<>
       <div style={{ marginBottom: 16, maxWidth: 360 }}>
         <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
       </div>
@@ -3847,7 +3855,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
       </div>
 
       {viewSup && <SupplierDetail sup={viewSup} lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} orders={orders} onClose={() => setViewSup(null)} onEdit={() => { setEditSup(viewSup); setViewSup(null); }} />}
-      {(showAdd || editSup) && <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />}
+      </>)}
     </div>
   );
 }
@@ -4091,10 +4099,10 @@ function DealEditorModal({ lang, L, drugs, supId, initialDrugCode, initialDeal, 
 function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(() => {
-    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[] };
+    if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', addressEN:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[] };
     const existingContacts = (sup.contacts||[]).filter(c=>c.name||c.phone);
-    const migrateRepDrugs = ds => (ds||[]).map(d => typeof d === 'string' ? {code:d, buyQty:0, freeQty:0, discount:0, note:'', returnPolicy:''} : d);
-    return { ...sup, contacts: existingContacts.length ? existingContacts : (sup.contact ? [{name:sup.contact,phone:sup.phone||''}] : [{name:'',phone:''}]), returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: (sup.reps||[]).map(r=>({...r, drugs:migrateRepDrugs(r.drugs)})) };
+    const migrateRepDrugs = ds => (ds||[]).map(d => typeof d === 'string' ? {code:d, buyQty:0, freeQty:0, discount:0, note:'', returnPolicy:'', returnPolicyEN:''} : {...d, returnPolicyEN: d.returnPolicyEN||''});
+    return { ...sup, addressEN: sup.addressEN||'', contacts: existingContacts.length ? existingContacts : (sup.contact ? [{name:sup.contact,phone:sup.phone||''}] : [{name:'',phone:''}]), returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: (sup.reps||[]).map(r=>({...r, drugs:migrateRepDrugs(r.drugs)})) };
   });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -4132,7 +4140,7 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
       if (r.id !== repId) return r;
       const existing = r.drugs||[];
       if (existing.find(d=>d.code===code)) return r;
-      return {...r, drugs:[...existing, {code, buyQty:0, freeQty:0, discount:0, note:'', returnPolicy:''}]};
+      return {...r, drugs:[...existing, {code, buyQty:0, freeQty:0, discount:0, note:'', returnPolicy:'', returnPolicyEN:''}]};
     })}));
     setRepDrugSearch(repId,'');
   };
@@ -4167,9 +4175,24 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
       <input className="input" type={type} value={form[k] || ''} onChange={e => set(k, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)} />
     </div>
   );
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
   return (
-    <Modal title={isEdit ? L('แก้ไขผู้จัดจำหน่าย', 'Edit Supplier') : L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')} onClose={onClose} size={700}
-      footer={<><button className="btn btn-ghost" onClick={onClose}>{L('ยกเลิก', 'Cancel')}</button><button className="btn btn-primary" onClick={() => onSave(form)}>{L('บันทึก', 'Save')}</button></>}>
+    <div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <div className="page-title" style={{ fontSize:16 }}>
+          {isEdit ? L('แก้ไขผู้จัดจำหน่าย','Edit Supplier') : L('เพิ่มผู้จัดจำหน่าย','Add Supplier')}
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button className="btn btn-ghost" onClick={onClose}>{L('ยกเลิก','Cancel')}</button>
+          <button className="btn btn-primary" onClick={() => onSave(form)}>{L('บันทึก','Save')}</button>
+        </div>
+      </div>
+      <div className="card" style={{ maxWidth:740 }}>
       <div className="form-row">
         {inp('name', L('ชื่อบริษัท (ไทย)', 'Thai Name'))}
         {inp('nameEN', L('ชื่อบริษัท (อังกฤษ)', 'English Name'))}
@@ -4202,7 +4225,10 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
         {inp('email', 'Email', 'email')}
         {inp('taxId', L('เลขภาษี', 'Tax ID'))}
       </div>
-      {inp('address', L('ที่อยู่', 'Address'))}
+      <div className="form-row">
+        {inp('address', L('ที่อยู่ (ไทย)', 'Address (TH)'))}
+        {inp('addressEN', L('ที่อยู่ (อังกฤษ)', 'Address (EN)'))}
+      </div>
       <div className="form-row-3">
         {inp('creditTerm', L('เครดิต (วัน)', 'Credit Term'), 'number')}
         {inp('deliveryDays', L('ระยะส่ง (วัน)', 'Delivery Days'), 'number')}
@@ -4373,11 +4399,19 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
                           onChange={e=>updRepDrug(r.id,drug.code,'note',e.target.value)} />
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>↩ {L('นโยบายการคืน','Return Policy')}</div>
-                      <input className="input" value={drug.returnPolicy||''} style={{ fontSize:11 }}
-                        onChange={e=>updRepDrug(r.id,drug.code,'returnPolicy',e.target.value)}
-                        placeholder={L('เช่น คืนได้ภายใน 7 วัน...','e.g. return within 7 days...')} />
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
+                      <div>
+                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>↩ {L('นโยบายการคืน (ไทย)','Return Policy (TH)')}</div>
+                        <input className="input" value={drug.returnPolicy||''} style={{ fontSize:11 }}
+                          onChange={e=>updRepDrug(r.id,drug.code,'returnPolicy',e.target.value)}
+                          placeholder={L('เช่น คืนได้ภายใน 7 วัน...','e.g. return within 7 days...')} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>↩ Return Policy (EN)</div>
+                        <input className="input" value={drug.returnPolicyEN||''} style={{ fontSize:11 }}
+                          onChange={e=>updRepDrug(r.id,drug.code,'returnPolicyEN',e.target.value)}
+                          placeholder="e.g. return within 7 days..." />
+                      </div>
                     </div>
                   </div>
                 );
@@ -4484,8 +4518,8 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
           {L('ยังไม่มีรายการ — ค้นหาสินค้าด้านบนเพื่อเพิ่ม', 'No items yet — search above to add products')}
         </div>
       )}
-
-    </Modal>
+      </div>{/* end card */}
+    </div>
   );
 }
 
