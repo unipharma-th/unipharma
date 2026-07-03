@@ -90,8 +90,13 @@ function SearchInput({ value, onChange, placeholder = 'ค้นหา…' }) {
 function ChartWidget({ type, data, options = {}, height = 220 }) {
   const ref = useRef(null);
   const chartRef = useRef(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!ref.current) return;
+    if (typeof Chart === 'undefined') {
+      const t = setTimeout(() => setTick(n => n + 1), 100);
+      return () => clearTimeout(t);
+    }
     if (chartRef.current) chartRef.current.destroy();
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const gridColor = isDark ? 'rgba(139,92,246,.1)' : 'rgba(124,58,237,.08)';
@@ -106,7 +111,7 @@ function ChartWidget({ type, data, options = {}, height = 220 }) {
     };
     chartRef.current = new Chart(ref.current, { type, data, options: { ...defaultOpts, ...options } });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
-  }, [type, JSON.stringify(data)]);
+  }, [type, JSON.stringify(data), tick]);
   return <div style={{ position: 'relative', height }}><canvas ref={ref} /></div>;
 }
 

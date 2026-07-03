@@ -293,7 +293,7 @@
         orders.sort(function (a, b) { return (b.poDate || "").localeCompare(a.poDate || ""); });
         return { drugs: drugs, suppliers: suppliers, orders: orders };
       } catch (e) {
-        console.warn("[UNI_DB] loadAll failed:", e);
+        console.warn("[UNI_DB] loadAll failed:", e && (e.message || String(e)));
         return null;
       }
     },
@@ -452,7 +452,7 @@
         var cats = (res.data || []).map(categoryFromRow);
         try { localStorage.setItem('uni_cat_cache', JSON.stringify(cats)); localStorage.setItem('uni_cat_ts', Date.now().toString()); } catch(e) {}
         return cats;
-      } catch (e) { console.warn("[UNI_DB] loadCategories:", e); return null; }
+      } catch (e) { console.warn("[UNI_DB] loadCategories:", e && (e.message || String(e))); return null; }
     },
     async saveCategoriesBulk(arr) {
       if (!enabled || !arr || !arr.length) return false;
