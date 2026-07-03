@@ -392,7 +392,7 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(() => {
     if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', category:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''},{name:'',phone:''},{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[] };
-    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: sup.reps||[] };
+    return { ...sup, contacts: sup.contacts || [{name:sup.contact||'',phone:sup.phone||''},{name:'',phone:''},{name:'',phone:''}], returnPolicy: sup.returnPolicy||'', returnPolicyEN: sup.returnPolicyEN||'', reps: (sup.reps||[]).map(r=>({...r, drugs:r.drugs||[]})) };
   });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -410,9 +410,13 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   const removePromo = (id) => setForm(f => ({ ...f, promotions: (f.promotions || []).filter(p => p.id !== id) }));
 
   const reps = form.reps || [];
-  const addRep = () => setForm(f => ({ ...f, reps: [...(f.reps||[]), { id:'REP'+Date.now(), name:'', brand:'', brandEN:'', phone:'' }] }));
+  const [repDrugSearches, setRepDrugSearches] = useState({});
+  const addRep = () => setForm(f => ({ ...f, reps: [...(f.reps||[]), { id:'REP'+Date.now(), name:'', brand:'', brandEN:'', phone:'', drugs:[] }] }));
   const updateRep = (id, k, v) => setForm(f => ({ ...f, reps: (f.reps||[]).map(r => r.id===id ? {...r,[k]:v} : r) }));
   const removeRep = (id) => setForm(f => ({ ...f, reps: (f.reps||[]).filter(r => r.id!==id) }));
+  const setRepDrugSearch = (repId, val) => setRepDrugSearches(s => ({...s, [repId]: val}));
+  const addRepDrug = (repId, code) => { setForm(f => ({...f, reps:(f.reps||[]).map(r => r.id===repId ? {...r, drugs:[...new Set([...(r.drugs||[]),code])]} : r)})); setRepDrugSearch(repId,''); };
+  const removeRepDrug = (repId, code) => setForm(f => ({...f, reps:(f.reps||[]).map(r => r.id===repId ? {...r, drugs:(r.drugs||[]).filter(c=>c!==code)} : r)}));
 
   const addDrug = (drug) => {
     setForm(f => ({
@@ -547,28 +551,85 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
       {reps.length === 0 && (
         <div style={{ fontSize:12, color:'var(--txt4)', marginBottom:8 }}>{L('ยังไม่มีผู้แทน — กด + เพิ่มผู้แทน','No reps yet — click + Add Rep')}</div>
       )}
-      {reps.map(r => (
-        <div key={r.id} style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8, padding:'8px 10px', background:'var(--card2)', borderRadius:8 }}>
-          <div className="form-group" style={{ flex:2, margin:0 }}>
-            <label className="label" style={{ fontSize:11 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
-            <input className="input" value={r.name||''} onChange={e=>updateRep(r.id,'name',e.target.value)} placeholder={L('เช่น คุณนิ้ง','e.g. Ning')} />
+      {reps.map(r => {
+        const repSearch = repDrugSearches[r.id] || '';
+        const repDrugs = r.drugs || [];
+        const repSearchResults = repSearch.length > 0
+          ? allDrugs.filter(d => !repDrugs.includes(d.code) && (
+              d.code.toLowerCase().includes(repSearch.toLowerCase()) ||
+              (d.nameTH||'').includes(repSearch) ||
+              (d.nameEN||'').toLowerCase().includes(repSearch.toLowerCase())
+            )).slice(0, 10)
+          : [];
+        return (
+          <div key={r.id} style={{ marginBottom:10, padding:'10px 12px', background:'var(--card2)', borderRadius:10, border:'1px solid var(--border)' }}>
+            {/* ── Info row ── */}
+            <div style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8 }}>
+              <div className="form-group" style={{ flex:2, margin:0 }}>
+                <label className="label" style={{ fontSize:11 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
+                <input className="input" value={r.name||''} onChange={e=>updateRep(r.id,'name',e.target.value)} placeholder={L('เช่น คุณนิ้ง','e.g. Ning')} />
+              </div>
+              <div className="form-group" style={{ flex:2, margin:0 }}>
+                <label className="label" style={{ fontSize:11 }}>{L('Brand (ไทย)','Brand (TH)')}</label>
+                <input className="input" value={r.brand||''} onChange={e=>updateRep(r.id,'brand',e.target.value)} placeholder="Sandoz" />
+              </div>
+              <div className="form-group" style={{ flex:2, margin:0 }}>
+                <label className="label" style={{ fontSize:11 }}>Brand (EN)</label>
+                <input className="input" value={r.brandEN||''} onChange={e=>updateRep(r.id,'brandEN',e.target.value)} placeholder="Sandoz" />
+              </div>
+              <div className="form-group" style={{ flex:2, margin:0 }}>
+                <label className="label" style={{ fontSize:11 }}>{L('เบอร์โทร','Phone')}</label>
+                <input className="input" value={r.phone||''} onChange={e=>updateRep(r.id,'phone',e.target.value)} placeholder="08x-xxx-xxxx" />
+              </div>
+              <button type="button" className="btn btn-ghost" style={{ padding:'8px 10px', color:'var(--err)', flexShrink:0 }}
+                title={L('ลบ','Remove')} onClick={()=>removeRep(r.id)}>🗑</button>
+            </div>
+            {/* ── Drug assignment ── */}
+            <div style={{ borderTop:'1px solid var(--border)', paddingTop:8 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:'var(--txt3)', marginBottom:6 }}>
+                📦 {L('สินค้าที่ดูแล','Products Managed')}
+                <span style={{ fontWeight:400, marginLeft:6, color:'var(--txt4)' }}>({repDrugs.length} {L('รายการ','items')})</span>
+              </div>
+              {repDrugs.length > 0 && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:6 }}>
+                  {repDrugs.map(code => {
+                    const d = allDrugs.find(x=>x.code===code);
+                    return (
+                      <span key={code} style={{ background:'var(--acc-bg)', color:'var(--acc2)', borderRadius:99, fontSize:11, padding:'2px 8px 2px 10px', display:'inline-flex', alignItems:'center', gap:4 }}>
+                        <span style={{ fontFamily:'monospace' }}>{code}</span>
+                        {d && <span style={{ color:'var(--txt3)', fontSize:10 }}>{d.nameTH}</span>}
+                        <button type="button" onClick={()=>removeRepDrug(r.id,code)}
+                          style={{ background:'none', border:'none', cursor:'pointer', padding:'0 2px', color:'var(--txt3)', fontSize:13, lineHeight:1 }}>×</button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ position:'relative' }}>
+                <input className="input" style={{ fontSize:12 }} value={repSearch}
+                  onChange={e=>setRepDrugSearch(r.id,e.target.value)}
+                  placeholder={L('ค้นหาสินค้าเพื่อเพิ่ม (รหัส / ชื่อ)…','Search drug to add (code / name)…')} />
+                {repSearchResults.length > 0 && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:2, background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, maxHeight:180, overflowY:'auto', zIndex:40, boxShadow:'0 6px 18px rgba(0,0,0,.2)' }}>
+                    {repSearchResults.map(d => (
+                      <div key={d.code} onMouseDown={()=>addRepDrug(r.id,d.code)}
+                        style={{ padding:'7px 12px', cursor:'pointer', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', fontSize:12 }}
+                        onMouseOver={e=>e.currentTarget.style.background='var(--bg3)'}
+                        onMouseOut={e=>e.currentTarget.style.background=''}>
+                        <span>
+                          <span style={{ fontFamily:'monospace', color:'var(--acc2)', marginRight:8 }}>{d.code}</span>
+                          {d.nameTH}
+                        </span>
+                        <span style={{ color:'var(--txt4)', fontSize:11 }}>{d.nameEN}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="form-group" style={{ flex:2, margin:0 }}>
-            <label className="label" style={{ fontSize:11 }}>{L('Brand (ไทย)','Brand (TH)')}</label>
-            <input className="input" value={r.brand||''} onChange={e=>updateRep(r.id,'brand',e.target.value)} placeholder="Sandoz" />
-          </div>
-          <div className="form-group" style={{ flex:2, margin:0 }}>
-            <label className="label" style={{ fontSize:11 }}>Brand (EN)</label>
-            <input className="input" value={r.brandEN||''} onChange={e=>updateRep(r.id,'brandEN',e.target.value)} placeholder="Sandoz" />
-          </div>
-          <div className="form-group" style={{ flex:2, margin:0 }}>
-            <label className="label" style={{ fontSize:11 }}>{L('เบอร์โทร','Phone')}</label>
-            <input className="input" value={r.phone||''} onChange={e=>updateRep(r.id,'phone',e.target.value)} placeholder="08x-xxx-xxxx" />
-          </div>
-          <button type="button" className="btn btn-ghost" style={{ padding:'8px 10px', color:'var(--err)', flexShrink:0 }}
-            title={L('ลบ','Remove')} onClick={()=>removeRep(r.id)}>🗑</button>
-        </div>
-      ))}
+        );
+      })}
 
       {/* ── Drug catalog section ── */}
       <div className="divider" />

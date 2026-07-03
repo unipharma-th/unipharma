@@ -63,6 +63,19 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
     }
   }, [supplierId]);
 
+  // Auto-suggest best rep when PO items change (rep with most matching drugs wins)
+  useEffect(() => {
+    const reps = supplier?.reps || [];
+    if (reps.length <= 1 || items.length === 0) return;
+    const codes = new Set(items.map(i => i.code));
+    let best = null, bestCount = -1;
+    reps.forEach(r => {
+      const cnt = (r.drugs || []).filter(c => codes.has(c)).length;
+      if (cnt > bestCount) { bestCount = cnt; best = r; }
+    });
+    if (best && bestCount > 0) setSelectedRep(best);
+  }, [items]);
+
   // Add a new deal, or edit the currently-selected one, and save it back to
   // the supplier (cloud + app state) so every PO sees the latest promotions.
   const saveDeal = async () => {
@@ -366,15 +379,25 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
                 <div style={{ marginTop:10 }}>
                   <label className="label">👥 {L('ผู้แทน / Brand','Sales Rep / Brand')}</label>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:6 }}>
-                    {(supplier.reps||[]).map(r => (
-                      <div key={r.id}
-                        onClick={() => setSelectedRep(selectedRep?.id===r.id ? null : r)}
-                        style={{ padding:'8px 12px', border:`1px solid ${selectedRep?.id===r.id?'var(--acc2)':'var(--bdr)'}`, borderRadius:8, cursor:'pointer', background:selectedRep?.id===r.id?'var(--acc-bg)':'var(--card2)' }}>
-                        <div style={{ fontWeight:600, fontSize:12, color:selectedRep?.id===r.id?'var(--acc2)':'var(--txt)' }}>{r.name}</div>
-                        <div style={{ fontSize:11, color:'var(--txt3)' }}>{lang==='en'?(r.brandEN||r.brand):r.brand}</div>
-                        {r.phone && <div style={{ fontSize:10, color:'var(--txt4)' }}>{r.phone}</div>}
-                      </div>
-                    ))}
+                    {(supplier.reps||[]).map(r => {
+                      const itemCodes = new Set(items.map(i=>i.code));
+                      const matchCount = (r.drugs||[]).filter(c=>itemCodes.has(c)).length;
+                      const isSelected = selectedRep?.id===r.id;
+                      return (
+                        <div key={r.id}
+                          onClick={() => setSelectedRep(isSelected ? null : r)}
+                          style={{ padding:'8px 12px', border:`1px solid ${isSelected?'var(--acc2)':'var(--bdr)'}`, borderRadius:8, cursor:'pointer', background:isSelected?'var(--acc-bg)':'var(--card2)', position:'relative' }}>
+                          <div style={{ fontWeight:600, fontSize:12, color:isSelected?'var(--acc2)':'var(--txt)' }}>{r.name}</div>
+                          <div style={{ fontSize:11, color:'var(--txt3)' }}>{lang==='en'?(r.brandEN||r.brand):r.brand}</div>
+                          {r.phone && <div style={{ fontSize:10, color:'var(--txt4)' }}>{r.phone}</div>}
+                          {matchCount > 0 && (
+                            <div style={{ fontSize:10, color:'var(--ok)', marginTop:2 }}>
+                              ✓ {L('ดูแล','Manages')} {matchCount} {L('รายการในใบสั่งนี้','items in this PO')}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {selectedRep && (
                     <div style={{ fontSize:11, color:'var(--ok)' }}>
