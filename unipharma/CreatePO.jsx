@@ -387,57 +387,65 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
           </div>
 
           {/* Deal / Promotion — show supplier's deals as selectable cards */}
-          {supplier && (supplier.promotions || []).length > 0 && (
+          {supplier && (
             <div className="form-group">
               <label className="label">
                 🎁 {L('ดีล / โปรโมชั่น', 'Deals / Promotions')}
-                <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--txt4)', marginLeft: 6 }}>
-                  {L('คลิกเพื่อเลือก · คลิกซ้ำเพื่อยกเลิก', 'Click to select · click again to deselect')}
-                </span>
+                {(supplier.promotions || []).length > 0 && (
+                  <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--txt4)', marginLeft: 6 }}>
+                    {L('คลิกเพื่อเลือก · คลิกซ้ำเพื่อยกเลิก', 'Click to select · click again to deselect')}
+                  </span>
+                )}
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(supplier.promotions || []).map(p => {
-                  const isSelected = selectedDeal === p.id;
-                  const isNewFmt = p.buyQty > 0 || p.freeQty > 0 || p.bonusItems || p.dealNote;
-                  return (
-                    <div key={p.id}
-                      onClick={() => handleDealChange(isSelected ? '' : p.id)}
-                      style={{ padding: '10px 14px', border: `1.5px solid ${isSelected ? 'var(--acc2)' : 'var(--border)'}`, borderRadius: 10, cursor: 'pointer', background: isSelected ? 'var(--acc-bg)' : 'var(--card2)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', transition: 'border-color .15s' }}>
-                      <div style={{ flex: 1 }}>
-                        {isNewFmt ? (
-                          <>
-                            {(p.buyQty > 0 || p.freeQty > 0) && (
-                              <div style={{ fontWeight: 700, fontSize: 13, color: isSelected ? 'var(--acc2)' : 'var(--ok)' }}>
-                                🎁 {lang === 'th' ? `ซื้อ ${p.buyQty || 0} → แถม ${p.freeQty || 0} ชิ้น` : `Buy ${p.buyQty || 0} → Free ${p.freeQty || 0} pcs`}
-                              </div>
-                            )}
-                            {p.discount > 0 && (
-                              <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 2 }}>
-                                💲 {L('ส่วนลดพิเศษ', 'Special Discount')} {p.discount}%
-                              </div>
-                            )}
-                            {p.bonusItems && (
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 3 }}>
-                                📦 {lang === 'th' ? 'ของแถม:' : 'Bonus:'} {p.bonusItems}
-                              </div>
-                            )}
-                            {p.dealNote && (
-                              <div style={{ fontSize: 11, color: 'var(--txt4)', marginTop: 3, fontStyle: 'italic' }}>
-                                📝 {p.dealNote}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div style={{ fontWeight: 600, fontSize: 13, color: isSelected ? 'var(--acc2)' : 'var(--txt)' }}>
-                            🎁 {p.name}{p.discount > 0 ? ` — ${p.discount}%` : ''}
-                          </div>
-                        )}
+              {(supplier.promotions || []).length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--txt4)', padding: '8px 12px', background: 'var(--card2)', borderRadius: 8, border: '1px dashed var(--border)' }}>
+                  {L('ยังไม่มีดีลสำหรับ Supplier นี้ — ไปเพิ่มดีลที่หน้า Supplier ก่อน', 'No deals for this supplier yet — add deals on the Supplier page first')}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(supplier.promotions || []).map(p => {
+                    const isSelected = selectedDeal === p.id;
+                    const isNewFmt = p.buyQty > 0 || p.freeQty > 0 || p.bonusItems || p.dealNote;
+                    return (
+                      <div key={p.id}
+                        onClick={() => handleDealChange(isSelected ? '' : p.id)}
+                        style={{ padding: '10px 14px', border: `1.5px solid ${isSelected ? 'var(--acc2)' : 'var(--border)'}`, borderRadius: 10, cursor: 'pointer', background: isSelected ? 'var(--acc-bg)' : 'var(--card2)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', transition: 'border-color .15s' }}>
+                        <div style={{ flex: 1 }}>
+                          {isNewFmt ? (
+                            <>
+                              {(p.buyQty > 0 || p.freeQty > 0) && (
+                                <div style={{ fontWeight: 700, fontSize: 13, color: isSelected ? 'var(--acc2)' : 'var(--ok)' }}>
+                                  🎁 {lang === 'th' ? `ซื้อ ${p.buyQty || 0} → แถม ${p.freeQty || 0} ชิ้น` : `Buy ${p.buyQty || 0} → Free ${p.freeQty || 0} pcs`}
+                                </div>
+                              )}
+                              {p.discount > 0 && (
+                                <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 2 }}>
+                                  💲 {L('ส่วนลดพิเศษ', 'Special Discount')} {p.discount}%
+                                </div>
+                              )}
+                              {p.bonusItems && (
+                                <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 3 }}>
+                                  📦 {lang === 'th' ? 'ของแถม:' : 'Bonus:'} {p.bonusItems}
+                                </div>
+                              )}
+                              {p.dealNote && (
+                                <div style={{ fontSize: 11, color: 'var(--txt4)', marginTop: 3, fontStyle: 'italic' }}>
+                                  📝 {p.dealNote}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div style={{ fontWeight: 600, fontSize: 13, color: isSelected ? 'var(--acc2)' : 'var(--txt)' }}>
+                              🎁 {p.name}{p.discount > 0 ? ` — ${p.discount}%` : ''}
+                            </div>
+                          )}
+                        </div>
+                        {isSelected && <span style={{ color: 'var(--ok)', fontSize: 16, fontWeight: 700, marginLeft: 10 }}>✓</span>}
                       </div>
-                      {isSelected && <span style={{ color: 'var(--ok)', fontSize: 16, fontWeight: 700, marginLeft: 10 }}>✓</span>}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
               {dealDiscount > 0 && (
                 <div style={{ fontSize: 12, color: 'var(--ok)', marginTop: 6 }}>
                   ✓ {L('ส่วนลด', 'Discount')} {dealDiscount}% {L('จะถูกคำนวณในยอดรวม', 'applied to total')}
