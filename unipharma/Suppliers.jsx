@@ -596,16 +596,16 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
             <div style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8 }}>
               <span title={L('ลากเพื่อเรียงลำดับ','Drag to reorder')} style={{ color:'var(--txt4)', fontSize:16, opacity:0.4, cursor:'grab', userSelect:'none', paddingBottom:8, flexShrink:0 }}>⠿</span>
               <div className="form-group" style={{ flex:2, margin:0 }}>
-                <label className="label" style={{ fontSize:11 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
-                <input className="input" value={r.name||''} onChange={e=>updateRep(r.id,'name',e.target.value)} placeholder={L('เช่น คุณนิ้ง','e.g. Ning')} />
-              </div>
-              <div className="form-group" style={{ flex:2, margin:0 }}>
                 <label className="label" style={{ fontSize:11 }}>{L('Brand (ไทย)','Brand (TH)')}</label>
                 <input className="input" value={r.brand||''} onChange={e=>updateRep(r.id,'brand',e.target.value)} placeholder="Sandoz" />
               </div>
               <div className="form-group" style={{ flex:2, margin:0 }}>
                 <label className="label" style={{ fontSize:11 }}>Brand (EN)</label>
                 <input className="input" value={r.brandEN||''} onChange={e=>updateRep(r.id,'brandEN',e.target.value)} placeholder="Sandoz" />
+              </div>
+              <div className="form-group" style={{ flex:2, margin:0 }}>
+                <label className="label" style={{ fontSize:11 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
+                <input className="input" value={r.name||''} onChange={e=>updateRep(r.id,'name',e.target.value)} placeholder={L('เช่น คุณนิ้ง','e.g. Ning')} />
               </div>
               <div className="form-group" style={{ flex:2, margin:0 }}>
                 <label className="label" style={{ fontSize:11 }}>{L('เบอร์โทร','Phone')}</label>
