@@ -5765,20 +5765,36 @@ function HelpPage({ lang, L, perm = { role: 'admin' } }) {
       steps_th:['เลือกเดือน + สาขา ด้วย filter ด้านบน (ดูรวมทุกสาขาหรือแยกสาขาได้)','กราฟแนวโน้มยอดซื้อ: เปรียบเทียบเดือนต่อเดือน แยกสาขา + แยกหมวดหมู่','แท็บ Top 10: ยาที่สั่งซื้อสูงสุด 10 อันดับ','แท็บ ยาที่ไม่ได้สั่ง: ตรวจสอบยาที่ขาดการสั่ง (ช่วยวางแผนสต็อก)','แท็บ Supplier Analysis: ยอดซื้อแยกตาม Supplier + เปรียบเทียบราคา'],
       steps_en:['Select month + branch with top filters (view all branches or per branch)','Trend chart: month-over-month spend by branch + by category','Top 10 tab: most-ordered drugs this period','Rarely Ordered tab: drugs not recently purchased (helps stock planning)','Supplier Analysis tab: spend per supplier + price comparison'] },
     { icon:'🔄', th:'ซิงค์ข้อมูล', en:'Data Sync', color:'var(--info)',
-      steps_th:['Admin เท่านั้น — นำเข้ายา/ผู้จัดจำหน่าย/ออเดอร์ ผ่าน Excel หรือ Google Sheets','จับคู่คอลัมน์อัตโนมัติ → Preview → Import (Merge กับข้อมูลเดิม ไม่ลบทับ)','ดาวน์โหลด Template ยา: มี 19 คอลัมน์รวม remark (Dropdown 8 ตัวเลือก) + remarkNote; Template Supplier: 15 คอลัมน์รวม returnPolicy (TH/EN)','SQL Sync: รัน SQL snippets เพื่ออัปเกรดตาราง (ทำครั้งแรกครั้งเดียว)','Startup Query: SQL ที่รันอัตโนมัติทุกครั้งที่เปิดแอป (warehouse sync)','ประวัติการ sync แสดงด้านล่าง — บันทึกวันเวลาและจำนวนรายการที่นำเข้า','CW Pharma Sync: อัปเดตสต็อกอัตโนมัติทุกวัน 10:00 + 18:00 ผ่าน GitHub Actions (กด Trigger CW Sync เพื่อ sync ทันที)'],
-      steps_en:['Admin only — import drugs/suppliers/orders via Excel or Google Sheets','Auto-map columns → preview → import (merges, never overwrites existing data)','Drug Template: 19 columns incl. remark (dropdown 8 codes) + remarkNote; Supplier Template: 15 columns incl. returnPolicy (TH/EN)','SQL Sync: run SQL snippets to upgrade tables (one-time setup)','Startup Query: SQL that runs automatically every time the app opens','Import history shown below — logs date, time, and record counts','CW Pharma Sync: auto-updates stock daily at 10:00 + 18:00 via GitHub Actions (tap Trigger CW Sync to sync immediately)'] },
+      steps_th:['Admin เท่านั้น — นำเข้ายา/ผู้จัดจำหน่าย/ออเดอร์ ผ่าน Excel หรือ Google Sheets','จับคู่คอลัมน์อัตโนมัติ → Preview → Import (Merge กับข้อมูลเดิม ไม่ลบทับ)','📥 Template ยา (19 คอลัมน์): code / nameTH / nameEN / unit / catId / subId / hasVat / costEx / sellEx / stockPTN / stockRAM / stockCNX / minStock / supplierId / costPTN / costRAM / costCNX / remark (Dropdown 8 ตัวเลือก) / remarkNote','📥 Template Supplier (40 คอลัมน์): id / name / nameEN / contact / phone / email / taxId / creditTerm / deliveryDays / rating / address / category / minOrder / returnPolicy / returnPolicyEN + ดีล 5 slot (deal1_buyQty / deal1_freeQty / deal1_bonusItems / deal1_discount / deal1_note ... ถึง deal5)','SQL Sync: รัน SQL snippets เพื่ออัปเกรดตาราง (ทำครั้งแรกครั้งเดียว)','Startup Query: SQL ที่รันอัตโนมัติทุกครั้งที่เปิดแอป (warehouse sync)','ประวัติการ sync แสดงด้านล่าง — บันทึกวันเวลาและจำนวนรายการที่นำเข้า','CW Pharma Sync: อัปเดตสต็อกอัตโนมัติทุกวัน 10:00 + 18:00 ผ่าน GitHub Actions (กด Trigger CW Sync เพื่อ sync ทันที)'],
+      steps_en:['Admin only — import drugs/suppliers/orders via Excel or Google Sheets','Auto-map columns → preview → import (merges, never overwrites existing data)','📥 Drug Template (19 columns): code / nameTH / nameEN / unit / catId / subId / hasVat / costEx / sellEx / stockPTN / stockRAM / stockCNX / minStock / supplierId / costPTN / costRAM / costCNX / remark (dropdown 8 codes) / remarkNote','📥 Supplier Template (40 columns): id / name / nameEN / contact / phone / email / taxId / creditTerm / deliveryDays / rating / address / category / minOrder / returnPolicy / returnPolicyEN + 5 deal slots (deal1_buyQty / deal1_freeQty / deal1_bonusItems / deal1_discount / deal1_note … through deal5)','SQL Sync: run SQL snippets to upgrade tables (one-time setup)','Startup Query: SQL that runs automatically every time the app opens','Import history shown below — logs date, time, and record counts','CW Pharma Sync: auto-updates stock daily at 10:00 + 18:00 via GitHub Actions (tap Trigger CW Sync to sync immediately)'] },
   ];
 
   // 🎯 EDIT HERE: Update data requirements
   const REQUIRED_DATA = [
-    { th:'💊 ฐานข้อมูลยา', en:'💊 Drug Database',
-      current_th:'83 ตัวอย่าง', current_en:'83 sample',
-      needed_th:'10,258 รายการ', needed_en:'10,258 items',
-      fields:[['รหัสสินค้า','Code'],['ชื่อไทย','Name TH'],['ชื่ออังกฤษ','Name EN'],['หน่วย','Unit'],['หมวดหมู่','Category'],['หมวดย่อย','Sub-category (ใหม่)'],['VAT','Has VAT'],['ต้นทุน','Cost'],['ราคาขาย','Sell'],['สต็อก PTN/RAM/CNX','Stock'],['สต็อกขั้นต่ำ','Min Stock'],['ผู้จัดจำหน่าย','Supplier'],['หน่วยบรรจุ','Packaging']] },
-    { th:'🏭 ผู้จัดจำหน่าย', en:'🏭 Suppliers',
+    { th:'💊 Template ยา — 19 คอลัมน์', en:'💊 Drug Template — 19 columns',
+      current_th:'10,263 รายการ ✓', current_en:'10,263 items ✓',
+      needed_th:'10,263 รายการ (นำเข้าแล้ว)', needed_en:'10,263 items (imported)',
+      fields:[
+        ['code','รหัสสินค้า'],['nameTH','ชื่อยา (ไทย)'],['nameEN','ชื่อยา (อังกฤษ)'],['unit','หน่วย (Dropdown)'],
+        ['catId','หมวดหมู่ (Dropdown)'],['subId','หมวดย่อย (Dropdown)'],['hasVat','มี VAT (0/1)'],
+        ['costEx','ต้นทุน (ไม่รวม VAT)'],['sellEx','ราคาขาย (ไม่รวม VAT)'],
+        ['stockPTN','สต็อก PTN'],['stockRAM','สต็อก RAM'],['stockCNX','สต็อก CNX'],['minStock','สต็อกขั้นต่ำ'],
+        ['supplierId','รหัส Supplier'],
+        ['costPTN','ต้นทุน PTN (เว้นว่าง=ใช้หลัก)'],['costRAM','ต้นทุน RAM'],['costCNX','ต้นทุน CNX'],
+        ['remark','หมายเหตุสินค้า (Dropdown 8 ตัวเลือก)'],['remarkNote','หมายเหตุเพิ่มเติม'],
+      ] },
+    { th:'🏭 Template Supplier — 40 คอลัมน์', en:'🏭 Supplier Template — 40 columns',
       current_th:'10 ราย', current_en:'10',
       needed_th:'410 ราย', needed_en:'410',
-      fields:[['รหัส','ID'],['ชื่อไทย','Name TH'],['ชื่ออังกฤษ','Name EN'],['ติดต่อ','Contact'],['โทร','Phone'],['เครดิต','Credit Days'],['ส่งภายใน','Delivery Days'],['ยาที่จำหน่าย','Drugs (ใหม่)'],['ราคาต้นทุน','Cost Price (ใหม่)'],['โปรโมชั่น','Promotions (ใหม่)']] },
+      fields:[
+        ['id','รหัส Supplier'],['name','ชื่อบริษัท (ไทย)'],['nameEN','ชื่อบริษัท (อังกฤษ)'],
+        ['contact','ชื่อผู้ติดต่อ'],['phone','เบอร์โทร'],['email','อีเมล'],['taxId','เลขผู้เสียภาษี'],
+        ['creditTerm','เครดิต (วัน)'],['deliveryDays','ระยะส่ง (วัน)'],['rating','คะแนน 1–5'],
+        ['minOrder','ยอดขั้นต่ำ (บาท)'],['address','ที่อยู่'],['category','ประเภท (Dropdown)'],
+        ['returnPolicy','นโยบายคืนสินค้า (ไทย)'],['returnPolicyEN','Return Policy (English)'],
+        ['deal1_buyQty','ซื้อ (ดีล 1)'],['deal1_freeQty','แถม (ดีล 1)'],['deal1_bonusItems','ของแถม (ดีล 1)'],['deal1_discount','ลด% (ดีล 1)'],['deal1_note','หมายเหตุ (ดีล 1)'],
+        ['deal2_buyQty–deal5_buyQty','... ดีล 2–5 (รูปแบบเดียวกัน × 4 ชุด)'],
+      ] },
     { th:'📦 สต็อกเริ่มต้น', en:'📦 Initial Stock',
       current_th:'ตัวอย่าง', current_en:'Sample',
       needed_th:'สต็อกจริงทั้ง 3 สาขา', needed_en:'Real stock all 3 branches',
@@ -5787,10 +5803,10 @@ function HelpPage({ lang, L, perm = { role: 'admin' } }) {
 
   // 🎯 EDIT HERE: Update next steps
   const NEXT_STEPS = [
-    { priority:'🔴', icon:'💊', th:'นำเข้าฐานข้อมูลยา 10,258 รายการ', en:'Import 10,258 drugs' },
-    { priority:'🔴', icon:'🏭', th:'นำเข้าผู้จัดจำหน่าย 410 ราย + ราคา + ยา', en:'Import 410 suppliers + pricing' },
+    { priority:'🟢', icon:'💊', th:'นำเข้าฐานข้อมูลยา 10,263 รายการ (เสร็จแล้ว ✓)', en:'Import drugs — done ✓ (10,263 items)' },
+    { priority:'🔴', icon:'🏭', th:'นำเข้าผู้จัดจำหน่าย 410 ราย (Template 40 คอลัมน์ — รวม returnPolicy + ดีล 5 slot)', en:'Import 410 suppliers via 40-column template (returnPolicy + 5 deal slots included)' },
     { priority:'🟡', icon:'📦', th:'บันทึกสต็อกจริงทั้ง 3 สาขา', en:'Record real stock all branches' },
-    { priority:'🟡', icon:'🎁', th:'ตั้งค่าโปรโมชั่น Supplier', en:'Set up supplier promotions' },
+    { priority:'🟡', icon:'🎁', th:'กรอกดีล/โปรโมชั่นใน Template แล้ว Import — หรือเพิ่มใน app ได้โดยตรง', en:'Fill deals in Supplier Template then import — or add directly in app' },
     { priority:'🟢', icon:'☁', th:'ฐานข้อมูลคลาวด์ Supabase (เชื่อมแล้ว ✓)', en:'Supabase cloud database (connected ✓)' },
     { priority:'🟢', icon:'🔐', th:'เปิดใช้ระบบ Login + สิทธิ์ (พร้อมแล้ว เปิดเมื่อต้องการ)', en:'Enable Login + roles (ready to turn on)' },
   ];
