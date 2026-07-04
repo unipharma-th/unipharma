@@ -74,7 +74,9 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
       </div>
 
       {showForm ? (
+        <div style={{ maxWidth:740, width:'100%', alignSelf:'center', margin:'0 auto' }}>
         <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />
+        </div>
       ) : (<>
       <div style={{ marginBottom: 16, maxWidth: 360 }}>
         <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
@@ -478,7 +480,7 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   }, [onClose]);
 
   return (
-    <div style={{ maxWidth:740, margin:'0 auto' }}>
+    <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div className="page-title" style={{ fontSize:16 }}>
           {isEdit ? L('แก้ไขผู้จัดจำหน่าย','Edit Supplier') : L('เพิ่มผู้จัดจำหน่าย','Add Supplier')}
