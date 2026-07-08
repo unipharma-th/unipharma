@@ -248,18 +248,59 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (status = 'draft') => {
+  const handleSubmit = async (status = 'draft') => {
     if (!validate()) { notify(L('กรุณากรอกข้อมูลให้ครบ', 'Please fill in all required fields'), 'err'); return; }
     const promo = supplier?.promotions?.find(p => p.id === selectedDeal);
     const mappedItems = items.map(it => ({ ...it, amount: calcLine(it) }));
+
+    // Build structured deal object from newDeal fields (takes priority over selected promo)
+    const nd = {
+      buyQty: parseInt(newDeal.buyQty) || 0,
+      freeQty: parseInt(newDeal.freeQty) || 0,
+      bonusItems: (newDeal.bonusItems || '').trim(),
+      discount: parseFloat(newDeal.discount) || 0,
+      note: (newDeal.dealNote || '').trim(),
+    };
+    const hasNewDeal = nd.buyQty || nd.freeQty || nd.discount || nd.bonusItems || nd.note;
+
+    // poDeal: prefer newDeal if filled, else pull from selected promo
+    const poDeal = hasNewDeal ? nd : (promo ? {
+      buyQty: promo.buyQty || 0, freeQty: promo.freeQty || 0,
+      bonusItems: promo.bonusItems || '', discount: promo.discount || 0,
+      note: promo.dealNote || '',
+    } : null);
+
+    // Build dealNote string (human-readable summary for header)
+    const buildDealNote = (d, fallback) => {
+      if (!d) return fallback || '-';
+      const parts = [];
+      if (d.buyQty > 0) parts.push(`ซื้อ ${d.buyQty} แถม ${d.freeQty || 0}`);
+      if (d.discount > 0) parts.push(`ส่วนลด ${d.discount}%`);
+      if (d.bonusItems) parts.push(d.bonusItems);
+      if (d.note) parts.push(d.note);
+      return parts.join(' · ') || fallback || '-';
+    };
+    const dealNoteStr = poDeal
+      ? buildDealNote(poDeal, dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : (editPO?.dealNote || '-'))
+      : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : (editPO?.dealNote || '-'));
+
+    // Auto-save deal to supplier when submitting (no need to click "บันทึกดีลนี้ให้ Supplier" separately)
+    if (hasNewDeal && supplier) {
+      const promoId = 'DEAL' + Date.now();
+      const newPromo = { id: promoId, buyQty: nd.buyQty, freeQty: nd.freeQty, bonusItems: nd.bonusItems, discount: nd.discount, dealNote: nd.note };
+      const updated = { ...supplier, promotions: [...(supplier.promotions || []), newPromo] };
+      if (setSuppliers) setSuppliers(prev => prev.map(s => s.id === supplier.id ? updated : s));
+      try { if (window.UNI_DB?.saveSupplier) await window.UNI_DB.saveSupplier(updated); } catch (e) { console.warn('auto-save deal:', e); }
+    }
+
     if (editPO) {
-      // Update existing PO — keep original id, poNumber, status, approvedBy
       const updatedPO = {
         ...editPO,
         branch, supplierId, poDate, deliveryDate,
         creditTerm: parseInt(creditTerm),
         deliveryBranch, location, memo, isNonPO,
-        dealNote: promo ? (promo.buyQty > 0 ? `ซื้อ ${promo.buyQty} แถม ${promo.freeQty||0}${promo.discount>0?` ลด${promo.discount}%`:''}${promo.bonusItems?` · ${promo.bonusItems}`:''}` : (promo.name || `ส่วนลด ${promo.discount||0}%`)) : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : editPO.dealNote || '-'),
+        dealNote: dealNoteStr,
+        poDeal,
         repId: selectedRep?.id || '',
         repName: selectedRep?.name || '',
         repBrand: selectedRep?.brand || '',
@@ -290,7 +331,8 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       deliveryBranch,
       location,
       memo,
-      dealNote: promo ? (promo.buyQty > 0 ? `ซื้อ ${promo.buyQty} แถม ${promo.freeQty||0}${promo.discount>0?` ลด${promo.discount}%`:''}${promo.bonusItems?` · ${promo.bonusItems}`:''}` : (promo.name || `ส่วนลด ${promo.discount||0}%`)) : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : '-'),
+      dealNote: dealNoteStr,
+      poDeal,
       repId: selectedRep?.id || '',
       repName: selectedRep?.name || '',
       repBrand: selectedRep?.brand || '',

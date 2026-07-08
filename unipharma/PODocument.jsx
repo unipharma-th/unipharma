@@ -183,6 +183,19 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
               <div>
                 <div style={{ fontSize: '9.5pt', fontWeight: 700, marginBottom: 4 }}>Memo:</div>
                 <div style={{ fontSize: '9pt', color: '#444', lineHeight: 1.6 }}>{po.memo || '-'}</div>
+                {po.poDeal && (po.poDeal.buyQty || po.poDeal.discount || po.poDeal.bonusItems || po.poDeal.note) && (() => {
+                  const d = po.poDeal;
+                  const parts = [];
+                  if (d.buyQty > 0) parts.push(`ซื้อ ${d.buyQty} แถม ${d.freeQty || 0}`);
+                  if (d.discount > 0) parts.push(`ส่วนลดพิเศษ ${d.discount}%`);
+                  if (d.bonusItems) parts.push(`ขอแถม: ${d.bonusItems}`);
+                  if (d.note) parts.push(d.note);
+                  return (
+                    <div style={{ marginTop: 8, padding: '5px 10px', background: '#eef6ec', border: '1px solid #b6d9b0', borderRadius: 3, fontSize: '9pt', lineHeight: 1.6 }}>
+                      <b>🎁 Deal Terms:</b> {parts.join(' · ')}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ minWidth: 260 }}>
                 {[

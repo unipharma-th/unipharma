@@ -2930,18 +2930,55 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (status = 'draft') => {
+  const handleSubmit = async (status = 'draft') => {
     if (!validate()) { notify(L('กรุณากรอกข้อมูลให้ครบ', 'Please fill in all required fields'), 'err'); return; }
     const promo = supplier?.promotions?.find(p => p.id === selectedDeal);
     const mappedItems = items.map(it => ({ ...it, amount: calcLine(it) }));
+
+    const nd = {
+      buyQty: parseInt(newDeal.buyQty) || 0,
+      freeQty: parseInt(newDeal.freeQty) || 0,
+      bonusItems: (newDeal.bonusItems || '').trim(),
+      discount: parseFloat(newDeal.discount) || 0,
+      note: (newDeal.dealNote || '').trim(),
+    };
+    const hasNewDeal = nd.buyQty || nd.freeQty || nd.discount || nd.bonusItems || nd.note;
+
+    const poDeal = hasNewDeal ? nd : (promo ? {
+      buyQty: promo.buyQty || 0, freeQty: promo.freeQty || 0,
+      bonusItems: promo.bonusItems || '', discount: promo.discount || 0,
+      note: promo.dealNote || '',
+    } : null);
+
+    const buildDealNote = (d, fallback) => {
+      if (!d) return fallback || '-';
+      const parts = [];
+      if (d.buyQty > 0) parts.push(`ซื้อ ${d.buyQty} แถม ${d.freeQty || 0}`);
+      if (d.discount > 0) parts.push(`ส่วนลด ${d.discount}%`);
+      if (d.bonusItems) parts.push(d.bonusItems);
+      if (d.note) parts.push(d.note);
+      return parts.join(' · ') || fallback || '-';
+    };
+    const dealNoteStr = poDeal
+      ? buildDealNote(poDeal, dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : (editPO?.dealNote || '-'))
+      : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : (editPO?.dealNote || '-'));
+
+    if (hasNewDeal && supplier) {
+      const promoId = 'DEAL' + Date.now();
+      const newPromo = { id: promoId, buyQty: nd.buyQty, freeQty: nd.freeQty, bonusItems: nd.bonusItems, discount: nd.discount, dealNote: nd.note };
+      const updated = { ...supplier, promotions: [...(supplier.promotions || []), newPromo] };
+      if (setSuppliers) setSuppliers(prev => prev.map(s => s.id === supplier.id ? updated : s));
+      try { if (window.UNI_DB?.saveSupplier) await window.UNI_DB.saveSupplier(updated); } catch (e) { console.warn('auto-save deal:', e); }
+    }
+
     if (editPO) {
-      // Update existing PO — keep original id, poNumber, status, approvedBy
       const updatedPO = {
         ...editPO,
         branch, supplierId, poDate, deliveryDate,
         creditTerm: parseInt(creditTerm),
         deliveryBranch, location, memo, isNonPO,
-        dealNote: promo ? (promo.buyQty > 0 ? `ซื้อ ${promo.buyQty} แถม ${promo.freeQty||0}${promo.discount>0?` ลด${promo.discount}%`:''}${promo.bonusItems?` · ${promo.bonusItems}`:''}` : (promo.name || `ส่วนลด ${promo.discount||0}%`)) : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : editPO.dealNote || '-'),
+        dealNote: dealNoteStr,
+        poDeal,
         repId: selectedRep?.id || '',
         repName: selectedRep?.name || '',
         repBrand: selectedRep?.brand || '',
@@ -2972,7 +3009,8 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
       deliveryBranch,
       location,
       memo,
-      dealNote: promo ? (promo.buyQty > 0 ? `ซื้อ ${promo.buyQty} แถม ${promo.freeQty||0}${promo.discount>0?` ลด${promo.discount}%`:''}${promo.bonusItems?` · ${promo.bonusItems}`:''}` : (promo.name || `ส่วนลด ${promo.discount||0}%`)) : (dealDiscount > 0 ? `ส่วนลด ${dealDiscount}%` : '-'),
+      dealNote: dealNoteStr,
+      poDeal,
       repId: selectedRep?.id || '',
       repName: selectedRep?.name || '',
       repBrand: selectedRep?.brand || '',
@@ -3688,6 +3726,19 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
               <div>
                 <div style={{ fontSize: '9.5pt', fontWeight: 700, marginBottom: 4 }}>Memo:</div>
                 <div style={{ fontSize: '9pt', color: '#444', lineHeight: 1.6 }}>{po.memo || '-'}</div>
+                {po.poDeal && (po.poDeal.buyQty || po.poDeal.discount || po.poDeal.bonusItems || po.poDeal.note) && (() => {
+                  const d = po.poDeal;
+                  const parts = [];
+                  if (d.buyQty > 0) parts.push(`ซื้อ ${d.buyQty} แถม ${d.freeQty || 0}`);
+                  if (d.discount > 0) parts.push(`ส่วนลดพิเศษ ${d.discount}%`);
+                  if (d.bonusItems) parts.push(`ขอแถม: ${d.bonusItems}`);
+                  if (d.note) parts.push(d.note);
+                  return (
+                    <div style={{ marginTop: 8, padding: '5px 10px', background: '#eef6ec', border: '1px solid #b6d9b0', borderRadius: 3, fontSize: '9pt', lineHeight: 1.6 }}>
+                      <b>🎁 Deal Terms:</b> {parts.join(' · ')}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ minWidth: 260 }}>
                 {[
