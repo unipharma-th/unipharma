@@ -254,7 +254,7 @@ function CreatePOModal({ lang, L, drugs, suppliers, setSuppliers, orders, onClos
     const promo = supplier?.promotions?.find(p => p.id === selectedDeal);
     const mappedItems = items.map(it => {
       const parts = [];
-      if (it.dealBuyQty > 0) parts.push(`ซื้อ ${it.dealBuyQty} แถม ${it.dealFreeQty || 0}`);
+      if (it.dealBuyQty > 0) parts.push(it.dealFreeQty > 0 ? `ซื้อ ${it.dealBuyQty} แถม ${it.dealFreeQty}` : `ซื้อ ${it.dealBuyQty}`);
       if (it.dealDiscount > 0) parts.push(`ส่วนลด ${it.dealDiscount}%`);
       if ((it.dealBonusItems || '').trim()) parts.push(it.dealBonusItems.trim());
       if ((it.dealNoteText || '').trim()) parts.push(it.dealNoteText.trim());

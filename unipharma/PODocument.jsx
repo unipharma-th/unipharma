@@ -63,7 +63,7 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
       </style>
     `;
     const html = printWin.document;
-    html.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PO - ${po.poNumber}</title>${style}<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&display=swap" rel="stylesheet"></head><body><div class="doc">${document.getElementById('po-doc-inner').innerHTML}<div class="page-num">1 of 1</div></div></body></html>`);
+    html.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PO - ${po.poNumber}</title>${style}<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&display=swap" rel="stylesheet"></head><body><div class="doc">${document.getElementById('po-doc-inner').innerHTML}</div></body></html>`);
     html.close();
     setTimeout(() => { printWin.focus(); printWin.print(); }, 800);
   };
@@ -192,7 +192,7 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: '9.5pt', fontWeight: 700, marginBottom: 4 }}>Memo:</div>
-                <div style={{ fontSize: '9pt', color: '#444', lineHeight: 1.6 }}>{po.memo || '-'}</div>
+                <div style={{ fontSize: '9pt', color: '#444', lineHeight: 1.6 }}>{po.memo && po.memo.trim() ? po.memo : ''}</div>
               </div>
               <div style={{ minWidth: 260 }}>
                 {[
