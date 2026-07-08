@@ -18,8 +18,8 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
   const deliveryBranch = DB.BRANCHES.find(b => b.id === (po.deliveryBranch || po.branch)) || branch;
 
   const COMPANY = {
-    nameTH: 'บริษัท แม็กนิฟิเซนท์ เมียนม่าร์ จำกัด (สำนักงานใหญ่)',
-    nameEN: 'MAGNIFICENT MYANMAR CO., LTD. (Head Office)',
+    nameTH: 'บริษัท แม็กนิฟิเซนท์ สตาร์ จำกัด (สำนักงานใหญ่)',
+    nameEN: 'MAGNIFICENT STAR CO., LTD. (Head Office)',
     taxId: '0105565115671',
     address: '491/4 ถนนราชปรารภ แขวงมักกะสัน เขตราชเทวี กรุงเทพมหานคร 10400',
     addressEN: '491/4 Ratchaprarop Road, Makkasan Subdistrict, Ratchathewi District, Bangkok 10400',
