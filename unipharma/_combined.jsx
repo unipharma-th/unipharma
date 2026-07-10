@@ -4252,6 +4252,8 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
 
   const reps = form.reps || [];
   const [repDrugSearches, setRepDrugSearches] = useState({});
+  const [selectedRepId, setSelectedRepId] = useState(null);
+  const [retOpen, setRetOpen] = useState({});
   const promoDragSrc = useRef(null);
   const [promoDragOver, setPromoDragOver] = useState(null);
   const repDragSrc = useRef(null);
@@ -4429,20 +4431,49 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
         </div>
       </div>
 
-      {/* ── Reps / Brand section ── */}
+      {/* ── Reps / Brand section (Tab + Table design) ── */}
       <div className="divider" />
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-        <label className="label" style={{ margin:0 }}>👥 {L('ผู้แทน / Brand','Sales Reps / Brand')}</label>
-        <button type="button" className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:12 }} onClick={addRep}>
+      <label className="label" style={{ marginBottom:10 }}>👥 {L('ผู้แทน / Brand','Sales Reps / Brand')}</label>
+
+      {/* Rep tab strip */}
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+        {reps.map(r => {
+          const activeId = selectedRepId || reps[0]?.id;
+          const isActive = activeId === r.id;
+          const drugCount = (r.drugs||[]).length;
+          return (
+            <div key={r.id} onClick={() => setSelectedRepId(r.id)}
+              style={{ background: isActive ? 'var(--acc-bg)' : 'var(--card2)', border:`1px solid ${isActive?'var(--acc2)':'var(--bdr)'}`, borderRadius:8, padding:'8px 12px', cursor:'pointer', transition:'border-color .15s,background .15s', minWidth:130 }}>
+              <div style={{ fontSize:11, color: isActive ? 'var(--acc2)' : 'var(--txt4)', marginBottom:2 }}>
+                {r.brandEN || r.brand || L('ไม่มีแบรนด์','No brand')}
+              </div>
+              <div style={{ fontWeight:600, color:'var(--txt1)', fontSize:13 }}>{r.name || L('(ไม่มีชื่อ)','(No name)')}</div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:4 }}>
+                <span style={{ fontSize:11, color:'var(--txt4)' }}>{r.phone}</span>
+                {drugCount > 0 && (
+                  <span style={{ fontSize:10, background: isActive ? 'var(--acc2)' : 'var(--bg2)', color: isActive ? '#fff' : 'var(--txt3)', borderRadius:99, padding:'1px 6px' }}>
+                    {drugCount} {L('สินค้า','items')}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        <button type="button" onClick={addRep}
+          style={{ border:'1px dashed var(--bdr)', borderRadius:8, padding:'8px 12px', background:'transparent', color:'var(--txt4)', cursor:'pointer', minWidth:110, fontSize:13, alignSelf:'stretch' }}>
           + {L('เพิ่มผู้แทน','Add Rep')}
         </button>
       </div>
-      {reps.length === 0 && (
-        <div style={{ fontSize:12, color:'var(--txt4)', marginBottom:8 }}>{L('ยังไม่มีผู้แทน — กด + เพิ่มผู้แทน','No reps yet — click + Add Rep')}</div>
-      )}
-      {reps.map((r, idx) => {
-        const repSearch = repDrugSearches[r.id] || '';
+
+      {/* Selected rep detail panel */}
+      {(() => {
+        const activeId = selectedRepId || reps[0]?.id;
+        const r = reps.find(x => x.id === activeId);
+        if (!r) return reps.length === 0 ? (
+          <div style={{ fontSize:12, color:'var(--txt4)', marginBottom:8 }}>{L('ยังไม่มีผู้แทน — กด + เพิ่มผู้แทน','No reps yet — click + Add Rep')}</div>
+        ) : null;
         const repDrugs = r.drugs || [];
+        const repSearch = repDrugSearches[r.id] || '';
         const repSearchResults = repSearch.length > 0
           ? allDrugs.filter(d => !repDrugs.find(x=>x.code===d.code) && (
               d.code.toLowerCase().includes(repSearch.toLowerCase()) ||
@@ -4451,122 +4482,178 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
             )).slice(0, 10)
           : [];
         return (
-          <div key={r.id}
-            draggable="true"
-            onDragStart={() => { repDragSrc.current = idx; }}
-            onDragOver={e => { e.preventDefault(); setRepDragOver(idx); }}
-            onDrop={e => {
-              e.preventDefault();
-              const src = repDragSrc.current;
-              repDragSrc.current = null; setRepDragOver(null);
-              if (src === null || src === idx) return;
-              setForm(f => { const a=[...f.reps]; const [m]=a.splice(src,1); a.splice(idx,0,m); return {...f,reps:a}; });
-            }}
-            onDragEnd={() => { repDragSrc.current = null; setRepDragOver(null); }}
-            style={{ marginBottom:10, padding:'10px 12px', background:'var(--card2)', borderRadius:10, border:`1px solid ${repDragOver===idx?'var(--acc2)':'var(--border)'}` }}>
-            <div style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:8 }}>
-              <span title={L('ลากเพื่อเรียงลำดับ','Drag to reorder')} style={{ color:'var(--txt4)', fontSize:16, opacity:0.4, cursor:'grab', userSelect:'none', paddingBottom:8, flexShrink:0 }}>⠿</span>
-              <div className="form-group" style={{ flex:2, margin:0 }}>
-                <label className="label" style={{ fontSize:11 }}>{L('Brand (ไทย)','Brand (TH)')}</label>
+          <div style={{ border:'1px solid var(--border)', borderRadius:10, background:'var(--card2)', overflow:'visible', marginBottom:10 }}>
+            {/* Rep info header */}
+            <div style={{ display:'flex', gap:10, alignItems:'flex-end', flexWrap:'wrap', padding:'10px 14px', borderBottom:'1px solid var(--border)', background:'var(--bg1)', borderRadius:'10px 10px 0 0' }}>
+              <div className="form-group" style={{ width:110, margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('Brand (ไทย)','Brand (TH)')}</label>
                 <input className="input" value={r.brand||''} onChange={e=>updateRep(r.id,'brand',e.target.value)} placeholder="Sandoz" />
               </div>
-              <div className="form-group" style={{ flex:2, margin:0 }}>
-                <label className="label" style={{ fontSize:11 }}>Brand (EN)</label>
+              <div className="form-group" style={{ width:130, margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>Brand (EN)</label>
                 <input className="input" value={r.brandEN||''} onChange={e=>updateRep(r.id,'brandEN',e.target.value)} placeholder="Sandoz" />
               </div>
-              <div className="form-group" style={{ flex:2, margin:0 }}>
-                <label className="label" style={{ fontSize:11 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
+              <div className="form-group" style={{ width:130, margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('ชื่อผู้แทน','Rep Name')}</label>
                 <input className="input" value={r.name||''} onChange={e=>updateRep(r.id,'name',e.target.value)} placeholder={L('เช่น คุณนิ้ง','e.g. Ning')} />
               </div>
-              <div className="form-group" style={{ flex:2, margin:0 }}>
-                <label className="label" style={{ fontSize:11 }}>{L('เบอร์โทร','Phone')}</label>
+              <div className="form-group" style={{ width:120, margin:0 }}>
+                <label className="label" style={{ fontSize:10 }}>{L('เบอร์โทร','Phone')}</label>
                 <input className="input" value={r.phone||''} onChange={e=>updateRep(r.id,'phone',e.target.value)} placeholder="08x-xxx-xxxx" />
               </div>
-              <button type="button" className="btn btn-ghost" style={{ padding:'8px 10px', color:'var(--err)', flexShrink:0 }}
-                title={L('ลบ','Remove')} onClick={()=>removeRep(r.id)}>🗑</button>
+              <button type="button" className="btn btn-ghost"
+                style={{ padding:'6px 10px', color:'var(--err)', marginLeft:'auto', flexShrink:0, alignSelf:'flex-end', fontSize:12 }}
+                onClick={() => { removeRep(r.id); setSelectedRepId(reps.filter(x=>x.id!==r.id)[0]?.id || null); }}>
+                🗑 {L('ลบผู้แทน','Remove Rep')}
+              </button>
             </div>
-            <div style={{ borderTop:'1px solid var(--border)', paddingTop:8 }}>
-              <div style={{ fontSize:11, fontWeight:600, color:'var(--txt3)', marginBottom:6 }}>
-                📦 {L('สินค้าที่ดูแล','Products Managed')}
-                <span style={{ fontWeight:400, marginLeft:6, color:'var(--txt4)' }}>({repDrugs.length} {L('รายการ','items')})</span>
-              </div>
-              {repDrugs.map(drug => {
-                const d = allDrugs.find(x=>x.code===drug.code);
-                return (
-                  <div key={drug.code} style={{ border:'1px solid var(--border)', borderRadius:8, padding:'8px 10px', marginBottom:6, background:'var(--bg1)' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                      <span style={{ background:'var(--acc-bg)', color:'var(--acc2)', borderRadius:99, fontSize:11, padding:'2px 8px', fontFamily:'monospace', flexShrink:0 }}>{drug.code}</span>
-                      <span style={{ fontSize:11, color:'var(--txt2)', flex:1 }}>{d?.nameTH}</span>
-                      <button type="button" onClick={()=>removeRepDrug(r.id,drug.code)}
-                        style={{ background:'none', border:'none', cursor:'pointer', padding:'0 4px', color:'var(--txt4)', fontSize:14, lineHeight:1 }}>×</button>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'70px 70px 70px 1fr', gap:5, marginBottom:5 }}>
-                      <div>
-                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>{L('ซื้อ (ชิ้น)','Buy')}</div>
-                        <input className="input" type="number" min="0" value={drug.buyQty||0} style={{ fontSize:11 }}
-                          onChange={e=>updRepDrug(r.id,drug.code,'buyQty',parseInt(e.target.value)||0)} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>{L('แถม (ชิ้น)','Free')}</div>
-                        <input className="input" type="number" min="0" value={drug.freeQty||0} style={{ fontSize:11 }}
-                          onChange={e=>updRepDrug(r.id,drug.code,'freeQty',parseInt(e.target.value)||0)} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>{L('ส่วนลด %','Disc%')}</div>
-                        <input className="input" type="number" min="0" max="100" value={drug.discount||0} style={{ fontSize:11 }}
-                          onChange={e=>updRepDrug(r.id,drug.code,'discount',parseFloat(e.target.value)||0)} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>{L('หมายเหตุดีล','Deal Note')}</div>
-                        <input className="input" value={drug.note||''} style={{ fontSize:11 }}
-                          onChange={e=>updRepDrug(r.id,drug.code,'note',e.target.value)} />
-                      </div>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
-                      <div>
-                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>↩ {L('นโยบายการคืน (ไทย)','Return Policy (TH)')}</div>
-                        <input className="input" value={drug.returnPolicy||''} style={{ fontSize:11 }}
-                          onChange={e=>updRepDrug(r.id,drug.code,'returnPolicy',e.target.value)}
-                          placeholder={L('เช่น คืนได้ภายใน 7 วัน...','e.g. return within 7 days...')} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize:9, color:'var(--txt4)', marginBottom:2 }}>↩ Return Policy (EN)</div>
-                        <input className="input" value={drug.returnPolicyEN||''} style={{ fontSize:11 }}
-                          onChange={e=>updRepDrug(r.id,drug.code,'returnPolicyEN',e.target.value)}
-                          placeholder="e.g. return within 7 days..." />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div style={{ position:'relative' }}>
+
+            {/* Drug table body */}
+            <div style={{ padding:'10px 14px 14px' }}>
+              {/* Search input */}
+              <div style={{ position:'relative', marginBottom:8 }}>
                 <input className="input" style={{ fontSize:12 }} value={repSearch}
                   onChange={e=>setRepDrugSearch(r.id,e.target.value)}
-                  placeholder={allDrugs.length===0 ? L('ยังไม่มีข้อมูลยาในระบบ','No drug data in system') : L('ค้นหาสินค้าเพื่อเพิ่ม (รหัส / ชื่อ)…','Search drug to add (code / name)…')}
+                  placeholder={allDrugs.length===0 ? L('ยังไม่มีข้อมูลยาในระบบ','No drug data in system') : L('🔍 ค้นหาสินค้าเพื่อเพิ่ม (รหัส / ชื่อ)…','🔍 Search drug to add (code / name)…')}
                   disabled={allDrugs.length===0} />
                 {repSearch.length > 0 && repSearchResults.length === 0 && allDrugs.length > 0 && (
-                  <div style={{ position:'absolute', bottom:'100%', left:0, right:0, marginBottom:2, background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--txt4)', zIndex:40, boxShadow:'0 6px 18px rgba(0,0,0,.2)' }}>
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:2, background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--txt4)', zIndex:40, boxShadow:'0 6px 18px rgba(0,0,0,.2)' }}>
                     {L('ไม่พบสินค้าที่ตรงกัน','No matching drugs found')}
                   </div>
                 )}
                 {repSearchResults.length > 0 && (
-                  <div style={{ position:'absolute', bottom:'100%', left:0, right:0, marginBottom:2, background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, maxHeight:180, overflowY:'auto', zIndex:40, boxShadow:'0 6px 18px rgba(0,0,0,.2)' }}>
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:2, background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:8, maxHeight:180, overflowY:'auto', zIndex:40, boxShadow:'0 6px 18px rgba(0,0,0,.2)' }}>
                     {repSearchResults.map(d => (
                       <div key={d.code} onMouseDown={()=>addRepDrug(r.id,d.code)}
                         style={{ padding:'7px 12px', cursor:'pointer', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', fontSize:12 }}
                         onMouseOver={e=>e.currentTarget.style.background='var(--bg3)'}
                         onMouseOut={e=>e.currentTarget.style.background=''}>
-                        <span><span style={{ fontFamily:'monospace', color:'var(--acc2)', marginRight:8 }}>{d.code}</span>{d.nameTH}</span>
+                        <span>
+                          <span style={{ fontFamily:'monospace', color:'var(--acc2)', marginRight:8 }}>{d.code}</span>
+                          {d.nameTH}
+                        </span>
                         <span style={{ color:'var(--txt4)', fontSize:11 }}>{d.nameEN}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+
+              {repDrugs.length === 0 ? (
+                <div style={{ fontSize:12, color:'var(--txt4)', padding:'6px 0' }}>
+                  {L('ยังไม่มีสินค้า — ค้นหาด้านบนเพื่อเพิ่ม','No products yet — search above to add')}
+                </div>
+              ) : (
+                <div className="tbl-wrap">
+                  <table style={{ tableLayout:'fixed', width:'100%' }}>
+                    <colgroup>
+                      <col style={{ width:82 }}/>
+                      <col/>
+                      <col style={{ width:56 }}/>
+                      <col style={{ width:56 }}/>
+                      <col style={{ width:60 }}/>
+                      <col style={{ width:140 }}/>
+                      <col style={{ width:34 }}/>
+                      <col style={{ width:28 }}/>
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>{L('รหัส','Code')}</th>
+                        <th>{L('สินค้า','Product')}</th>
+                        <th style={{ textAlign:'center' }}>{L('ซื้อ','Buy')}</th>
+                        <th style={{ textAlign:'center' }}>{L('แถม','Free')}</th>
+                        <th style={{ textAlign:'center' }}>{L('ส่วนลด%','Disc%')}</th>
+                        <th>{L('หมายเหตุดีล','Deal Note')}</th>
+                        <th style={{ textAlign:'center' }}>↩</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {repDrugs.map(drug => {
+                        const d = allDrugs.find(x=>x.code===drug.code);
+                        const retKey = `${r.id}_${drug.code}`;
+                        const retIsOpen = !!retOpen[retKey];
+                        const hasReturn = !!(drug.returnPolicy || drug.returnPolicyEN);
+                        return (
+                          <React.Fragment key={drug.code}>
+                            <tr>
+                              <td>
+                                <span style={{ background:'var(--acc-bg)', color:'var(--acc2)', borderRadius:99, fontSize:10, padding:'2px 7px', fontFamily:'monospace', whiteSpace:'nowrap' }}>
+                                  {drug.code}
+                                </span>
+                              </td>
+                              <td>
+                                <div style={{ fontSize:12, color:'var(--txt1)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d?.nameTH || drug.code}</div>
+                                <div style={{ fontSize:10, color:'var(--txt4)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d?.nameEN}</div>
+                              </td>
+                              <td>
+                                <input className="input input-sm" type="number" min="0" value={drug.buyQty||0}
+                                  style={{ textAlign:'center', padding:'3px 4px' }}
+                                  onChange={e=>updRepDrug(r.id,drug.code,'buyQty',parseInt(e.target.value)||0)} />
+                              </td>
+                              <td>
+                                <input className="input input-sm" type="number" min="0" value={drug.freeQty||0}
+                                  style={{ textAlign:'center', padding:'3px 4px' }}
+                                  onChange={e=>updRepDrug(r.id,drug.code,'freeQty',parseInt(e.target.value)||0)} />
+                              </td>
+                              <td>
+                                <input className="input input-sm" type="number" min="0" max="100" value={drug.discount||0}
+                                  style={{ textAlign:'center', padding:'3px 4px' }}
+                                  onChange={e=>updRepDrug(r.id,drug.code,'discount',parseFloat(e.target.value)||0)} />
+                              </td>
+                              <td>
+                                <input className="input input-sm" value={drug.note||''} placeholder="—"
+                                  style={{ padding:'3px 6px', fontSize:11 }}
+                                  onChange={e=>updRepDrug(r.id,drug.code,'note',e.target.value)} />
+                              </td>
+                              <td style={{ textAlign:'center' }}>
+                                <button type="button"
+                                  onClick={()=>setRetOpen(o=>({...o,[retKey]:!retIsOpen}))}
+                                  title={L('นโยบายการคืน','Return Policy')}
+                                  style={{ width:28, height:28, border:`1px solid ${retIsOpen||hasReturn?'var(--ok)':'var(--bdr)'}`, borderRadius:6, background:retIsOpen||hasReturn?'var(--ok-bg)':'transparent', color:retIsOpen||hasReturn?'var(--ok)':'var(--txt4)', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto' }}>
+                                  ↩
+                                </button>
+                              </td>
+                              <td>
+                                <button type="button" onClick={()=>removeRepDrug(r.id,drug.code)}
+                                  style={{ background:'none', border:'none', cursor:'pointer', padding:'3px', color:'var(--txt4)', fontSize:15, width:26, height:26, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:4 }}
+                                  onMouseOver={e=>{e.currentTarget.style.color='var(--err)';e.currentTarget.style.background='var(--err-bg,rgba(220,50,50,.1))'}}
+                                  onMouseOut={e=>{e.currentTarget.style.color='var(--txt4)';e.currentTarget.style.background='none'}}>
+                                  ×
+                                </button>
+                              </td>
+                            </tr>
+                            {retIsOpen && (
+                              <tr>
+                                <td colSpan={8} style={{ padding:'0 8px 8px 14px', background:'var(--ok-bg,rgba(0,180,80,.06))' }}>
+                                  <div style={{ display:'flex', gap:8, alignItems:'flex-end', paddingTop:6 }}>
+                                    <div className="form-group" style={{ flex:1, margin:0 }}>
+                                      <label className="label" style={{ fontSize:9 }}>↩ {L('นโยบายการคืน (ไทย)','Return Policy (TH)')}</label>
+                                      <input className="input input-sm" value={drug.returnPolicy||''}
+                                        placeholder={L('เช่น คืนได้ภายใน 7 วัน','e.g. return within 7 days')}
+                                        onChange={e=>updRepDrug(r.id,drug.code,'returnPolicy',e.target.value)} />
+                                    </div>
+                                    <div className="form-group" style={{ flex:1, margin:0 }}>
+                                      <label className="label" style={{ fontSize:9 }}>↩ Return Policy (EN)</label>
+                                      <input className="input input-sm" value={drug.returnPolicyEN||''}
+                                        placeholder="e.g. return within 7 days"
+                                        onChange={e=>updRepDrug(r.id,drug.code,'returnPolicyEN',e.target.value)} />
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         );
-      })}
+      })()}
 
       {/* ── Drug catalog section ── */}
       <div className="divider" />
