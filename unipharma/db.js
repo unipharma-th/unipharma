@@ -355,6 +355,14 @@
       try { await client.from("purchase_orders").delete().eq("id", id); }
       catch (e) { console.warn("[UNI_DB] deletePO:", e); }
     },
+    async deleteSupplier(id) {
+      if (!enabled) return;
+      try {
+        await client.from("suppliers").delete().eq("id", id);
+        try { localStorage.removeItem('uni_sup_ts'); } catch(_) {}
+      }
+      catch (e) { console.warn("[UNI_DB] deleteSupplier:", e); }
+    },
 
     // Bulk push — used by Data Sync import & first-time seed.
     async saveDrugsBulk(arr) {

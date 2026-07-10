@@ -667,6 +667,14 @@ const UTILS = (() => {
       try { await client.from("purchase_orders").delete().eq("id", id); }
       catch (e) { console.warn("[UNI_DB] deletePO:", e); }
     },
+    async deleteSupplier(id) {
+      if (!enabled) return;
+      try {
+        await client.from("suppliers").delete().eq("id", id);
+        try { localStorage.removeItem('uni_sup_ts'); } catch(_) {}
+      }
+      catch (e) { console.warn("[UNI_DB] deleteSupplier:", e); }
+    },
 
     // Bulk push — used by Data Sync import & first-time seed.
     async saveDrugsBulk(arr) {
@@ -3795,6 +3803,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
   const [editSup, setEditSup] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [viewSup, setViewSup] = useState(null);
+  const [confirmSupId, setConfirmSupId] = useState(null);
 
   const filtered = useMemo(() => {
     if (!search) return suppliers;
@@ -3806,6 +3815,14 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
     const supOrders = orders.filter(o => o.supplierId === sup.id && o.status !== 'cancelled');
     const totalSpend = supOrders.reduce((s, o) => s + (o.grandTotal || 0), 0);
     return { orderCount: supOrders.length, totalSpend };
+  };
+
+  const deleteSup = id => {
+    setSuppliers(prev => prev.filter(s => s.id !== id));
+    if (window.UNI_DB?.enabled) window.UNI_DB.deleteSupplier(id).catch(() => {});
+    notify(L('ลบผู้จัดจำหน่ายแล้ว', 'Supplier deleted'), 'warn');
+    setConfirmSupId(null);
+    if (viewSup?.id === id) setViewSup(null);
   };
 
   const saveSup = saved => {
@@ -3851,6 +3868,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }} onClick={e => e.stopPropagation()}>
                   {perm.canWrite && <button className="btn btn-ghost btn-xs" onClick={() => setEditSup(sup)}>✏</button>}
                   {perm.canWrite && <button className="btn btn-primary btn-xs" onClick={() => { setShowCreate && setShowCreate(true); }}>+ PO</button>}
+                  {perm.canDelete && <button className="btn btn-xs" style={{ background: 'var(--err-bg)', color: 'var(--err)', border: '1px solid var(--err)' }} onClick={() => setConfirmSupId(sup.id)}>🗑</button>}
                 </div>
               </div>
 
@@ -3911,6 +3929,20 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
       {showForm && (
         <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />
       )}
+
+      {confirmSupId && (() => {
+        const sup = suppliers.find(s => s.id === confirmSupId);
+        const orderCount = orders.filter(o => o.supplierId === confirmSupId).length;
+        return (
+          <Confirm lang={lang}
+            msg={L(
+              `ต้องการลบ "${sup?.name || confirmSupId}" ใช่ไหม?${orderCount > 0 ? ` (มีใบสั่งซื้อ ${orderCount} รายการที่เกี่ยวข้อง)` : ''} ไม่สามารถกู้คืนได้`,
+              `Delete "${sup?.nameEN || sup?.name || confirmSupId}"?${orderCount > 0 ? ` (${orderCount} related POs exist)` : ''} This cannot be undone.`
+            )}
+            onConfirm={() => deleteSup(confirmSupId)}
+            onCancel={() => setConfirmSupId(null)} />
+        );
+      })()}
     </div>
   );
 }
