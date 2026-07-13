@@ -15,7 +15,7 @@ function App() {
     try { return localStorage.getItem('uni_page') || 'dashboard'; } catch { return 'dashboard'; }
   });
   const [lang, setLang] = useState(() => localStorage.getItem('uni_lang') || 'th');
-  const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'earth');
+  const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'dark');
   const [drugs, setDrugs] = useState(() => {
     try { const s = localStorage.getItem('uni_drugs'); return s ? JSON.parse(s) : DB.DRUGS; } catch { return DB.DRUGS; }
   });
