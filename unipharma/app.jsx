@@ -20,8 +20,16 @@ function App() {
   const [page, setPage] = useState(() => {
     try { return localStorage.getItem('uni_page') || 'dashboard'; } catch { return 'dashboard'; }
   });
-  const [lang, setLang] = useState(() => localStorage.getItem('uni_lang') || 'th');
-  const [theme, setTheme] = useState(() => localStorage.getItem('uni_theme') || 'dark');
+  const [lang, setLang] = useState(() => {
+    let v = localStorage.getItem('uni_lang') || 'th';
+    try { while (typeof v === 'string' && v.startsWith('"')) v = JSON.parse(v); } catch {}
+    return (v === 'th' || v === 'en') ? v : 'th';
+  });
+  const [theme, setTheme] = useState(() => {
+    let v = localStorage.getItem('uni_theme') || 'dark';
+    try { while (typeof v === 'string' && v.startsWith('"')) v = JSON.parse(v); } catch {}
+    return v || 'dark';
+  });
   const [drugs, setDrugs] = useState(() => {
     try { const s = localStorage.getItem('uni_drugs'); return s ? JSON.parse(s) : DB.DRUGS; } catch { return DB.DRUGS; }
   });
@@ -84,8 +92,8 @@ function App() {
     }, delay);
   }, []);
 
-  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); persistLS('uni_theme', theme, 0); }, [theme]);
-  useEffect(() => { persistLS('uni_lang', lang, 0); }, [lang]);
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); try { localStorage.setItem('uni_theme', theme); } catch(e) {} }, [theme]);
+  useEffect(() => { try { localStorage.setItem('uni_lang', lang); } catch(e) {} }, [lang]);
   useEffect(() => { persistLS('uni_drugs', drugs); }, [drugs]);
   useEffect(() => { persistLS('uni_suppliers', suppliers); }, [suppliers]);
   useEffect(() => { UTILS.setRuntimeSuppliers(suppliers); }, [suppliers]);
