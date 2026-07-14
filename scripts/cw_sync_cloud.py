@@ -18,7 +18,7 @@ CW_USERNAME  = os.environ['CW_USERNAME']
 CW_PASSWORD  = os.environ['CW_PASSWORD']
 DOWNLOAD_DIR = os.environ.get('DOWNLOAD_DIR', '/tmp/cw_sync')
 
-SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://vgrhhjvcctdvbbhqhvtw.supabase.co')
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://wddepvcmfqykidgbgnut.supabase.co')
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 TABLE        = 'cwpharma_stock_test'
 
