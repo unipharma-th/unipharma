@@ -3925,7 +3925,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
       {viewSup && <SupplierDetail sup={viewSup} lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} orders={orders} onClose={() => setViewSup(null)} onEdit={() => { setEditSup(viewSup); setViewSup(null); }} />}
 
       {showForm && (
-        <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />
+        <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} suppliers={suppliers} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />
       )}
 
       {confirmSupId && (() => {
@@ -4272,7 +4272,7 @@ function DealEditorModal({ lang, L, drugs, supId, supDrugs=[], initialDrugCode, 
   );
 }
 
-function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
+function SupplierForm({ sup, lang, L, drugs: allDrugs = [], suppliers = [], onSave, onClose }) {
   const isEdit = !!sup;
   const [form, setForm] = useState(() => {
     if (!sup) return { id:'SUP'+Date.now(), code:'', name:'', nameEN:'', contact:'', phone:'', email:'', taxId:'', creditTerm:30, deliveryDays:3, rating:4.0, minOrder:5000, address:'', addressEN:'', promotions:[], drugs:[], drugPrices:{}, contacts:[{name:'',phone:''}], returnPolicy:'', returnPolicyEN:'', reps:[] };
@@ -4282,6 +4282,21 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
   });
   const [drugSearch, setDrugSearch] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const dupWarning = useMemo(() => {
+    const others = suppliers.filter(s => s.id !== form.id);
+    if (form.taxId && form.taxId.length === 13 && /^\d{13}$/.test(form.taxId)) {
+      const m = others.find(s => s.taxId === form.taxId);
+      if (m) return { field: 'taxId', match: m };
+    }
+    if ((form.name || '').trim().length > 3) {
+      const q = form.name.trim().toLowerCase();
+      const m = others.find(s => (s.name || '').trim().toLowerCase() === q);
+      if (m) return { field: 'name', match: m };
+    }
+    return null;
+  }, [form.taxId, form.name, form.id, suppliers]);
+
   const setContact = (i, k, v) => setForm(f => {
     const contacts = [...(f.contacts||[{name:'',phone:''}])];
     contacts[i] = { ...contacts[i], [k]: v };
@@ -4780,6 +4795,13 @@ function SupplierForm({ sup, lang, L, drugs: allDrugs = [], onSave, onClose }) {
         </div>
       )}
         </div>{/* end modal-body */}
+        {dupWarning && (
+          <div style={{ background:'#fff3cd', border:'1px solid #ffc107', borderRadius:6, padding:'8px 14px', margin:'0 24px 8px', fontSize:13, color:'#664d03' }}>
+            ⚠️ {dupWarning.field === 'taxId'
+              ? L(`เลขภาษี ${form.taxId} ซ้ำกับ "${dupWarning.match.name}"`, `Tax ID ${form.taxId} already exists: "${dupWarning.match.nameEN || dupWarning.match.name}"`)
+              : L(`ชื่อซ้ำกับผู้จัดจำหน่ายที่มีอยู่แล้ว: "${dupWarning.match.name}"`, `Name already exists: "${dupWarning.match.nameEN || dupWarning.match.name}"`)}
+          </div>
+        )}
         <div className="modal-footer">
           <button className="btn btn-ghost" onClick={onClose}>{L('ยกเลิก','Cancel')}</button>
           <button className="btn btn-primary" onClick={() => onSave(form)}>{L('บันทึก','Save')}</button>
