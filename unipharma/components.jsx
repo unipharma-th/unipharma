@@ -191,8 +191,30 @@ const DRUG_REMARKS = [
   { code:'policy',            th:'ตามนโยบายบริษัท',             en:'Company Policy',       detailTH:'กำหนดเป็นสินค้า Non-stock ตามนโยบายของบริษัท',                 detailEN:'Designated as a non-stock item according to company policy.' },
 ];
 
+/* ── shared helpers for smart-match + AI translate ── */
+function _nameSim(a, b) {
+  a = (a || '').toLowerCase().trim(); b = (b || '').toLowerCase().trim();
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.length > 4 && (a.includes(b) || b.includes(a))) return 0.88;
+  const wa = a.split(/\s+/).filter(w => w.length > 1);
+  const wb = new Set(b.split(/\s+/).filter(w => w.length > 1));
+  if (!wa.length || !wb.size) return 0;
+  const common = wa.filter(w => wb.has(w)).length;
+  return (2 * common) / (wa.length + wb.size);
+}
+async function _gtranslate(text, from, to) {
+  if (!text || !text.trim()) return '';
+  try {
+    const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`);
+    if (!r.ok) return '';
+    const j = await r.json();
+    return (j[0] || []).map(d => d[0]).join('').trim();
+  } catch(e) { return ''; }
+}
+
 /* ── Drug Form (Add/Edit) ── */
-function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
+function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs = [], onReuseCode }) {
   const cats = DB.CATEGORIES;
   const [form, setForm] = useState(() => {
     if (drug) {
@@ -213,7 +235,23 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
     };
   });
   const [errors, setErrors] = useState({});
+  const [matchWarn, setMatchWarn] = useState(null);
+  const [xlating, setXlating] = useState('');
   const isEdit = !!drug;
+
+  const checkSimilar = (name) => {
+    if (!name || !name.trim() || isEdit) { setMatchWarn(null); return; }
+    const found = (allDrugs || []).find(d => d.code !== form.code && _nameSim(name, d.nameTH) >= 0.75);
+    setMatchWarn(found || null);
+  };
+  const doTranslate = async (dir) => {
+    const text = dir === 'toEN' ? form.nameTH : form.nameEN;
+    if (!text || !text.trim()) return;
+    setXlating(dir);
+    const result = await _gtranslate(text, dir === 'toEN' ? 'th' : 'en', dir === 'toEN' ? 'en' : 'th');
+    if (result) { if (dir === 'toEN') set('nameEN', result); else set('nameTH', result); }
+    setXlating('');
+  };
 
   const set = (k, v) => setForm(f => {
     const nf = { ...f, [k]: v };
@@ -319,8 +357,37 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
           {errors.unit && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
         </div>
       </div>
-      {inp('nameTH', L('ชื่อภาษาไทย', 'Thai Name'))}
-      {inp('nameEN', L('ชื่อภาษาอังกฤษ', 'English Name'))}
+      <div className="form-group">
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
+          <label className="label">{L('ชื่อภาษาไทย','Thai Name')}</label>
+          <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toTH')} style={{fontSize:11}}>
+            {xlating==='toTH'?'⏳':'🤖'} {L('แปลจาก EN','← from EN')}
+          </button>
+        </div>
+        <input className={`input${errors.nameTH?' border-red':''}`} type="text" value={form.nameTH||''}
+          onChange={e=>set('nameTH',e.target.value)} onBlur={e=>checkSimilar(e.target.value)} />
+        {errors.nameTH && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
+        {matchWarn && (
+          <div style={{marginTop:6,padding:'8px 12px',background:'rgba(255,160,0,.08)',border:'1px solid rgba(255,160,0,.45)',borderRadius:6,fontSize:12}}>
+            ⚠️ {L('พบสินค้าคล้ายกัน','Similar product found')}: <strong>{matchWarn.code}</strong> — {matchWarn.nameTH}
+            <div style={{marginTop:6,display:'flex',gap:6,flexWrap:'wrap'}}>
+              {onReuseCode && <button type="button" className="btn btn-xs btn-primary" onClick={()=>{onReuseCode(matchWarn);onClose();}}>{L(`ใช้รหัส ${matchWarn.code}`,`Use ${matchWarn.code}`)}</button>}
+              <button type="button" className="btn btn-xs btn-ghost" onClick={()=>setMatchWarn(null)}>{L('เพิกเฉย','Dismiss')}</button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="form-group">
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
+          <label className="label">{L('ชื่อภาษาอังกฤษ','English Name')}</label>
+          <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toEN')} style={{fontSize:11}}>
+            {xlating==='toEN'?'⏳':'🤖'} {L('แปลจาก TH','← from TH')}
+          </button>
+        </div>
+        <input className={`input${errors.nameEN?' border-red':''}`} type="text" value={form.nameEN||''}
+          onChange={e=>set('nameEN',e.target.value)} />
+        {errors.nameEN && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
+      </div>
       <div className="form-row">
         <div className="form-group">
           <label className="label">{L('หมวดหมู่หลัก', 'Main Category')}</label>
@@ -639,9 +706,25 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers }) {
 }
 
 // Quick form — minimal fields for bulk entry: code + name (TH/EN) + unit only
-function QuickDrugForm({ onSave, onClose, lang, L }) {
+function QuickDrugForm({ onSave, onClose, lang, L, drugs: allDrugs = [], onReuseCode }) {
   const [form, setForm] = useState({ code: '', nameTH: '', nameEN: '', unit: 'เม็ด', unitMode: 'select' });
   const [errors, setErrors] = useState({});
+  const [matchWarn, setMatchWarn] = useState(null);
+  const [xlating, setXlating] = useState('');
+
+  const checkSimilar = (name) => {
+    if (!name || !name.trim()) { setMatchWarn(null); return; }
+    const found = (allDrugs || []).find(d => _nameSim(name, d.nameTH) >= 0.75);
+    setMatchWarn(found || null);
+  };
+  const doTranslate = async (dir) => {
+    const text = dir === 'toEN' ? form.nameTH : form.nameEN;
+    if (!text || !text.trim()) return;
+    setXlating(dir);
+    const result = await _gtranslate(text, dir === 'toEN' ? 'th' : 'en', dir === 'toEN' ? 'en' : 'th');
+    if (result) setForm(f => dir === 'toEN' ? {...f, nameEN: result} : {...f, nameTH: result});
+    setXlating('');
+  };
 
   const validate = () => {
     const e = {};
@@ -680,16 +763,37 @@ function QuickDrugForm({ onSave, onClose, lang, L }) {
         {errors.code && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
       </div>
       <div className="form-group">
-        <label className="label">{L('ชื่อภาษาไทย *', 'Thai Name *')}</label>
-        <input className={`input${errors.nameTH ? ' border-red' : ''}`} type="text" value={form.nameTH}
-          onChange={e => setForm(f => ({ ...f, nameTH: e.target.value }))} placeholder={L('เช่น ยาลดไข้', 'e.g. Paracetamol')} />
-        {errors.nameTH && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
+          <label className="label">{L('ชื่อภาษาไทย *','Thai Name *')}</label>
+          <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toTH')} style={{fontSize:11}}>
+            {xlating==='toTH'?'⏳':'🤖'} {L('จาก EN','← EN')}
+          </button>
+        </div>
+        <input className={`input${errors.nameTH?' border-red':''}`} type="text" value={form.nameTH}
+          onChange={e=>setForm(f=>({...f,nameTH:e.target.value}))}
+          onBlur={e=>checkSimilar(e.target.value)}
+          placeholder={L('เช่น ยาลดไข้','e.g. Paracetamol')} />
+        {errors.nameTH && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
+        {matchWarn && (
+          <div style={{marginTop:6,padding:'8px 12px',background:'rgba(255,160,0,.08)',border:'1px solid rgba(255,160,0,.45)',borderRadius:6,fontSize:12}}>
+            ⚠️ {L('พบสินค้าคล้ายกัน','Similar found')}: <strong>{matchWarn.code}</strong> — {matchWarn.nameTH}
+            <div style={{marginTop:6,display:'flex',gap:6,flexWrap:'wrap'}}>
+              {onReuseCode && <button type="button" className="btn btn-xs btn-primary" onClick={()=>{onReuseCode(matchWarn);onClose();}}>{L(`ใช้รหัส ${matchWarn.code}`,`Use ${matchWarn.code}`)}</button>}
+              <button type="button" className="btn btn-xs btn-ghost" onClick={()=>setMatchWarn(null)}>{L('เพิกเฉย','Dismiss')}</button>
+            </div>
+          </div>
+        )}
       </div>
       <div className="form-group">
-        <label className="label">{L('ชื่อภาษาอังกฤษ *', 'English Name *')}</label>
-        <input className={`input${errors.nameEN ? ' border-red' : ''}`} type="text" value={form.nameEN}
-          onChange={e => setForm(f => ({ ...f, nameEN: e.target.value }))} placeholder="e.g. Paracetamol" />
-        {errors.nameEN && <div style={{ color: 'var(--err)', fontSize: 11, marginTop: 2 }}>จำเป็นต้องกรอก</div>}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
+          <label className="label">{L('ชื่อภาษาอังกฤษ *','English Name *')}</label>
+          <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toEN')} style={{fontSize:11}}>
+            {xlating==='toEN'?'⏳':'🤖'} {L('จาก TH','← TH')}
+          </button>
+        </div>
+        <input className={`input${errors.nameEN?' border-red':''}`} type="text" value={form.nameEN}
+          onChange={e=>setForm(f=>({...f,nameEN:e.target.value}))} placeholder="e.g. Paracetamol" />
+        {errors.nameEN && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
       </div>
 
       <div className="form-group">
@@ -734,4 +838,4 @@ function QuickDrugForm({ onSave, onClose, lang, L }) {
   );
 }
 
-Object.assign(window, { Modal, StatusBadge, BranchBadge, Pagination, SearchInput, ChartWidget, RatingStars, Confirm, PriceDisplay, StockBar, DrugForm, QuickDrugForm });
+Object.assign(window, { Modal, StatusBadge, BranchBadge, Pagination, SearchInput, ChartWidget, RatingStars, Confirm, PriceDisplay, StockBar, DrugForm, QuickDrugForm, _nameSim, _gtranslate });

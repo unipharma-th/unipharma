@@ -5,6 +5,55 @@ const PER_PAGE = 50;
 // Created once at module level — Intl.Collator construction is expensive
 const NATURAL_CMP = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+function UnusedDrugsPanel({ lang, L, drugs, onEdit }) {
+  const [usedCodes, setUsedCodes] = useState(null);
+  useEffect(() => {
+    if (window.UNI_DB && window.UNI_DB.loadUsedDrugCodes) {
+      window.UNI_DB.loadUsedDrugCodes().then(codes => setUsedCodes(codes));
+    } else {
+      setUsedCodes(new Set());
+    }
+  }, []);
+  const unused = React.useMemo(() =>
+    usedCodes ? drugs.filter(d => !usedCodes.has(d.code)) : null,
+    [drugs, usedCodes]
+  );
+  if (!unused) return <div style={{padding:40,textAlign:'center',color:'var(--txt3)'}}>⏳ {L('กำลังตรวจสอบ…','Checking…')}</div>;
+  return (
+    <div>
+      <div style={{padding:'10px 0',color:'var(--txt3)',fontSize:13,marginBottom:8}}>
+        {L('พบ','Found')} <strong>{unused.length.toLocaleString()}</strong> {L('รายการที่ยังไม่เคยมี PO','items with no purchase order yet')}
+      </div>
+      {unused.length === 0 ? (
+        <div style={{textAlign:'center',padding:40,color:'var(--ok)',fontSize:14}}>✅ {L('ทุกรายการมี PO แล้ว','All items have POs')}</div>
+      ) : (
+        <div style={{overflowX:'auto'}}>
+          <table className="table" style={{width:'100%',fontSize:13}}>
+            <thead><tr>
+              <th style={{width:100}}>{L('รหัส','Code')}</th>
+              <th>{L('ชื่อไทย','Thai Name')}</th>
+              <th>{L('ชื่ออังกฤษ','English Name')}</th>
+              <th style={{width:80}}>{L('หน่วย','Unit')}</th>
+              <th style={{width:80}}></th>
+            </tr></thead>
+            <tbody>
+              {unused.map(d => (
+                <tr key={d.code} style={{cursor:'pointer'}} onClick={()=>onEdit(d)}>
+                  <td><code style={{fontSize:11,background:'var(--bg3)',borderRadius:4,padding:'2px 6px'}}>{d.code}</code></td>
+                  <td>{d.nameTH}</td>
+                  <td style={{color:'var(--txt3)',fontSize:12}}>{d.nameEN}</td>
+                  <td style={{color:'var(--txt3)'}}>{d.unit}</td>
+                  <td><button className="btn btn-xs btn-ghost" onClick={e=>{e.stopPropagation();onEdit(d);}}>✏️ {L('แก้ไข','Edit')}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategories, notify, perm = { canWrite: true } }) {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
@@ -14,6 +63,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
   const [page, setPage] = useState(1);
   const [editDrug, setEditDrug] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'unused'
   const [sortCol, setSortCol] = useState('code');
   const [sortDir, setSortDir] = useState('asc');
   const [showPkg, setShowPkg] = useState(false);
@@ -133,6 +183,12 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
     notify(L('บันทึกข้อมูลสำเร็จ', 'Saved successfully'));
   }, [setDrugs, notify, L]);
 
+  const handleReuseCode = useCallback(matchedDrug => {
+    setShowAdd(false);
+    setEditDrug(matchedDrug);
+    notify(L(`เปิดแก้ไขสินค้ารหัส ${matchedDrug.code}`, `Editing existing product ${matchedDrug.code}`));
+  }, [notify, L]);
+
   const stockStatus = d => {
     const total = d.totalStock;
     if (total <= d.minStock) return 'err';
@@ -187,6 +243,31 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
         <CategoryManagerModal lang={lang} L={L} categories={cats} setCategories={setCategories}
           drugs={drugs} notify={notify} onClose={() => setShowCatMgr(false)} />
       )}
+
+      {/* TAB BAR */}
+      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:14}}>
+        {[
+          {key:'all',  label:L('สินค้าทั้งหมด','All Products'), icon:'💊'},
+          {key:'unused',label:L('ยังไม่มี PO','No PO Yet'),   icon:'📋'},
+        ].map(({key,label,icon})=>(
+          <button key={key} onClick={()=>setActiveTab(key)}
+            style={{padding:'8px 18px',border:'none',background:'none',cursor:'pointer',fontWeight:activeTab===key?700:400,
+              color:activeTab===key?'var(--acc2)':'var(--txt3)',
+              borderBottom:activeTab===key?'2px solid var(--acc2)':'2px solid transparent',
+              marginBottom:-2,fontSize:13}}>
+            {icon} {label}
+          </button>
+        ))}
+      </div>
+
+      {/* UNUSED DRUGS PANEL */}
+      {activeTab === 'unused' && (
+        <div className="card" style={{padding:16}}>
+          <UnusedDrugsPanel lang={lang} L={L} drugs={drugs} onEdit={d=>{setEditDrug(d);setShowAdd(false);}} />
+        </div>
+      )}
+
+      {activeTab === 'all' && <>
 
       {/* Packaging info banner */}
       {showPkg && (
@@ -568,13 +649,15 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
         </div>
       </div>
 
+      </> }
+
       {/* ADD / EDIT MODAL */}
       {showAdd && !editDrug && (
-        <QuickDrugForm lang={lang} L={L}
+        <QuickDrugForm lang={lang} L={L} drugs={drugs} onReuseCode={handleReuseCode}
           onSave={saveQuickDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
       )}
       {editDrug && (
-        <DrugForm drug={editDrug} lang={lang} L={L} suppliers={suppliers}
+        <DrugForm drug={editDrug} lang={lang} L={L} suppliers={suppliers} drugs={drugs} onReuseCode={handleReuseCode}
           onSave={saveDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
       )}
     </div>

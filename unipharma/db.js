@@ -545,6 +545,22 @@
     onOutOfStockChange(cb) { return function () {}; },
     onDataChange(cb) { return function () {}; },
 
+    // Returns Set of drug codes that appear in at least one PO's items
+    async loadUsedDrugCodes() {
+      if (!enabled) return new Set();
+      try {
+        var res = await client.from('purchase_orders').select('data');
+        if (res.error) throw res.error;
+        var codes = new Set();
+        (res.data || []).forEach(function(row) {
+          ((row.data || {}).items || []).forEach(function(it) {
+            if (it.code) codes.add(it.code);
+          });
+        });
+        return codes;
+      } catch(e) { console.warn('[UNI_DB] loadUsedDrugCodes:', e); return new Set(); }
+    },
+
     // ---- Authentication ----
     async getSession() {
       if (!enabled) return null;
