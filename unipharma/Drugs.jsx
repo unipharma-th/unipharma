@@ -1,6 +1,23 @@
 // Drugs.jsx — Drug Database Page
 const { useState, useMemo, useCallback, useEffect } = React;
 
+// Maps CW Pharma Thai unit strings → UNIPHARMA unit codes
+const CW_UNIT_MAP = {
+  // Dosage forms
+  'เม็ด':'TAB','แคปซูล':'CAP','ซอฟต์เจล':'SGC','ยาเหน็บ':'SUPP',
+  'ยาอม':'LOZ','ผงยา':'POW','ยาผงซอง':'SACH','แกรนูล':'GRAN',
+  // Liquid
+  'มิลลิลิตร':'ML','มล.':'ML','ซีซี':'CC','ลิตร':'L','สเปรย์':'SPRAY',
+  // Medical
+  'หลอดยา':'AMP','แอมพูล':'AMP','ไวอัล':'VIAL','แผ่นแปะ':'PATCH',
+  // Packaging
+  'แผง':'STRIP','ขวด':'BTL','กล่อง':'BOX','ซอง':'POUCH','หลอด':'TUBE',
+  'กระปุก':'JAR','กระป๋อง':'CAN','ถุง':'BAG','แพ็ก':'PK','ม้วน':'ROLL',
+  'ชุด':'SET','คู่':'PAIR','โหล':'DOZ','ลัง':'CTN',
+  // Generic
+  'ชิ้น':'EA','อัน':'EA','แท่ง':'EA','ก้าน':'EA',
+};
+
 const PER_PAGE = 50;
 // Created once at module level — Intl.Collator construction is expensive
 const NATURAL_CMP = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -720,7 +737,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                                     </span>
                                   </div>
                                   {cw.name && (
-                                    <div style={{fontSize:11,marginBottom:8,padding:'4px 10px',background:'var(--bg4)',borderRadius:6}}>
+                                    <div style={{fontSize:11,marginBottom:6,padding:'4px 10px',background:'var(--bg4)',borderRadius:6}}>
                                       <span style={{color:'var(--txt3)'}}>{L('ชื่อใน CW','CW name')}: </span>
                                       <span style={{fontWeight:500}}>{cw.name}</span>
                                       {(window._nameSim||function(){return 1;})(cw.name,d.nameEN||'') < 0.5 && (
@@ -730,6 +747,25 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                                       )}
                                     </div>
                                   )}
+                                  {cw.unit && (() => {
+                                    const code = CW_UNIT_MAP[cw.unit];
+                                    const uo = code && (DB.UNITS||[]).find(u => u.code === code);
+                                    return (
+                                      <div style={{fontSize:11,marginBottom:8,padding:'4px 10px',background:'var(--bg4)',borderRadius:6,display:'flex',alignItems:'center',gap:6}}>
+                                        <span style={{color:'var(--txt3)'}}>{L('หน่วย CW','CW Unit')}:</span>
+                                        <span style={{fontWeight:600}}>{cw.unit}</span>
+                                        {uo ? (
+                                          <>
+                                            <span style={{color:'var(--txt4)'}}>→</span>
+                                            <span style={{background:'var(--acc2)',color:'#fff',fontSize:9,padding:'1px 7px',borderRadius:10,fontWeight:700}}>{uo.code}</span>
+                                            <span style={{color:'var(--ok)',fontSize:10}}>{lang==='th'?uo.th:uo.en}</span>
+                                          </>
+                                        ) : (
+                                          <span style={{color:'var(--txt4)',fontSize:10}}>{L('(ยังไม่ match)','(unmapped)')}</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                   <div style={{ display:'flex', gap:8 }}>
                                     {brs.map(b => (
                                       <div key={b.id} style={{ background:'var(--bg4)', borderRadius:8, padding:'6px 10px', minWidth:76 }}>

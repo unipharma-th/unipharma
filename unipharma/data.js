@@ -167,6 +167,7 @@ const DB = (() => {
     { code:'EA',       th:'ชิ้น',               en:'Each',                      group:'packaging' },
     { code:'PC',       th:'ชิ้น (PC)',           en:'Piece',                     group:'packaging' },
     { code:'PCS',      th:'หลายชิ้น',            en:'Pieces',                    group:'packaging' },
+    { code:'STRIP',    th:'แผง',                en:'Blister Strip',             group:'packaging' },
     { code:'BOX',      th:'กล่อง',              en:'Box',                       group:'packaging' },
     { code:'CTN',      th:'ลัง',               en:'Carton',                    group:'packaging' },
     { code:'CASE',     th:'ลังใหญ่',             en:'Case',                      group:'packaging' },
