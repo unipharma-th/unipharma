@@ -2294,7 +2294,10 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       const _sim = window._nameSim || (() => 1);
       const mismatched = drugs.filter(d => {
         const cw = map[d.code];
-        return cw && cw.name && _sim(cw.name, d.nameEN || '') < 0.85;
+        if (!cw || !cw.name) return false;
+        if (_sim(cw.name, d.nameEN || '') >= 0.85) return false; // EN already matches
+        if (_sim(cw.name, d.nameTH || '') >= 0.85) return false; // CW name is Thai & matches TH — skip
+        return true;
       });
       if (!mismatched.length) return;
 
