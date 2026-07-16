@@ -104,9 +104,16 @@ def _download_ssrs_excel(page, label):
 
 def _download_brnstock_part(page, part_idx):
     print(f"\n  Part {part_idx + 1}:")
-    page.goto(CW_URL + "Report/BrnStock/BrnStock_Man.aspx", timeout=30000)
+    page.goto(CW_URL + "Report/BrnStock/BrnStock_Man.aspx", timeout=60000)
     page.wait_for_load_state("networkidle")
-    time.sleep(2)
+    time.sleep(3)
+
+    try:
+        page.wait_for_selector('#MainContent_Button3', state='visible', timeout=60000)
+    except Exception:
+        page.screenshot(path=os.path.join(DOWNLOAD_DIR, f'brnstock_part{part_idx+1}_debug.png'))
+        print(f"    ERROR: #MainContent_Button3 not visible after 60s – debug screenshot saved")
+        return None
 
     page.click('#MainContent_Button3')
     time.sleep(5)
