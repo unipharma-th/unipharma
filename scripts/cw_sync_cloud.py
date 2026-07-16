@@ -357,6 +357,8 @@ def upload_to_supabase(products, batch=500):
     now  = datetime.utcnow().isoformat()
     for r in rows:
         r['synced_at'] = now
+        r.pop('stock_total', None)
+        r.pop('unit', None)
     headers = {
         'apikey':        SUPABASE_KEY,
         'Authorization': f'Bearer {SUPABASE_KEY}',
