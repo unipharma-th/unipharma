@@ -137,7 +137,8 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
   // Also auto-updates nameEN for products whose CW name differs from the system name
   useEffect(() => {
     if (!window.UNI_DB || !window.UNI_DB.enabled) return;
-    window.UNI_DB.loadCwStock().then(data => {
+    (async () => {
+      const data = await window.UNI_DB.loadCwStock().catch(() => null);
       if (!data || !data.length) return;
       const map = {};
       data.forEach(r => { map[r.code] = r; });
@@ -154,28 +155,36 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       });
       if (!mismatched.length) return;
 
-      // Update nameEN to CW name; also update nameTH when it's a completely different
-      // product (similarity < 0.5 with nameTH = product code was reassigned)
+      // Products where the entire drug changed (code reassigned) — need TH translation
+      const needsThUpdate = mismatched.filter(d => _sim(map[d.code].name, d.nameTH || '') < 0.5);
+      const thTranslations = {};
+      if (needsThUpdate.length && typeof _gtranslate === 'function') {
+        await Promise.all(needsThUpdate.map(async d => {
+          const thai = await _gtranslate(map[d.code].name, 'en', 'th').catch(() => '');
+          if (thai) thTranslations[d.code] = thai;
+        }));
+      }
+
       const updatedList = mismatched.map(d => {
         const cwName = map[d.code].name;
-        const productChanged = _sim(cwName, d.nameTH || '') < 0.5;
-        return productChanged ? { ...d, nameEN: cwName, nameTH: cwName } : { ...d, nameEN: cwName };
+        const translatedTH = thTranslations[d.code];
+        return translatedTH ? { ...d, nameEN: cwName, nameTH: translatedTH } : { ...d, nameEN: cwName };
       });
-      const thUpdatedCount = updatedList.filter(u => u.nameTH === map[u.code]?.name && u.nameTH !== drugs.find(d => d.code === u.code)?.nameTH).length;
-      window.UNI_DB.saveDrugsBulk(updatedList).then(() => {
-        setDrugs(prev => {
-          const byCode = {};
-          updatedList.forEach(u => { byCode[u.code] = u; });
-          return prev.map(d => byCode[d.code] || d);
-        });
-        const thNote = thUpdatedCount ? L(' (รวมชื่อ TH ' + thUpdatedCount + ' รายการที่สินค้าเปลี่ยน)', ' (incl. ' + thUpdatedCount + ' TH names where product changed)') : '';
-        if (notify) notify(
-          L('อัปเดตชื่อ EN ' + mismatched.length + ' รายการจาก CW Pharma อัตโนมัติ' + thNote,
-            'Auto-updated ' + mismatched.length + ' names from CW Pharma' + thNote),
-          'ok'
-        );
-      }).catch(e => console.warn('[CW auto-sync]', e));
-    });
+      const thUpdatedCount = Object.keys(thTranslations).length;
+
+      await window.UNI_DB.saveDrugsBulk(updatedList);
+      setDrugs(prev => {
+        const byCode = {};
+        updatedList.forEach(u => { byCode[u.code] = u; });
+        return prev.map(d => byCode[d.code] || d);
+      });
+      const thNote = thUpdatedCount ? L(' (รวมชื่อ TH ' + thUpdatedCount + ' รายการที่สินค้าเปลี่ยน)', ' (incl. ' + thUpdatedCount + ' TH names where product changed)') : '';
+      if (notify) notify(
+        L('อัปเดตชื่อ EN ' + mismatched.length + ' รายการจาก CW Pharma อัตโนมัติ' + thNote,
+          'Auto-updated ' + mismatched.length + ' names from CW Pharma' + thNote),
+        'ok'
+      );
+    })().catch(e => console.warn('[CW auto-sync]', e));
   }, []);
 
   // Load CW price history for the expanded drug (lazy, per-code, cached in cwHistory state)
