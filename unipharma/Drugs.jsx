@@ -154,16 +154,24 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       });
       if (!mismatched.length) return;
 
-      const updatedList = mismatched.map(d => ({ ...d, nameEN: map[d.code].name }));
+      // Update nameEN to CW name; also update nameTH when it's a completely different
+      // product (similarity < 0.5 with nameTH = product code was reassigned)
+      const updatedList = mismatched.map(d => {
+        const cwName = map[d.code].name;
+        const productChanged = _sim(cwName, d.nameTH || '') < 0.5;
+        return productChanged ? { ...d, nameEN: cwName, nameTH: cwName } : { ...d, nameEN: cwName };
+      });
+      const thUpdatedCount = updatedList.filter(u => u.nameTH === map[u.code]?.name && u.nameTH !== drugs.find(d => d.code === u.code)?.nameTH).length;
       window.UNI_DB.saveDrugsBulk(updatedList).then(() => {
         setDrugs(prev => {
           const byCode = {};
           updatedList.forEach(u => { byCode[u.code] = u; });
           return prev.map(d => byCode[d.code] || d);
         });
+        const thNote = thUpdatedCount ? L(' (รวมชื่อ TH ' + thUpdatedCount + ' รายการที่สินค้าเปลี่ยน)', ' (incl. ' + thUpdatedCount + ' TH names where product changed)') : '';
         if (notify) notify(
-          L('อัปเดตชื่อ EN ' + mismatched.length + ' รายการจาก CW Pharma อัตโนมัติ',
-            'Auto-updated ' + mismatched.length + ' English names from CW Pharma'),
+          L('อัปเดตชื่อ EN ' + mismatched.length + ' รายการจาก CW Pharma อัตโนมัติ' + thNote,
+            'Auto-updated ' + mismatched.length + ' names from CW Pharma' + thNote),
           'ok'
         );
       }).catch(e => console.warn('[CW auto-sync]', e));
