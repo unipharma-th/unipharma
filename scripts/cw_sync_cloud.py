@@ -38,6 +38,13 @@ EXPORT_BTN       = '#ctl00_MainContent_ReportViewer1_ctl05_ctl04_ctl00_ButtonLin
 STOCK_PARTS      = 2
 SALE_MAX_PARTS   = 15
 
+# Thai unit words used in GR report (ราคา column comes just before the unit)
+THAI_UNITS = {
+    'แผง','กล่อง','หลอด','ขวด','ซอง','ม้วน','ชิ้น','อัน','ชุด',
+    'ลัง','แพ็ก','แพ็ค','ถุง','ถ้วย','เม็ด','แคปซูล','เข็ม',
+    'อัมพูล','ไวอัล','กระปุก','โหล','คู่','เส้น','ชุดทดสอบ',
+}
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
@@ -124,6 +131,221 @@ def _download_ssrs_excel(page, label, dl_dir=None):
     except Exception as e:
         print(f"    Download error: {e}")
         return None
+
+
+# ── GR REPORT (ทุนรับหลังสุด / Supplier_Man.aspx) ────────────────────────────
+
+def _find_ssrs_frame_any(page):
+    """Return the first SSRS frame with the export toolbar, regardless of URL."""
+    for f in page.frames:
+        try:
+            if f.evaluate(f"!!document.querySelector('{EXPORT_BTN}')"):
+                return f
+        except Exception:
+            pass
+    return None
+
+
+def _wait_ssrs_any(page, timeout=120):
+    for _ in range(timeout // 5):
+        time.sleep(5)
+        f = _find_ssrs_frame_any(page)
+        if f:
+            return f
+    return None
+
+
+def _download_ssrs_excel_any(page, label, dl_dir=None):
+    """Like _download_ssrs_excel but searches ALL frames (not just Rep_Brn)."""
+    _dir = dl_dir or DOWNLOAD_DIR
+    print(f'    Waiting for SSRS frame (max 120s)...')
+    frame = _wait_ssrs_any(page, timeout=120)
+    if not frame:
+        print('    ERROR: SSRS frame not found after 120s')
+        page.screenshot(path=os.path.join(_dir, f'{label}_timeout.png'))
+        return None
+
+    frame.evaluate(f"document.querySelector('{EXPORT_BTN}').click()")
+    time.sleep(1)
+
+    out = os.path.join(_dir, f'{label}.xlsx')
+    try:
+        with page.expect_download(timeout=120000) as dl_info:
+            frame.evaluate('''() => {
+                const a = [...document.querySelectorAll("a")]
+                              .find(l => l.innerText && l.innerText.trim() === "Excel");
+                if (a) a.click();
+            }''')
+        dl = dl_info.value
+        dl.save_as(out)
+        print(f'    Saved: {label}.xlsx  ({os.path.getsize(out):,} bytes)')
+        return out
+    except Exception as e:
+        print(f'    Download error: {e}')
+        return None
+
+
+def download_gr_report(page, cw_url=None, dl_dir=None):
+    """
+    Download รายงานการรับ-คืนสินค้า from CW WebFront (Supplier_Man.aspx).
+    Returns list of downloaded .xlsx paths.
+    """
+    _url = cw_url or CW_URL
+    _dir = dl_dir or DOWNLOAD_DIR
+    _host = '{0.scheme}://{0.netloc}'.format(urlparse(_url))
+    gr_url = _host + '/WebFront/Reports/Supplier_Man.aspx'
+
+    print(f'\n[GR] → {gr_url}')
+    try:
+        page.goto(gr_url, timeout=60000)
+        page.wait_for_load_state('networkidle')
+        time.sleep(3)
+    except Exception as e:
+        print(f'[GR] Navigation error: {e}')
+        return []
+
+    page.screenshot(path=os.path.join(_dir, 'gr_01_loaded.png'))
+
+    # Select "รายการรับ" radio (receive only, not returns)
+    page.evaluate("""() => {
+        for (const r of document.querySelectorAll('input[type=radio]')) {
+            const txt = (r.parentElement?.innerText || r.nextSibling?.textContent || '');
+            if (txt.includes('รายการรับ') && !txt.includes('คืน')) { r.click(); return; }
+        }
+    }""")
+    time.sleep(1)
+
+    # Fill date range
+    try:
+        inputs = [i for i in page.query_selector_all('input[type=text]') if i.is_visible()]
+        if len(inputs) >= 2:
+            inputs[0].triple_click()
+            inputs[0].type(SALE_FROM, delay=30)
+            inputs[1].triple_click()
+            inputs[1].type(SALE_TO, delay=30)
+            print(f'[GR] Date range: {SALE_FROM} – {SALE_TO}')
+    except Exception as e:
+        print(f'[GR] Date fill warning: {e}')
+
+    # Click report button — may open a popup page or an inline iframe
+    new_page = None
+    try:
+        with page.context.expect_event('page', timeout=8000) as page_info:
+            page.evaluate("""() => {
+                const btns = [...document.querySelectorAll(
+                    'input[type=button],button,input[type=submit]')];
+                const b = btns.find(b => (b.value || b.textContent || '').includes('รายงาน'));
+                if (b) b.click();
+            }""")
+        new_page = page_info.value
+        new_page.wait_for_load_state('networkidle')
+        time.sleep(10)
+        print('[GR] Report opened in popup')
+    except Exception:
+        time.sleep(10)
+        print('[GR] No popup — checking inline SSRS frame')
+
+    target = new_page if new_page else page
+    target.screenshot(path=os.path.join(_dir, 'gr_02_report.png'))
+
+    f = _download_ssrs_excel_any(target, 'gr_report', _dir)
+    if new_page:
+        try:
+            new_page.close()
+        except Exception:
+            pass
+    return [f] if f else []
+
+
+def _gr_date_key(date_str):
+    """dd/mm/yyyy → int yyyymmdd for chronological comparison."""
+    try:
+        d, m, y = date_str.split('/')
+        return int(y) * 10000 + int(m) * 100 + int(d)
+    except Exception:
+        return 0
+
+
+def parse_gr_report(files):
+    """
+    Parse รายงานการรับ-คืนสินค้า Excel.
+    Returns {product_code: {'date': 'dd/mm/yyyy', 'cost': float}}
+    keeping only the most recent receipt per product.
+    """
+    result = {}
+    _diag = False
+
+    for path in files:
+        df = pd.read_excel(path, header=None, dtype=str)
+        current_date = None
+
+        for _, row in df.iterrows():
+            cells = [str(v).strip() if pd.notna(v) else '' for v in row]
+
+            # GR header row contains an exact dd/mm/yyyy date cell
+            for c in cells:
+                if re.match(r'^\d{2}/\d{2}/\d{4}$', c):
+                    current_date = c
+                    break
+
+            # Product row: any cell matches P-NNNN
+            code = next((c for c in cells if re.match(r'^P-\d+$', c)), None)
+            if not code or not current_date:
+                continue
+
+            if not _diag:
+                print(f'[GR diag] first product row: {cells[:12]}')
+                _diag = True
+
+            # Price = cell immediately before the Thai unit word
+            unit_idx = next((i for i, c in enumerate(cells) if c in THAI_UNITS), -1)
+            cost = 0.0
+            if unit_idx > 0:
+                for i in range(unit_idx - 1, max(-1, unit_idx - 4), -1):
+                    try:
+                        v = float(cells[i].replace(',', ''))
+                        if v > 0:
+                            cost = v
+                            break
+                    except ValueError:
+                        continue
+            else:
+                # Fallback: first float > 0 after the product code cell
+                code_idx = cells.index(code)
+                for c in cells[code_idx + 1:]:
+                    try:
+                        v = float(c.replace(',', ''))
+                        if v > 0:
+                            cost = v
+                            break
+                    except ValueError:
+                        continue
+
+            if cost <= 0:
+                continue
+
+            if code not in result or _gr_date_key(current_date) > _gr_date_key(result[code]['date']):
+                result[code] = {'date': current_date, 'cost': cost}
+
+    print(f'[GR] {len(result)} products with last received cost')
+    for c, v in list(result.items())[:5]:
+        print(f'  {c}: {v["cost"]:.2f} ฿ ({v["date"]})')
+    return result
+
+
+def _apply_gr_costs(products, gr_costs):
+    """Override branch costs with GR last-received cost for all matching products."""
+    applied = 0
+    for code, gr in gr_costs.items():
+        if code not in products or gr['cost'] <= 0:
+            continue
+        p = products[code]
+        p['cost_00'] = gr['cost']
+        p['cost_01'] = gr['cost']
+        p['cost_02'] = gr['cost']
+        applied += 1
+    print(f'[GR] Applied last-received cost to {applied} / {len(products)} products')
+    return products
 
 
 def _download_brnstock_part(page, part_idx, cw_url=None, dl_dir=None):
@@ -553,6 +775,16 @@ if __name__ == "__main__":
             print(f"Sale files  : {[os.path.basename(f) for f in sale_files]}")
 
             products = sync_supabase()
+
+            # ── GR last-received cost (ทุนรับหลังสุด) ──────────────────────────
+            print("\n[4b] Downloading GR report (ทุนรับหลังสุด)...")
+            gr_files = download_gr_report(page)
+            if gr_files:
+                gr_costs = parse_gr_report(gr_files)
+                if gr_costs and products:
+                    products = _apply_gr_costs(products, gr_costs)
+            else:
+                print('[GR] No GR report downloaded — skipping last-received cost')
 
             # ── Optional CNX sync (separate CW instance) ──
             if CW_URL_CNX and products:
