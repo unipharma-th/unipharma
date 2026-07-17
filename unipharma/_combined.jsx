@@ -2807,188 +2807,207 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={10} style={{ background: 'var(--bg3)', padding: '12px 16px' }}>
-                          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-                            <div>
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('ราคาต้นทุน', 'Cost Price')}</div>
-                              <div style={{ fontSize: 12 }}>{L('ราคาหลัก (ไม่รวม VAT)', 'Default (excl. VAT)')}: <b>{UTILS.fmt(d.costEx)} ฿</b></div>
-                              {d.hasVat && <div style={{ fontSize: 12 }}>{L('รวม VAT', 'Incl. VAT')}: <b>{UTILS.fmt(d.costInc)} ฿</b></div>}
-                              {DB.BRANCHES.some(br => d.costByBranch?.[br.id] != null) && (
-                                <div style={{ marginTop: 6 }}>
-                                  <div style={{ fontSize: 10, color: 'var(--txt4)', marginBottom: 3 }}>{L('ต้นทุนแยกสาขา', 'Cost by branch')}:</div>
-                                  {DB.BRANCHES.map(br => d.costByBranch?.[br.id] != null ? (
-                                    <div key={br.id} style={{ fontSize: 11, display: 'flex', gap: 6 }}>
-                                      <span style={{ color: br.color, fontWeight: 700, width: 36 }}>{br.id}:</span>
-                                      <b>{UTILS.fmt(d.costByBranch[br.id])} ฿</b>
-                                    </div>
-                                  ) : null)}
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('ราคาขายแยก VAT', 'Sell Price (VAT breakdown)')}</div>
-                              <div style={{ fontSize: 12 }}>{L('ไม่รวม VAT', 'Excl. VAT')}: <b>{UTILS.fmt(d.sellEx)} ฿</b></div>
-                              <div style={{ fontSize: 12 }}>{L('รวม VAT', 'Incl. VAT')}: <b>{UTILS.fmt(d.sellInc)} ฿</b></div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('กำไรต่อหน่วย', 'Profit/Unit')}</div>
-                              <div style={{ fontSize: 12, color: 'var(--ok)' }}>{UTILS.fmt(d.profitEx)} ฿ ({d.profitMargin}%)</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('สต็อกแต่ละสาขา', 'Stock by Branch')}</div>
-                              {DB.BRANCHES.map(br => (
-                                <div key={br.id} style={{ fontSize: 12, display: 'flex', gap: 8 }}>
-                                  <span style={{ color: br.color, fontWeight: 700, width: 36 }}>{br.id}:</span>
-                                  <span style={{ color: d.stock[br.id] <= d.minStock ? 'var(--err)' : 'var(--txt)' }}>
-                                    {d.stock[br.id].toLocaleString()} {d.stock[br.id] <= d.minStock ? '⚠' : ''}
-                                  </span>
-                                </div>
-                              ))}
-                              <div style={{ fontSize: 11, color: 'var(--txt4)' }}>Min: {d.minStock.toLocaleString()}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginBottom: 4, fontWeight: 600 }}>{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
-                              <div style={{ fontSize: 12 }}>
-                                <span style={{ color: 'var(--acc2)', fontSize: 10, marginRight: 4 }}>หลัก</span>
-                                {(() => { const s = suppliers.find(x=>x.id===d.supplierId) || suppliers.find(x=>(x.drugs||[]).includes(d.code)); return s ? (lang==='th'?s.name:(s.nameEN||s.name)) : d.supplierId; })()}
-                              </div>
-                              {(d.extraSuppliers || (d.extraSupplierIds||[]).map(id=>({id,costEx:0,sellEx:0}))).filter(s=>s.id).map((sup, i) => (
-                                <div key={sup.id} style={{ fontSize: 12, marginTop: 2 }}>
-                                  <span style={{ color: 'var(--txt4)', fontSize: 10, marginRight: 4 }}>รายย่อย {i+1}</span>
-                                  {(() => { const s = suppliers.find(x=>x.id===sup.id); return s ? (lang==='th'?s.name:(s.nameEN||s.name)) : sup.id; })()}
-                                  {(sup.costEx > 0 || sup.sellEx > 0) && (
-                                    <span style={{ color: 'var(--txt3)', fontSize: 10, marginLeft: 6 }}>
-                                      ต้นทุน {UTILS.fmt(sup.costEx)} · ขาย {UTILS.fmt(sup.sellEx)}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                              <div style={{ fontSize: 11, color: 'var(--txt3)', marginTop: 4 }}>{L('สั่งซื้อแล้ว', 'Ordered')} {d.orderCount} {L('ครั้ง/ปี', 'times/yr')}</div>
-                            </div>
-                            {d.remark && (() => {
-                              const r = DRUG_REMARKS.find(x=>x.code===d.remark);
-                              if (!r) return null;
-                              return (
-                                <div>
-                                  <div style={{ fontSize:11, color:'var(--txt3)', marginBottom:4, fontWeight:600 }}>📝 {L('หมายเหตุ','Remarks')}</div>
-                                  <div style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'var(--warn-bg)', color:'var(--warn)', fontWeight:600, display:'inline-block', marginBottom:4 }}>
-                                    {lang==='th'?r.th:r.en}
-                                  </div>
-                                  <div style={{ fontSize:11, color:'var(--txt3)' }}>{lang==='th'?r.detailTH:r.detailEN}</div>
-                                  {d.remarkNote && <div style={{ fontSize:11, color:'var(--txt4)', marginTop:4, fontStyle:'italic' }}>📌 {d.remarkNote}</div>}
-                                </div>
-                              );
-                            })()}
-                            {(() => {
-                              const deals = d.supplierDeals || {};
-                              const supIds = [d.supplierId, ...(d.extraSuppliers||(d.extraSupplierIds||[]).map(id=>({id}))).filter(s=>s.id).map(s=>s.id)].filter(Boolean);
-                              const activDeals = supIds.map(sid => ({ sid, deal: deals[sid] })).filter(({ deal }) => deal && (deal.buyQty>0||deal.freeQty>0||deal.freeItems||deal.specialDiscount>0||deal.note));
-                              if (!activDeals.length) return null;
-                              return (
-                                <div>
-                                  <div style={{ fontSize:11, color:'var(--txt3)', marginBottom:4, fontWeight:600 }}>🎁 {L('ดีล','Deals')}</div>
-                                  {activDeals.map(({ sid, deal }) => {
-                                    const sup = UTILS.getSupplier(sid);
-                                    const parts = [];
-                                    if (deal.buyQty>0 && deal.freeQty>0) parts.push(`ซื้อ ${deal.buyQty} แถม ${deal.freeQty}`);
-                                    if (deal.freeItems) parts.push(`ของแถม: ${deal.freeItems}`);
-                                    if (deal.specialDiscount>0) parts.push(`ส่วนลด ${deal.specialDiscount}%`);
-                                    if (deal.note) parts.push(deal.note);
-                                    return (
-                                      <div key={sid} style={{ fontSize:11, marginBottom:3, padding:'3px 8px', background:'var(--ok-bg)', borderRadius:6, border:'1px solid rgba(22,163,74,.2)' }}>
-                                        <span style={{ fontWeight:700, color:'var(--ok)', marginRight:4 }}>{sup.name||sup.nameEN||sid}:</span>
-                                        {parts.join(' · ')}
+                        <td colSpan={10} style={{ background:'var(--bg3)', padding:0, borderTop:'2px solid var(--acc2)' }}>
+                          {(()=>{
+                            const CS = { background:'var(--bg4)', borderRadius:8, padding:'10px 14px' };
+                            const LS = { fontSize:11, fontWeight:700, color:'var(--txt3)', marginBottom:8, display:'block' };
+                            const VS = { fontSize:13, fontWeight:700, color:'var(--txt)' };
+                            const SS = { fontSize:11, color:'var(--txt3)', marginTop:3 };
+                            const cw = cwStock[d.code];
+                            const brs = cw ? [
+                              {id:'PTN',stock:cw.stock_00??0,cost:cw.cost_00??0,sell:cw.sell_00??0},
+                              {id:'RAM',stock:cw.stock_01??0,cost:cw.cost_01??0,sell:cw.sell_01??0},
+                              {id:'CNX',stock:cw.stock_02??0,cost:cw.cost_02??0,sell:cw.sell_02??0},
+                            ] : [];
+                            const pkg = UTILS.getPackaging(d.unit, lang, d);
+                            const rmk = d.remark ? DRUG_REMARKS.find(x=>x.code===d.remark) : null;
+                            const supsRaw = (d.extraSuppliers||(d.extraSupplierIds||[]).map(id=>({id,costEx:0,sellEx:0}))).filter(s=>s.id);
+                            const deals = d.supplierDeals || {};
+                            const supIds = [d.supplierId,...supsRaw.map(s=>s.id)].filter(Boolean);
+                            const activeDeals = supIds.map(sid=>({sid,deal:deals[sid]})).filter(({deal})=>deal&&(deal.buyQty>0||deal.freeQty>0||deal.freeItems||deal.specialDiscount>0||deal.note));
+                            return (
+                              <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:8}}>
+
+                                {/* ── แถวบน: ตัวเลขหลัก ── */}
+                                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+
+                                  {/* ต้นทุน */}
+                                  <div style={{...CS,minWidth:118}}>
+                                    <span style={LS}>{L('ต้นทุน','Cost')}</span>
+                                    <div style={VS}>{UTILS.fmt(d.costEx)} ฿</div>
+                                    {d.hasVat&&<div style={SS}>{L('รวม VAT','Incl. VAT')} {UTILS.fmt(d.costInc)} ฿</div>}
+                                    {DB.BRANCHES.some(br=>d.costByBranch?.[br.id]!=null)&&(
+                                      <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid var(--border)'}}>
+                                        {DB.BRANCHES.map(br=>d.costByBranch?.[br.id]!=null?(
+                                          <div key={br.id} style={{fontSize:11,display:'flex',justifyContent:'space-between',gap:10}}>
+                                            <span style={{color:br.color,fontWeight:700}}>{br.id}</span>
+                                            <b>{UTILS.fmt(d.costByBranch[br.id])} ฿</b>
+                                          </div>
+                                        ):null)}
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })()}
-                            {(() => {
-                              const cw = cwStock[d.code];
-                              if (!cw) return null;
-                              const brs = [
-                                { id:'PTN', stock:cw.stock_00??0, cost:cw.cost_00??0, sell:cw.sell_00??0 },
-                                { id:'RAM', stock:cw.stock_01??0, cost:cw.cost_01??0, sell:cw.sell_01??0 },
-                                { id:'CNX', stock:cw.stock_02??0, cost:cw.cost_02??0, sell:cw.sell_02??0 },
-                              ];
-                              return (
-                                <div>
-                                  <div style={{ fontSize:11, color:'var(--txt3)', marginBottom:6, fontWeight:600 }}>
-                                    🏪 {L('ข้อมูล CW Pharma', 'CW Pharma Data')}
-                                    <span style={{ fontSize:10, color:'var(--txt4)', marginLeft:6, fontWeight:400 }}>
-                                      {L('ขายแล้ว', 'Sold')} {(cw.qty_sold||0).toLocaleString()} {L('ชิ้น/ปี', 'pcs/yr')}
-                                    </span>
+                                    )}
                                   </div>
-                                  {cw.name && (
-                                    <div style={{fontSize:11,marginBottom:6,padding:'4px 10px',background:'var(--bg4)',borderRadius:6}}>
-                                      <span style={{color:'var(--txt3)'}}>{L('ชื่อใน CW','CW name')}: </span>
-                                      <span style={{fontWeight:500}}>{cw.name}</span>
-                                      {(window._nameSim||function(){return 1;})(cw.name,d.nameEN||'') < 0.5 && (
-                                        <span style={{marginLeft:6,color:'var(--warn)',fontWeight:700,fontSize:10}}>
-                                          ⚠️ {L('ชื่อต่างจากในระบบ','Name differs from system')}
+
+                                  {/* ราคาขาย */}
+                                  <div style={{...CS,minWidth:118}}>
+                                    <span style={LS}>{L('ราคาขาย','Sell Price')}</span>
+                                    <div style={VS}>{UTILS.fmt(d.sellEx)} ฿</div>
+                                    {d.hasVat&&<div style={SS}>{L('รวม VAT','Incl. VAT')} {UTILS.fmt(d.sellInc)} ฿</div>}
+                                  </div>
+
+                                  {/* กำไร */}
+                                  <div style={{...CS,minWidth:108}}>
+                                    <span style={LS}>{L('กำไร/หน่วย','Profit/Unit')}</span>
+                                    <div style={{...VS,color:'var(--ok)'}}>{UTILS.fmt(d.profitEx)} ฿</div>
+                                    <div style={SS}>{d.profitMargin}%</div>
+                                  </div>
+
+                                  {/* สต็อกสาขา */}
+                                  <div style={{...CS,minWidth:128}}>
+                                    <span style={LS}>{L('สต็อกสาขา','Stock')}</span>
+                                    {DB.BRANCHES.map(br=>(
+                                      <div key={br.id} style={{fontSize:12,display:'flex',justifyContent:'space-between',gap:16,marginBottom:3}}>
+                                        <span style={{color:br.color,fontWeight:700,minWidth:36}}>{br.id}</span>
+                                        <span style={{color:d.stock[br.id]<=d.minStock?'var(--err)':'var(--txt)',fontWeight:600}}>
+                                          {d.stock[br.id].toLocaleString()}{d.stock[br.id]<=d.minStock&&d.stock[br.id]>0?' ⚠':''}
                                         </span>
-                                      )}
-                                    </div>
-                                  )}
-                                  {cw.unit && (() => {
-                                    const code = CW_UNIT_MAP[cw.unit];
-                                    const uo = code && (DB.UNITS||[]).find(u => u.code === code);
-                                    return (
-                                      <div style={{fontSize:11,marginBottom:8,padding:'4px 10px',background:'var(--bg4)',borderRadius:6,display:'flex',alignItems:'center',gap:6}}>
-                                        <span style={{color:'var(--txt3)'}}>{L('หน่วย CW','CW Unit')}:</span>
-                                        <span style={{fontWeight:600}}>{cw.unit}</span>
-                                        {uo ? (
-                                          <>
-                                            <span style={{color:'var(--txt4)'}}>→</span>
-                                            <span style={{background:'var(--acc2)',color:'#fff',fontSize:9,padding:'1px 7px',borderRadius:10,fontWeight:700}}>{uo.code}</span>
-                                            <span style={{color:'var(--ok)',fontSize:10}}>{lang==='th'?uo.th:uo.en}</span>
-                                          </>
-                                        ) : (
-                                          <span style={{color:'var(--txt4)',fontSize:10}}>{L('(ยังไม่ match)','(unmapped)')}</span>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                  <div style={{ display:'flex', gap:8 }}>
-                                    {brs.map(b => (
-                                      <div key={b.id} style={{ background:'var(--bg4)', borderRadius:8, padding:'6px 10px', minWidth:76 }}>
-                                        <div style={{ fontSize:10, fontWeight:700, color:'var(--acc2)', marginBottom:4 }}>{b.id}</div>
-                                        <div style={{ fontSize:11, marginBottom:2 }}>
-                                          {L('คงเหลือ','Stock')}{' '}
-                                          <b style={{ color:b.stock>10?'var(--ok)':b.stock>0?'var(--warn)':'var(--err)' }}>{b.stock}</b>
-                                        </div>
-                                        {b.cost>0 && <div style={{ fontSize:11, color:'var(--txt3)' }}>{L('ต้นทุน','Cost')} <b>{UTILS.fmt(b.cost)} ฿</b></div>}
-                                        {b.sell>0 && <div style={{ fontSize:11, color:'var(--txt3)' }}>{L('ราคาขาย','Sell')} <b>{UTILS.fmt(b.sell)} ฿</b></div>}
-                                        {b.sell>0 && b.cost>0 && <div style={{ fontSize:10, color:'var(--ok)' }}>{L('กำไร','Profit')} <b>{UTILS.fmt(b.sell-b.cost)} ฿</b></div>}
                                       </div>
                                     ))}
+                                    <div style={{...SS,borderTop:'1px solid var(--border)',paddingTop:5,marginTop:4}}>Min {d.minStock}</div>
                                   </div>
-                                  <CwPriceChart history={cwHistory[d.code]} lang={lang} />
-                                </div>
-                              );
-                            })()}
-                            {(() => { const pkg=UTILS.getPackaging(d.unit,'th',d); return pkg ? (
-                              <div>
-                                <div style={{ fontSize:11, color:'var(--txt3)', marginBottom:4, fontWeight:600 }}>📦 {L('หน่วยบรรจุ','Packaging')}</div>
-                                <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                                  {pkg.chain.map((c,i)=>(
-                                    <React.Fragment key={i}>
-                                      {i>0&&<span style={{color:'var(--txt4)',fontSize:14}}>▸</span>}
-                                      <div style={{ background:'var(--bg4)', borderRadius:6, padding:'4px 10px', textAlign:'center' }}>
-                                        <div style={{ fontWeight:800, fontSize:15, color:'var(--acc2)' }}>{i===0?'1':pkg.chain[i].qty}</div>
-                                        <div style={{ fontSize:10, color:'var(--txt3)' }}>{lang==='th'?c.th:c.en}</div>
-                                        {i>0&&<div style={{ fontSize:9, color:'var(--txt4)' }}>= {c.cumulative} {lang==='th'?pkg.base:pkg.baseEN}</div>}
+
+                                  {/* ผู้จัดจำหน่าย */}
+                                  <div style={{...CS,minWidth:158,flex:1}}>
+                                    <span style={LS}>{L('ผู้จัดจำหน่าย','Supplier')}</span>
+                                    {(()=>{
+                                      const s=suppliers.find(x=>x.id===d.supplierId)||suppliers.find(x=>(x.drugs||[]).includes(d.code));
+                                      return s?(
+                                        <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>
+                                          <span style={{fontSize:9,background:'var(--acc2)',color:'#fff',borderRadius:10,padding:'1px 6px',marginRight:5,verticalAlign:'middle'}}>{L('หลัก','Main')}</span>
+                                          {lang==='th'?s.name:(s.nameEN||s.name)}
+                                        </div>
+                                      ):d.supplierId?<div style={{fontSize:12,color:'var(--txt3)',marginBottom:4}}>{d.supplierId}</div>:null;
+                                    })()}
+                                    {supsRaw.map((sup,i)=>{
+                                      const s=suppliers.find(x=>x.id===sup.id);
+                                      return(
+                                        <div key={sup.id} style={{fontSize:11,color:'var(--txt3)',marginBottom:2}}>
+                                          <span style={{fontSize:9,color:'var(--txt4)',marginRight:4}}>#{i+1}</span>
+                                          {s?(lang==='th'?s.name:(s.nameEN||s.name)):sup.id}
+                                          {(sup.costEx>0||sup.sellEx>0)&&<span style={{color:'var(--txt4)',marginLeft:4}}>• {UTILS.fmt(sup.costEx)}/{UTILS.fmt(sup.sellEx)} ฿</span>}
+                                        </div>
+                                      );
+                                    })}
+                                    <div style={SS}>{L('สั่งแล้ว','Ordered')} {d.orderCount} {L('ครั้ง/ปี','times/yr')}</div>
+                                  </div>
+
+                                  {/* หมายเหตุ */}
+                                  {rmk&&(
+                                    <div style={{...CS,minWidth:138}}>
+                                      <span style={LS}>📝 {L('หมายเหตุ','Remark')}</span>
+                                      <div style={{fontSize:11,padding:'2px 9px',borderRadius:20,background:'var(--warn-bg)',color:'var(--warn)',fontWeight:700,display:'inline-block',marginBottom:4}}>
+                                        {lang==='th'?rmk.th:rmk.en}
                                       </div>
-                                    </React.Fragment>
-                                  ))}
+                                      <div style={SS}>{lang==='th'?rmk.detailTH:rmk.detailEN}</div>
+                                      {d.remarkNote&&<div style={{fontSize:10,color:'var(--txt4)',marginTop:4,fontStyle:'italic'}}>📌 {d.remarkNote}</div>}
+                                    </div>
+                                  )}
+
+                                  {/* ดีล */}
+                                  {activeDeals.length>0&&(
+                                    <div style={{...CS,minWidth:138}}>
+                                      <span style={LS}>🎁 {L('ดีล','Deals')}</span>
+                                      {activeDeals.map(({sid,deal})=>{
+                                        const sup=UTILS.getSupplier(sid);
+                                        const parts=[];
+                                        if(deal.buyQty>0&&deal.freeQty>0)parts.push(`ซื้อ ${deal.buyQty} แถม ${deal.freeQty}`);
+                                        if(deal.freeItems)parts.push(`ของแถม: ${deal.freeItems}`);
+                                        if(deal.specialDiscount>0)parts.push(`ส่วนลด ${deal.specialDiscount}%`);
+                                        if(deal.note)parts.push(deal.note);
+                                        return(
+                                          <div key={sid} style={{fontSize:11,marginBottom:4,padding:'3px 8px',background:'var(--ok-bg)',borderRadius:6,border:'1px solid rgba(22,163,74,.2)'}}>
+                                            <span style={{fontWeight:700,color:'var(--ok)',marginRight:4}}>{sup.name||sup.nameEN||sid}:</span>
+                                            {parts.join(' · ')}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
                                 </div>
-                                <div style={{ fontSize:11, color:'var(--ok)', marginTop:6, fontWeight:600 }}>
-                                  ✓ 1 {lang==='th'?pkg.chain[pkg.chain.length-1].th:pkg.chain[pkg.chain.length-1].en} = {pkg.totalInTop} {lang==='th'?pkg.base:pkg.baseEN}
-                                </div>
+
+                                {/* ── แถวล่าง: CW + หน่วยบรรจุ ── */}
+                                {(cw||pkg)&&(
+                                  <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+
+                                    {/* CW Pharma */}
+                                    {cw&&(
+                                      <div style={{...CS,flex:2,minWidth:280}}>
+                                        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                                          <span style={{...LS,marginBottom:0}}>🏪 {L('ข้อมูล CW Pharma','CW Pharma Data')}</span>
+                                          <span style={{fontSize:10,color:'var(--txt4)',marginLeft:'auto'}}>{L('ขายแล้ว','Sold')} {(cw.qty_sold||0).toLocaleString()} {L('ชิ้น/ปี','pcs/yr')}</span>
+                                        </div>
+                                        {cw.name&&(
+                                          <div style={{fontSize:11,marginBottom:8,padding:'3px 10px',background:'var(--bg3)',borderRadius:6,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                                            <span style={{color:'var(--txt3)'}}>{L('ชื่อ CW','CW name')}:</span>
+                                            <span style={{fontWeight:600}}>{cw.name}</span>
+                                            {cw.unit&&(()=>{
+                                              const code=CW_UNIT_MAP[cw.unit];
+                                              const uo=code&&(DB.UNITS||[]).find(u=>u.code===code);
+                                              return(
+                                                <span style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:5}}>
+                                                  <span style={{background:'var(--acc2)',color:'#fff',fontSize:9,padding:'1px 7px',borderRadius:10,fontWeight:700}}>{cw.unit}</span>
+                                                  {uo&&<span style={{color:'var(--ok)',fontSize:10}}>→ {lang==='th'?uo.th:uo.en}</span>}
+                                                </span>
+                                              );
+                                            })()}
+                                            {(window._nameSim||function(){return 1;})(cw.name,d.nameEN||'')<0.5&&(
+                                              <span style={{color:'var(--warn)',fontWeight:700,fontSize:10}}>⚠️ {L('ชื่อต่างจากระบบ','Name differs')}</span>
+                                            )}
+                                          </div>
+                                        )}
+                                        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+                                          {brs.map(b=>(
+                                            <div key={b.id} style={{background:'var(--bg3)',borderRadius:6,padding:'8px 10px',textAlign:'center'}}>
+                                              <div style={{fontSize:11,fontWeight:700,color:'var(--acc2)',marginBottom:5}}>{b.id}</div>
+                                              <div style={{fontSize:16,fontWeight:800,color:b.stock>10?'var(--ok)':b.stock>0?'var(--warn)':'var(--err)',marginBottom:4}}>{b.stock}</div>
+                                              {b.cost>0&&<div style={{fontSize:10,color:'var(--txt3)',marginBottom:1}}>{L('ทุน','Cost')} <b style={{color:'var(--txt)'}}>{UTILS.fmt(b.cost)} ฿</b></div>}
+                                              {b.sell>0&&<div style={{fontSize:10,color:'var(--txt3)',marginBottom:1}}>{L('ขาย','Sell')} <b style={{color:'var(--txt)'}}>{UTILS.fmt(b.sell)} ฿</b></div>}
+                                              {b.sell>0&&b.cost>0&&<div style={{fontSize:10,color:'var(--ok)',fontWeight:700,marginTop:2}}>{UTILS.fmt(b.sell-b.cost)} ฿ <span style={{fontWeight:400}}>({((b.sell-b.cost)/b.sell*100).toFixed(1)}%)</span></div>}
+                                            </div>
+                                          ))}
+                                        </div>
+                                        <CwPriceChart history={cwHistory[d.code]} lang={lang}/>
+                                      </div>
+                                    )}
+
+                                    {/* หน่วยบรรจุ */}
+                                    {pkg&&(
+                                      <div style={{...CS,minWidth:176}}>
+                                        <span style={LS}>📦 {L('หน่วยบรรจุ','Packaging')}</span>
+                                        <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                                          {pkg.chain.map((c,i)=>(
+                                            <React.Fragment key={i}>
+                                              {i>0&&<span style={{color:'var(--txt4)',fontSize:14}}>▸</span>}
+                                              <div style={{background:'var(--bg3)',borderRadius:6,padding:'4px 10px',textAlign:'center'}}>
+                                                <div style={{fontWeight:800,fontSize:15,color:'var(--acc2)'}}>{i===0?'1':pkg.chain[i].qty}</div>
+                                                <div style={{fontSize:10,color:'var(--txt3)'}}>{lang==='th'?c.th:c.en}</div>
+                                                {i>0&&<div style={{fontSize:9,color:'var(--txt4)'}}>= {c.cumulative} {lang==='th'?pkg.base:pkg.baseEN}</div>}
+                                              </div>
+                                            </React.Fragment>
+                                          ))}
+                                        </div>
+                                        <div style={{fontSize:11,color:'var(--ok)',marginTop:8,fontWeight:700}}>
+                                          ✓ 1 {lang==='th'?pkg.chain[pkg.chain.length-1].th:pkg.chain[pkg.chain.length-1].en} = {pkg.totalInTop} {lang==='th'?pkg.base:pkg.baseEN}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                  </div>
+                                )}
                               </div>
-                            ) : null; })()}
-                          </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     )}

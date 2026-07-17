@@ -345,15 +345,27 @@ def _apply_gr_costs(products, gr_costs, branch):
     """
     Override cost for a specific branch with GR last-received cost.
     branch: '00' (PTN) | '01' (RAM) | '02' (CNX)
+    Products not in the stock dict (zero stock) get a minimal stub so the
+    GR cost is still written to Supabase.
     """
     key = f'cost_{branch}'
-    applied = 0
+    applied = added = 0
     for code, gr in gr_costs.items():
-        if code not in products or gr['cost'] <= 0:
+        if gr['cost'] <= 0:
             continue
+        if code not in products:
+            # zero-stock item — create a stub so the cost can be uploaded
+            products[code] = {
+                'code': code,
+                'stock_00': 0, 'stock_01': 0, 'stock_02': 0,
+                'cost_00': 0.0, 'cost_01': 0.0, 'cost_02': 0.0,
+                'sell_00': 0.0, 'sell_01': 0.0, 'sell_02': 0.0,
+                'qty_sold': 0, 'unit': '',
+            }
+            added += 1
         products[code][key] = gr['cost']
         applied += 1
-    print(f'[GR] cost_{branch}: applied to {applied} / {len(products)} products')
+    print(f'[GR] cost_{branch}: applied to {applied} products ({added} new stubs added)')
     return products
 
 

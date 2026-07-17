@@ -34,6 +34,7 @@ jobs:
           CW_URL:           ${{ secrets.CW_URL }}
           CW_USERNAME:      ${{ secrets.CW_USERNAME }}
           CW_PASSWORD:      ${{ secrets.CW_PASSWORD }}
+          CW_URL_RAM:       ${{ secrets.CW_URL_RAM }}
           CW_URL_CNX:       ${{ secrets.CW_URL_CNX }}
           CW_USERNAME_CNX:  ${{ secrets.CW_USERNAME_CNX }}
           CW_PASSWORD_CNX:  ${{ secrets.CW_PASSWORD_CNX }}
