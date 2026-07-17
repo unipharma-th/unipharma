@@ -2432,7 +2432,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
           if (subFilter && d.subId !== subFilter) return false;
           if (vatFilter === 'vat' && !d.hasVat) return false;
           if (vatFilter === 'novat' && d.hasVat) return false;
-          if (branchFilter && !q && !((d.stock && d.stock[branchFilter]) || 0)) return false;
+          if (branchFilter && !((d.stock && d.stock[branchFilter]) || 0)) return false;
           return true;
         })
       : drugs.slice(); // shallow copy needed for in-place sort
