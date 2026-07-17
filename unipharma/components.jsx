@@ -472,21 +472,34 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
         </div>
       </div>
 
-      {/* CW price hint */}
-      {(cwData.cost_01 > 0 || cwData.sell_01 > 0) && (
+      {/* CW price hint — per branch */}
+      {[
+        { id:'PTN', ck:'cost_00', sk:'sell_00', label:'PTN (ประตูน้ำ)' },
+        { id:'RAM', ck:'cost_01', sk:'sell_01', label:'RAM (รามคำแหง)' },
+        { id:'CNX', ck:'cost_02', sk:'sell_02', label:'CNX (เชียงใหม่)' },
+      ].filter(br => (cwData[br.ck] > 0 || cwData[br.sk] > 0)).length > 0 && (
         <div style={{ marginBottom:12, padding:'10px 14px', background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.35)', borderRadius:8 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'var(--acc)', marginBottom:6 }}>
-            📦 {L('ข้อมูลราคาจาก CW Pharma (สาขา RAM)', 'CW Pharma Price (RAM Branch)')}
+          <div style={{ fontSize:12, fontWeight:700, color:'var(--acc)', marginBottom:8 }}>
+            📦 {L('ข้อมูลราคาจาก CW Pharma (เลือกสาขาที่ต้องการ)', 'CW Pharma Prices — select a branch')}
           </div>
-          <div style={{ display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
-            {cwData.cost_01 > 0 && <span style={{ fontSize:12 }}>{L('ต้นทุน','Cost')}: <b>{UTILS.fmt(cwData.cost_01)} ฿</b></span>}
-            {cwData.sell_01 > 0 && <span style={{ fontSize:12 }}>{L('ราคาขาย','Sell')}: <b>{UTILS.fmt(cwData.sell_01)} ฿</b></span>}
-            <button type="button" className="btn btn-xs btn-primary" onClick={() => {
-              if (cwData.cost_01 > 0) set('costEx', cwData.cost_01);
-              if (cwData.sell_01 > 0) set('sellEx', cwData.sell_01);
-            }}>
-              📥 {L('นำราคานี้มาใช้','Use these prices')}
-            </button>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {[
+              { id:'PTN', ck:'cost_00', sk:'sell_00', label:'PTN (ประตูน้ำ)' },
+              { id:'RAM', ck:'cost_01', sk:'sell_01', label:'RAM (รามคำแหง)' },
+              { id:'CNX', ck:'cost_02', sk:'sell_02', label:'CNX (เชียงใหม่)' },
+            ].filter(br => cwData[br.ck] > 0 || cwData[br.sk] > 0).map(br => (
+              <div key={br.id} style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
+                <span style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', minWidth:120 }}>{br.label}</span>
+                {cwData[br.ck] > 0 && <span style={{ fontSize:12 }}>{L('ทุน','Cost')}: <b>{UTILS.fmt(cwData[br.ck])} ฿</b></span>}
+                {cwData[br.sk] > 0 && <span style={{ fontSize:12 }}>{L('ขาย','Sell')}: <b>{UTILS.fmt(cwData[br.sk])} ฿</b></span>}
+                <button type="button" className="btn btn-xs btn-primary" onClick={() => {
+                  if (cwData[br.ck] > 0) set('costEx', cwData[br.ck]);
+                  if (cwData[br.sk] > 0) set('sellEx', cwData[br.sk]);
+                }}>
+                  📥 {L('ใช้','Use')}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}

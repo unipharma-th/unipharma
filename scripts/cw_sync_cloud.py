@@ -19,6 +19,13 @@ CW_USERNAME  = os.environ['CW_USERNAME']
 CW_PASSWORD  = os.environ['CW_PASSWORD']
 DOWNLOAD_DIR = os.environ.get('DOWNLOAD_DIR', '/tmp/cw_sync')
 
+# Optional secondary CW instance for CNX branch (branch index '02')
+# Set CW_URL_CNX in GitHub Secrets to enable CNX-specific price sync
+CW_URL_CNX      = os.environ.get('CW_URL_CNX', '')
+CW_USERNAME_CNX = os.environ.get('CW_USERNAME_CNX', os.environ.get('CW_USERNAME', ''))
+CW_PASSWORD_CNX = os.environ.get('CW_PASSWORD_CNX', os.environ.get('CW_PASSWORD', ''))
+DOWNLOAD_DIR_CNX = os.path.join(os.environ.get('DOWNLOAD_DIR', '/tmp/cw_sync'), 'cnx')
+
 SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://wddepvcmfqykidgbgnut.supabase.co')
 SUPABASE_KEY = os.environ['SUPABASE_KEY']
 TABLE         = 'cwpharma_stock_test'
@@ -36,9 +43,13 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # ── STEP 1: LOGIN ─────────────────────────────────────────────────────────────
 
-def login(page):
+def login(page, cw_url=None, username=None, password=None, dl_dir=None):
+    _url  = cw_url   or CW_URL
+    _user = username or CW_USERNAME
+    _pass = password or CW_PASSWORD
+    _dir  = dl_dir   or DOWNLOAD_DIR
     # Build login URL from CW_URL host only — works regardless of what path CW_URL contains
-    _host = '{0.scheme}://{0.netloc}'.format(urlparse(CW_URL))
+    _host = '{0.scheme}://{0.netloc}'.format(urlparse(_url))
     login_url = _host + '/WebFront/Home/Login.aspx'
     print(f"[1] Logging in (host: {_host})...")
     page.goto(login_url, timeout=30000)
@@ -46,12 +57,12 @@ def login(page):
     time.sleep(1)
     inputs = page.evaluate("Array.from(document.querySelectorAll('input')).map(e=>e.id+':'+e.type)")
     print(f"    Inputs found: {inputs}")
-    page.fill("#cTxUserName", CW_USERNAME)
-    page.fill("#cTxPassword", CW_PASSWORD)
+    page.fill("#cTxUserName", _user)
+    page.fill("#cTxPassword", _pass)
     page.click("#cBtnLogin")
     page.wait_for_load_state("networkidle")
     time.sleep(2)
-    page.screenshot(path=os.path.join(DOWNLOAD_DIR, 'after_login.png'))
+    page.screenshot(path=os.path.join(_dir, 'after_login.png'))
     if 'Login' in page.url or 'login' in page.url:
         page_text = page.evaluate("document.body.innerText.replace(/\\s+/g,' ').trim().substring(0,400)")
         print(f"    CW page message: {page_text}")
@@ -87,7 +98,8 @@ def _wait_for_ssrs_frame(page, timeout=90):
     return None
 
 
-def _download_ssrs_excel(page, label):
+def _download_ssrs_excel(page, label, dl_dir=None):
+    _dir = dl_dir or DOWNLOAD_DIR
     print(f"    Waiting for SSRS (max 90s)...")
     frame = _wait_for_ssrs_frame(page, timeout=90)
     if not frame:
@@ -97,7 +109,7 @@ def _download_ssrs_excel(page, label):
     frame.evaluate(f"document.querySelector('{EXPORT_BTN}').click()")
     time.sleep(1)
 
-    out = os.path.join(DOWNLOAD_DIR, f"{label}.xlsx")
+    out = os.path.join(_dir, f"{label}.xlsx")
     try:
         with page.expect_download(timeout=60000) as dl_info:
             frame.evaluate('''() => {
@@ -114,16 +126,18 @@ def _download_ssrs_excel(page, label):
         return None
 
 
-def _download_brnstock_part(page, part_idx):
+def _download_brnstock_part(page, part_idx, cw_url=None, dl_dir=None):
+    _url = cw_url or CW_URL
+    _dir = dl_dir or DOWNLOAD_DIR
     print(f"\n  Part {part_idx + 1}:")
-    page.goto(CW_URL + "Report/BrnStock/BrnStock_Man.aspx", timeout=60000)
+    page.goto(_url + "Report/BrnStock/BrnStock_Man.aspx", timeout=60000)
     page.wait_for_load_state("networkidle")
     time.sleep(3)
 
     try:
         page.wait_for_selector('#MainContent_Button3', state='visible', timeout=60000)
     except Exception:
-        page.screenshot(path=os.path.join(DOWNLOAD_DIR, f'brnstock_part{part_idx+1}_debug.png'))
+        page.screenshot(path=os.path.join(_dir, f'brnstock_part{part_idx+1}_debug.png'))
         print(f"    ERROR: #MainContent_Button3 not visible after 60s – debug screenshot saved")
         return None
 
@@ -131,7 +145,7 @@ def _download_brnstock_part(page, part_idx):
     page.wait_for_load_state("networkidle")
     time.sleep(10)
 
-    page.screenshot(path=os.path.join(DOWNLOAD_DIR, f'brnstock_after_btn3_p{part_idx+1}.png'))
+    page.screenshot(path=os.path.join(_dir, f'brnstock_after_btn3_p{part_idx+1}.png'))
     all_frames = [f.url for f in page.frames]
     print(f"    Frames after Button3: {all_frames}")
 
@@ -146,14 +160,14 @@ def _download_brnstock_part(page, part_idx):
         return None
 
     rep_frame.evaluate(f"document.querySelector('{btn_id}').click()")
-    return _download_ssrs_excel(page, f"stock_part{part_idx + 1}")
+    return _download_ssrs_excel(page, f"stock_part{part_idx + 1}", _dir)
 
 
-def download_brnstock(page):
+def download_brnstock(page, cw_url=None, dl_dir=None):
     print("\n[2] Downloading BrnStock...")
     files = []
     for i in range(STOCK_PARTS):
-        f = _download_brnstock_part(page, i)
+        f = _download_brnstock_part(page, i, cw_url=cw_url, dl_dir=dl_dir)
         if f:
             files.append(f)
         else:
@@ -217,8 +231,10 @@ def _pick_calendar_date(page, cal_icon_sel, target_date_str):
         time.sleep(1)
 
 
-def _setup_brnsale_page(page):
-    page.goto(CW_URL + "Report/BrnSale/BrnSale_Man.aspx", timeout=30000)
+def _setup_brnsale_page(page, cw_url=None, dl_dir=None):
+    _url = cw_url or CW_URL
+    _dir = dl_dir or DOWNLOAD_DIR
+    page.goto(_url + "Report/BrnSale/BrnSale_Man.aspx", timeout=30000)
     page.wait_for_load_state("networkidle")
     time.sleep(2)
     page.fill('#MainContent_DateRange_Com_cTxDateFrom', SALE_FROM)
@@ -232,16 +248,17 @@ def _setup_brnsale_page(page):
     page.wait_for_load_state("networkidle")
     time.sleep(10)
 
-    page.screenshot(path=os.path.join(DOWNLOAD_DIR, 'brnsale_after_btn3.png'))
+    page.screenshot(path=os.path.join(_dir, 'brnsale_after_btn3.png'))
     all_frames = [f.url for f in page.frames]
     print(f"    BrnSale frames after Button3: {all_frames}")
 
     return next((f for f in page.frames if 'BrnSale_Rep' in f.url), None)
 
 
-def _download_brnsale_part(page, part_idx):
+def _download_brnsale_part(page, part_idx, cw_url=None, dl_dir=None):
+    _dir = dl_dir or DOWNLOAD_DIR
     print(f"\n  Sale part {part_idx + 1}:")
-    sale_rep = _setup_brnsale_page(page)
+    sale_rep = _setup_brnsale_page(page, cw_url=cw_url, dl_dir=_dir)
     if not sale_rep:
         print("    ERROR: BrnSale_Rep iframe not found")
         return None
@@ -252,14 +269,14 @@ def _download_brnsale_part(page, part_idx):
         return None
 
     sale_rep.evaluate(f"document.querySelector('{btn_id}').click()")
-    return _download_ssrs_excel(page, f"sale_part{part_idx + 1}")
+    return _download_ssrs_excel(page, f"sale_part{part_idx + 1}", _dir)
 
 
-def download_brnsale(page):
+def download_brnsale(page, cw_url=None, dl_dir=None):
     print(f"\n[3] Downloading BrnSale ({SALE_FROM} – {SALE_TO})...")
     files = []
     for i in range(SALE_MAX_PARTS):
-        f = _download_brnsale_part(page, i)
+        f = _download_brnsale_part(page, i, cw_url=cw_url, dl_dir=dl_dir)
         if f:
             files.append(f)
         else:
@@ -356,6 +373,37 @@ def parse_sales(files, products):
     return products
 
 
+def merge_cnx_into_products(products, cnx_stock_files, cnx_sale_files):
+    """Parse CNX-branch CW data and override cost_02/sell_02/stock_02 in main products."""
+    if not cnx_stock_files:
+        print('[CNX] No stock files — skipping CNX merge')
+        return products
+
+    cnx = parse_stock(cnx_stock_files)
+    if cnx_sale_files:
+        cnx = parse_sales(cnx_sale_files, cnx)
+    else:
+        print('[CNX Sales] No sale files — stock only')
+
+    updated = 0
+    for code, cp in cnx.items():
+        if code not in products:
+            continue
+        # CNX may report itself as branch 00/01/02 depending on its config;
+        # take the first non-zero cost/sell across all its branches.
+        best_cost  = next((cp[f'cost_{b}']  for b in ('00','01','02') if cp.get(f'cost_{b}',  0) > 0), 0.0)
+        best_sell  = next((cp[f'sell_{b}']  for b in ('00','01','02') if cp.get(f'sell_{b}',  0) > 0), 0.0)
+        best_stock = cp.get('stock_02', 0) or cp.get('stock_01', 0) or cp.get('stock_00', 0)
+        if best_cost > 0 or best_sell > 0 or best_stock > 0:
+            products[code]['cost_02']  = best_cost
+            products[code]['sell_02']  = best_sell
+            products[code]['stock_02'] = best_stock
+            updated += 1
+
+    print(f'[CNX Merge] {updated} products updated with CNX-branch prices')
+    return products
+
+
 # ── STEP 5: SYNC TO SUPABASE ──────────────────────────────────────────────────
 
 def upload_to_supabase(products, batch=500):
@@ -421,7 +469,7 @@ def upload_price_history(products, batch=500):
     print(f'[History] {ok}/{total} rows saved to {HISTORY_TABLE} ({today})')
 
 
-def sync_supabase():
+def sync_supabase(products=None):
     print("\n[4] Parsing Excel files...")
     stock_files = sorted(glob.glob(os.path.join(DOWNLOAD_DIR, 'stock_part*.xlsx')))
     sale_files  = sorted(glob.glob(os.path.join(DOWNLOAD_DIR, 'sale_part*.xlsx')))
@@ -431,7 +479,7 @@ def sync_supabase():
 
     if not stock_files:
         print('  No stock files found in', DOWNLOAD_DIR)
-        return
+        return None
 
     products = parse_stock(stock_files)
     if sale_files:
@@ -443,9 +491,7 @@ def sync_supabase():
     has_price = sum(1 for p in products.values() if p['sell_00'] > 0 or p['sell_01'] > 0)
     print(f'  Total: {len(products)} | has stock: {has_stock} | has price: {has_price}')
 
-    print("\n[5] Uploading to Supabase...")
-    upload_to_supabase(products)
-    upload_price_history(products)
+    return products
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -454,6 +500,9 @@ if __name__ == "__main__":
     print("=== CW Pharma Auto Sync (Cloud) ===")
     print(f"Download folder : {DOWNLOAD_DIR}")
     print(f"Date range      : {SALE_FROM} – {SALE_TO}")
+    if CW_URL_CNX:
+        print(f"CNX branch URL  : {CW_URL_CNX}")
+        os.makedirs(DOWNLOAD_DIR_CNX, exist_ok=True)
     print()
 
     with sync_playwright() as p:
@@ -466,6 +515,7 @@ if __name__ == "__main__":
         page = ctx.new_page()
 
         try:
+            # ── Main sync (PTN + RAM from primary CW) ──
             login(page)
             stock_files = download_brnstock(page)
             sale_files  = download_brnsale(page)
@@ -473,7 +523,29 @@ if __name__ == "__main__":
             print(f"\nStock files : {[os.path.basename(f) for f in stock_files]}")
             print(f"Sale files  : {[os.path.basename(f) for f in sale_files]}")
 
-            sync_supabase()
+            products = sync_supabase()
+
+            # ── Optional CNX sync (separate CW instance) ──
+            if CW_URL_CNX and products:
+                print(f"\n=== CNX Branch Sync ===")
+                page_cnx = ctx.new_page()
+                try:
+                    login(page_cnx, cw_url=CW_URL_CNX,
+                          username=CW_USERNAME_CNX, password=CW_PASSWORD_CNX,
+                          dl_dir=DOWNLOAD_DIR_CNX)
+                    cnx_stock = download_brnstock(page_cnx, cw_url=CW_URL_CNX, dl_dir=DOWNLOAD_DIR_CNX)
+                    cnx_sale  = download_brnsale(page_cnx,  cw_url=CW_URL_CNX, dl_dir=DOWNLOAD_DIR_CNX)
+                    products  = merge_cnx_into_products(products, cnx_stock, cnx_sale)
+                except Exception as e:
+                    import traceback
+                    print(f"\nCNX sync ERROR (non-fatal): {e}")
+                    traceback.print_exc()
+                finally:
+                    page_cnx.close()
+
+            print("\n[5] Uploading to Supabase...")
+            upload_to_supabase(products)
+            upload_price_history(products)
 
         except Exception as e:
             import traceback

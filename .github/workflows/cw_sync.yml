@@ -31,10 +31,13 @@ jobs:
 
       - name: Run CW Pharma sync
         env:
-          CW_URL:        ${{ secrets.CW_URL }}
-          CW_USERNAME:   ${{ secrets.CW_USERNAME }}
-          CW_PASSWORD:   ${{ secrets.CW_PASSWORD }}
-          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+          CW_URL:           ${{ secrets.CW_URL }}
+          CW_USERNAME:      ${{ secrets.CW_USERNAME }}
+          CW_PASSWORD:      ${{ secrets.CW_PASSWORD }}
+          CW_URL_CNX:       ${{ secrets.CW_URL_CNX }}
+          CW_USERNAME_CNX:  ${{ secrets.CW_USERNAME_CNX }}
+          CW_PASSWORD_CNX:  ${{ secrets.CW_PASSWORD_CNX }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_KEY }}
         run: xvfb-run --auto-servernum python scripts/cw_sync_cloud.py
 
       - name: Upload debug artifacts (always)
