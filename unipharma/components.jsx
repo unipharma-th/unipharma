@@ -247,7 +247,7 @@ async function _gtranslate(text, from, to) {
 }
 
 /* ── Drug Form (Add/Edit) ── */
-function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs = [], onReuseCode, cwName = '' }) {
+function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs = [], onReuseCode, cwName = '', cwData = {} }) {
   const cats = DB.CATEGORIES;
   const [form, setForm] = useState(() => {
     if (drug) {
@@ -471,6 +471,25 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
           </div>
         </div>
       </div>
+
+      {/* CW price hint */}
+      {(cwData.cost_01 > 0 || cwData.sell_01 > 0) && (
+        <div style={{ marginBottom:12, padding:'10px 14px', background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.35)', borderRadius:8 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'var(--acc)', marginBottom:6 }}>
+            📦 {L('ข้อมูลราคาจาก CW Pharma (สาขา RAM)', 'CW Pharma Price (RAM Branch)')}
+          </div>
+          <div style={{ display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
+            {cwData.cost_01 > 0 && <span style={{ fontSize:12 }}>{L('ต้นทุน','Cost')}: <b>{UTILS.fmt(cwData.cost_01)} ฿</b></span>}
+            {cwData.sell_01 > 0 && <span style={{ fontSize:12 }}>{L('ราคาขาย','Sell')}: <b>{UTILS.fmt(cwData.sell_01)} ฿</b></span>}
+            <button type="button" className="btn btn-xs btn-primary" onClick={() => {
+              if (cwData.cost_01 > 0) set('costEx', cwData.cost_01);
+              if (cwData.sell_01 > 0) set('sellEx', cwData.sell_01);
+            }}>
+              📥 {L('นำราคานี้มาใช้','Use these prices')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main supplier price grid */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12 }}>

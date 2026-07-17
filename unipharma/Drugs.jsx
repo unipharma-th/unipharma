@@ -829,6 +829,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       {editDrug && (
         <DrugForm drug={editDrug} lang={lang} L={L} suppliers={suppliers} drugs={drugs} onReuseCode={handleReuseCode}
           cwName={(cwStock[editDrug.code]||{}).name||''}
+          cwData={cwStock[editDrug.code]||{}}
           onSave={saveDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
       )}
     </div>
