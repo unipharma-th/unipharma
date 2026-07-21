@@ -92,6 +92,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
 
   return (
     <div className="page">
+      <div className="sticky-bar">
       <div className="page-header">
         <div>
           <div className="page-title">{L('การสั่งซื้อ', 'Purchase Orders')}</div>
@@ -112,7 +113,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
       </div>
 
       {/* Summary Chips */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
         {['draft', 'pending', 'approved', 'completed', 'cancelled'].map(s => {
           const cnt = orders.filter(o => o.status === s).length;
           return (
@@ -126,7 +127,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
       </div>
 
       {/* FILTERS */}
-      <div className="card" style={{ marginBottom: 16, padding: 14 }}>
+      <div className="card" style={{ marginBottom: 0, padding: 14 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '1 1 200px' }}>
             <label className="label">{L('ค้นหา', 'Search')}</label>
@@ -147,6 +148,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
             </select>
           </div>
         </div>
+      </div>
       </div>
 
       {/* TABLE */}

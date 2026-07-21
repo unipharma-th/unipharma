@@ -28,12 +28,14 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div>
-          <div className="page-title">{L('ติดตามสินค้า', 'Stock Tracking')}</div>
-          <div className="page-subtitle">{L('ตรวจสอบระดับสต็อกแบบ Real-time ทั้ง 3 สาขา', 'Real-time stock monitoring across all 3 branches')}</div>
+      <div className="sticky-bar">
+        <div className="page-header">
+          <div>
+            <div className="page-title">{L('ติดตามสินค้า', 'Stock Tracking')}</div>
+            <div className="page-subtitle">{L('ตรวจสอบระดับสต็อกแบบ Real-time ทั้ง 3 สาขา', 'Real-time stock monitoring across all 3 branches')}</div>
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ {L('สั่งซื้อเพิ่ม', 'Order More')}</button>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ {L('สั่งซื้อเพิ่ม', 'Order More')}</button>
       </div>
 
       {/* Summary Cards */}

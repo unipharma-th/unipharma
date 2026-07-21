@@ -353,6 +353,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
 
   return (
     <div className="page">
+      <div className="sticky-bar">
       <div className="page-header">
         <div>
           <div className="page-title">{L('ฐานข้อมูลยา', 'Drug Database')}</div>
@@ -394,7 +395,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       )}
 
       {/* TAB BAR */}
-      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:14}}>
+      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:0}}>
         {[
           {key:'all',  label:L('สินค้าทั้งหมด','All Products'), icon:'💊'},
           {key:'unused',label:L('ยังไม่มี PO','No PO Yet'),   icon:'📋'},
@@ -407,6 +408,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
             {icon} {label}
           </button>
         ))}
+      </div>
       </div>
 
       {/* UNUSED DRUGS PANEL */}

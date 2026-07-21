@@ -133,15 +133,15 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div>
-          <div className="page-title">⚖ {L('เปรียบเทียบราคา', 'Price Comparison')}</div>
-          <div className="page-subtitle">{L('เทียบราคาจากทุกผู้จัดจำหน่ายและรับคำแนะนำซื้อที่ดีที่สุด', 'Compare prices across all suppliers — get the best buying recommendation')}</div>
+      <div className="sticky-bar">
+        <div className="page-header">
+          <div>
+            <div className="page-title">⚖ {L('เปรียบเทียบราคา', 'Price Comparison')}</div>
+            <div className="page-subtitle">{L('เทียบราคาจากทุกผู้จัดจำหน่ายและรับคำแนะนำซื้อที่ดีที่สุด', 'Compare prices across all suppliers — get the best buying recommendation')}</div>
+          </div>
         </div>
-      </div>
-
-      {/* SEARCH BAR */}
-      <div className="card" style={{ marginBottom: 20, padding: 20 }}>
+        {/* SEARCH BAR */}
+        <div className="card" style={{ marginBottom: 0, padding: 20 }}>
         <div style={{ maxWidth: 560, margin: '0 auto' }}>
           <label className="label" style={{ fontSize: 14, textAlign: 'center', display: 'block', marginBottom: 10 }}>
             🔍 {L('ค้นหายาที่ต้องการเปรียบเทียบ', 'Search a drug to compare prices')}
@@ -186,6 +186,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
               </>
             )}
           </div>
+        </div>
         </div>
       </div>
 

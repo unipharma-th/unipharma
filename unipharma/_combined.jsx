@@ -2528,6 +2528,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
 
   return (
     <div className="page">
+      <div className="sticky-bar">
       <div className="page-header">
         <div>
           <div className="page-title">{L('ฐานข้อมูลยา', 'Drug Database')}</div>
@@ -2569,7 +2570,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       )}
 
       {/* TAB BAR */}
-      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:14}}>
+      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:0}}>
         {[
           {key:'all',  label:L('สินค้าทั้งหมด','All Products'), icon:'💊'},
           {key:'unused',label:L('ยังไม่มี PO','No PO Yet'),   icon:'📋'},
@@ -2582,6 +2583,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
             {icon} {label}
           </button>
         ))}
+      </div>
       </div>
 
       {/* UNUSED DRUGS PANEL */}
@@ -3104,6 +3106,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
 
   return (
     <div className="page">
+      <div className="sticky-bar">
       <div className="page-header">
         <div>
           <div className="page-title">{L('การสั่งซื้อ', 'Purchase Orders')}</div>
@@ -3117,7 +3120,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
       </div>
 
       {/* Summary Chips */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
         {['draft', 'pending', 'approved', 'completed', 'cancelled'].map(s => {
           const cnt = orders.filter(o => o.status === s).length;
           return (
@@ -3131,7 +3134,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
       </div>
 
       {/* FILTERS */}
-      <div className="card" style={{ marginBottom: 16, padding: 14 }}>
+      <div className="card" style={{ marginBottom: 0, padding: 14 }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: '1 1 200px' }}>
             <label className="label">{L('ค้นหา', 'Search')}</label>
@@ -3152,6 +3155,7 @@ function OrdersPage({ lang, L, orders, setOrders, drugs, suppliers, notify, setV
             </select>
           </div>
         </div>
+      </div>
       </div>
 
       {/* TABLE */}
@@ -4425,19 +4429,20 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div>
-          <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
-          <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
+      <div className="sticky-bar">
+        <div className="page-header">
+          <div>
+            <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
+            <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel', 'Export Excel')}</button>}
+            {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel', 'Export Excel')}</button>}
-          {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+        <div style={{ maxWidth: 360 }}>
+          <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
         </div>
-      </div>
-
-      <div style={{ marginBottom: 16, maxWidth: 360 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
@@ -5540,15 +5545,15 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div>
-          <div className="page-title">⚖ {L('เปรียบเทียบราคา', 'Price Comparison')}</div>
-          <div className="page-subtitle">{L('เทียบราคาจากทุกผู้จัดจำหน่ายและรับคำแนะนำซื้อที่ดีที่สุด', 'Compare prices across all suppliers — get the best buying recommendation')}</div>
+      <div className="sticky-bar">
+        <div className="page-header">
+          <div>
+            <div className="page-title">⚖ {L('เปรียบเทียบราคา', 'Price Comparison')}</div>
+            <div className="page-subtitle">{L('เทียบราคาจากทุกผู้จัดจำหน่ายและรับคำแนะนำซื้อที่ดีที่สุด', 'Compare prices across all suppliers — get the best buying recommendation')}</div>
+          </div>
         </div>
-      </div>
-
-      {/* SEARCH BAR */}
-      <div className="card" style={{ marginBottom: 20, padding: 20 }}>
+        {/* SEARCH BAR */}
+        <div className="card" style={{ marginBottom: 0, padding: 20 }}>
         <div style={{ maxWidth: 560, margin: '0 auto' }}>
           <label className="label" style={{ fontSize: 14, textAlign: 'center', display: 'block', marginBottom: 10 }}>
             🔍 {L('ค้นหายาที่ต้องการเปรียบเทียบ', 'Search a drug to compare prices')}
@@ -5593,6 +5598,7 @@ function ComparisonPage({ lang, L, drugs, suppliers }) {
               </>
             )}
           </div>
+        </div>
         </div>
       </div>
 
@@ -6042,12 +6048,14 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div>
-          <div className="page-title">{L('ติดตามสินค้า', 'Stock Tracking')}</div>
-          <div className="page-subtitle">{L('ตรวจสอบระดับสต็อกแบบ Real-time ทั้ง 3 สาขา', 'Real-time stock monitoring across all 3 branches')}</div>
+      <div className="sticky-bar">
+        <div className="page-header">
+          <div>
+            <div className="page-title">{L('ติดตามสินค้า', 'Stock Tracking')}</div>
+            <div className="page-subtitle">{L('ตรวจสอบระดับสต็อกแบบ Real-time ทั้ง 3 สาขา', 'Real-time stock monitoring across all 3 branches')}</div>
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ {L('สั่งซื้อเพิ่ม', 'Order More')}</button>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ {L('สั่งซื้อเพิ่ม', 'Order More')}</button>
       </div>
 
       {/* Summary Cards */}

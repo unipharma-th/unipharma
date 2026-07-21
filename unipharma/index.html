@@ -92,6 +92,7 @@ body{background:var(--bg0);color:var(--txt);font-family:'Noto Sans Thai','Inter'
 /* ─── LAYOUT ─── */
 .main-layout{margin-top:var(--nav-h);height:calc(100vh - var(--nav-h));overflow-y:auto;background:var(--bg0)}
 .page{padding:24px;max-width:1600px;margin:0 auto;animation:fadeIn .2s ease}
+.sticky-bar{position:sticky;top:0;z-index:50;background:var(--bg0);padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:14px}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ─── CARDS ─── */
@@ -279,7 +280,7 @@ select.input{cursor:pointer}
   preloadAsync('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
   preloadAsync('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
 
-  var v = '20260721a';
+  var v = '20260721b';
   function loadFallback() {
     function loadJS(src, type) {
       var el = document.createElement('script');

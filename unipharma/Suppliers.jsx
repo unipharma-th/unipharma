@@ -78,19 +78,20 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div>
-          <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
-          <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
+      <div className="sticky-bar">
+        <div className="page-header">
+          <div>
+            <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
+            <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel', 'Export Excel')}</button>}
+            {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel', 'Export Excel')}</button>}
-          {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+        <div style={{ maxWidth: 360 }}>
+          <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
         </div>
-      </div>
-
-      <div style={{ marginBottom: 16, maxWidth: 360 }}>
-        <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
