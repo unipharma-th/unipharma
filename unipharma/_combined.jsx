@@ -598,7 +598,7 @@ const UTILS = (() => {
           try {
             var sr = await client.rpc('sync_cw_stock_to_drugs');
             if (sr.error) console.warn('[UNI_DB] CW stock sync:', sr.error.message || sr.error);
-            else console.info('[UNI_DB] CW stock synced:', (sr.data || {}).updated, 'drugs updated');
+            else console.info('[UNI_DB] CW synced — stock:', (sr.data||{}).stock_updated, 'drugs; prices:', (sr.data||{}).price_updated, 'drugs');
           } catch(e) {
             console.warn('[UNI_DB] CW stock sync skipped:', e.message);
           }

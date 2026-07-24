@@ -778,8 +778,11 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE n_rows int;
+DECLARE
+  n_stock int := 0;
+  n_price int := 0;
 BEGIN
+  -- Step 1: sync stock quantities
   UPDATE drugs d
   SET
     total_stock = COALESCE(c.stock_00,0) + COALESCE(c.stock_01,0) + COALESCE(c.stock_02,0),
@@ -793,8 +796,55 @@ BEGIN
     )
   FROM cwpharma_stock_test c
   WHERE c.code = d.code;
-  GET DIAGNOSTICS n_rows = ROW_COUNT;
-  RETURN json_build_object('updated', n_rows, 'synced_at', now()::text);
+  GET DIAGNOSTICS n_stock = ROW_COUNT;
+
+  -- Step 2: sync cost + sell prices (only where CW has non-zero values)
+  UPDATE drugs d
+  SET
+    sell_ex = CASE WHEN cw.sell > 0 THEN ROUND(cw.sell::numeric, 2) ELSE d.sell_ex END,
+    data = d.data
+      -- cost fields: update only when CW has cost data
+      || CASE WHEN cw.cost > 0 THEN jsonb_build_object(
+           'costEx',  ROUND(cw.cost::numeric, 2),
+           'costInc', ROUND(cw.cost::numeric * (1 + COALESCE((d.data->>'vat')::numeric, 7) / 100), 2)
+         ) ELSE '{}'::jsonb END
+      -- sell fields: update only when CW has sell data
+      || CASE WHEN cw.sell > 0 THEN jsonb_build_object(
+           'sellEx',  ROUND(cw.sell::numeric, 2),
+           'sellInc', ROUND(cw.sell::numeric * (1 + COALESCE((d.data->>'vat')::numeric, 7) / 100), 2)
+         ) ELSE '{}'::jsonb END
+      -- profit: always recompute from final sell/cost
+      || jsonb_build_object(
+           'profitEx',
+           ROUND((
+             CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END -
+             CASE WHEN cw.cost > 0 THEN cw.cost ELSE COALESCE((d.data->>'costEx')::numeric, 0) END
+           )::numeric, 2),
+           'profitMargin',
+           CASE WHEN CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END > 0
+             THEN ROUND(((
+               CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END -
+               CASE WHEN cw.cost > 0 THEN cw.cost ELSE COALESCE((d.data->>'costEx')::numeric, 0) END
+             ) / (CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END) * 100)::numeric, 2)
+             ELSE 0::numeric
+           END
+         )
+  FROM (
+    SELECT code,
+      COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0), 0) AS cost,
+      COALESCE(NULLIF(sell_00,0), NULLIF(sell_01,0), NULLIF(sell_02,0), 0) AS sell
+    FROM cwpharma_stock_test
+    WHERE COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0)) > 0
+       OR COALESCE(NULLIF(sell_00,0), NULLIF(sell_01,0), NULLIF(sell_02,0)) > 0
+  ) cw
+  WHERE cw.code = d.code;
+  GET DIAGNOSTICS n_price = ROW_COUNT;
+
+  RETURN json_build_object(
+    'stock_updated', n_stock,
+    'price_updated', n_price,
+    'synced_at',     now()::text
+  );
 END;
 $$;
 GRANT EXECUTE ON FUNCTION sync_cw_stock_to_drugs() TO anon;
