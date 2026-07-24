@@ -5526,11 +5526,11 @@ function _drawCwHistoryChart(canvas, prevInst, data) {
   });
 }
 
-// ── RANK highlight styles (gold / green / blue) ──────────────────
+// ── RANK highlight styles (gold / green / blue) — RGBA for dark-mode compat
 const RANK_STYLES = [
-  { rowBg: 'linear-gradient(90deg,#fffbeb,#fefce8)', border: '#f59e0b', nameColor: '#92400e', badgeBg: 'linear-gradient(135deg,#d97706,#f59e0b)', shadow: 'rgba(217,119,6,.4)' },
-  { rowBg: 'linear-gradient(90deg,#f0fdf4,#f7fffe)', border: '#22c55e', nameColor: '#15803d', badgeBg: 'linear-gradient(135deg,#16a34a,#22c55e)', shadow: 'rgba(22,163,74,.4)' },
-  { rowBg: 'linear-gradient(90deg,#eff6ff,#f5f9ff)', border: '#60a5fa', nameColor: '#1d4ed8', badgeBg: 'linear-gradient(135deg,#2563eb,#60a5fa)', shadow: 'rgba(37,99,235,.35)' },
+  { rowBg: 'rgba(245,158,11,.13)', border: '#f59e0b', nameColor: '#f59e0b', badgeBg: 'linear-gradient(135deg,#d97706,#f59e0b)', shadow: 'rgba(217,119,6,.4)' },
+  { rowBg: 'rgba(34,197,94,.1)',   border: '#22c55e', nameColor: '#22c55e', badgeBg: 'linear-gradient(135deg,#16a34a,#22c55e)', shadow: 'rgba(22,163,74,.4)' },
+  { rowBg: 'rgba(96,165,250,.1)',  border: '#60a5fa', nameColor: '#60a5fa', badgeBg: 'linear-gradient(135deg,#2563eb,#60a5fa)', shadow: 'rgba(37,99,235,.35)' },
 ];
 
 // ── PILL SVG placeholder ─────────────────────────────────────────
@@ -5569,13 +5569,13 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
   const today = new Date();
   const todayStr = [String(today.getDate()).padStart(2,'0'), String(today.getMonth()+1).padStart(2,'0'), today.getFullYear()].join('/');
 
-  const cellB = '1px solid #eef2f7';
+  const cellB = '1px solid var(--border)';
   const td = (content, style = {}) => (
     <td style={{ padding: '9px 10px', borderBottom: cellB, borderRight: cellB, verticalAlign: 'middle', ...style }}>{content}</td>
   );
 
   return (
-    <div style={{ background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,.12)', border: '1px solid #e2e8f0', color: '#1e293b', fontFamily: 'inherit' }}>
+    <div style={{ background: 'var(--bg1)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 28px rgba(0,0,0,.35)', border: '1px solid var(--border)', color: 'var(--txt)', fontFamily: 'inherit' }}>
 
       {/* ── HEADER ── */}
       <div style={{ background: 'linear-gradient(160deg,#0f2240 0%,#1a3a5e 55%,#1e4570 100%)', color: '#fff', padding: '20px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
@@ -5621,15 +5621,15 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
       </div>
 
       {/* ── LEGEND ── */}
-      <div style={{ background: '#f8fafc', padding: '7px 14px', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{L('เรียงตามมูลค่ารวม (รวมขนส่ง)','Sorted by total value (incl. shipping)')}</span>
-        <span style={{ color: '#cbd5e1' }}>|</span>
+      <div style={{ background: 'var(--bg2)', padding: '7px 14px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--txt2)' }}>{L('เรียงตามมูลค่ารวม (รวมขนส่ง)','Sorted by total value (incl. shipping)')}</span>
+        <span style={{ color: 'var(--txt4)' }}>|</span>
         {[
           { color: '#f59e0b', label: L('อันดับ 1 — ถูกสุด','Rank 1 — Cheapest') },
           { color: '#22c55e', label: L('อันดับ 2','Rank 2') },
           { color: '#60a5fa', label: L('อันดับ 3','Rank 3') },
         ].map(({ color, label }, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#475569', fontWeight: 600 }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--txt2)', fontWeight: 600 }}>
             <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} />
             {label}
           </div>
@@ -5666,14 +5666,14 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
               const isTop = !row.isCwRef && realRank < 3;
               const isCheapest = !row.isCwRef && realRank === 0;
               const rowStyle = row.isCwRef
-                ? { background: 'linear-gradient(90deg,#f5f3ff,#faf5ff)', borderLeft: '4px solid #8b5cf6', opacity: .92 }
+                ? { background: 'rgba(109,40,217,.1)', borderLeft: '4px solid #8b5cf6' }
                 : isTop
                   ? { background: rs.rowBg, borderLeft: `4px solid ${rs.border}` }
-                  : { background: i % 2 === 0 ? '#fff' : '#fafbfc' };
+                  : { background: i % 2 === 0 ? 'var(--bg1)' : 'var(--bg2)' };
               const qDate = row.deal.quotedDate
                 ? new Date(row.deal.quotedDate).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' })
                 : '—';
-              const nameColor = row.isCwRef ? '#6d28d9' : isTop ? rs.nameColor : '#1e293b';
+              const nameColor = row.isCwRef ? '#a78bfa' : isTop ? rs.nameColor : 'var(--txt)';
               const badgeBg = row.isCwRef ? 'linear-gradient(135deg,#7c3aed,#8b5cf6)' : isTop ? rs.badgeBg : 'linear-gradient(135deg,#334d6e,#1e3a5e)';
               const remark = row.deal.note || (row.supplier.deliveryDays && row.supplier.deliveryDays !== '—' ? `${L('ส่งภายใน','Lead')} ${row.supplier.deliveryDays}d` : '—');
               const rankLabel = row.isCwRef ? '📡' : (i + 1);
@@ -5715,8 +5715,8 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
                         : <div style={{ width: 18, height: 18, border: '2px solid #cbd5e1', borderRadius: 4, margin: '0 auto', background: '#f8fafc' }} />,
                     { textAlign: 'center' }
                   )}
-                  {td(<span style={{ color: '#64748b', fontSize: 11 }}>{qDate}</span>, { textAlign: 'center' })}
-                  {td(<span style={{ color: '#64748b', fontSize: 11, fontStyle: 'italic' }}>{remark}</span>, { textAlign: 'left' })}
+                  {td(<span style={{ color: 'var(--txt3)', fontSize: 11 }}>{qDate}</span>, { textAlign: 'center' })}
+                  {td(<span style={{ color: 'var(--txt3)', fontSize: 11, fontStyle: 'italic' }}>{remark}</span>, { textAlign: 'left' })}
                 </tr>
               );
             })}
@@ -5725,18 +5725,18 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
       </div>
 
       {/* ── BOTTOM CARDS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '3px solid #e2e8f0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', borderTop: '2px solid var(--border)' }}>
 
         {/* Recommendation */}
-        <div style={{ padding: '16px 18px', borderRight: '1px solid #e2e8f0', background: '#fff', position: 'relative' }}>
+        <div style={{ padding: '16px 18px', borderRight: '1px solid var(--border)', background: 'var(--bg1)', position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#16a34a,#4ade80)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#dcfce7,#bbf7d0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🏆</div>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#15803d' }}>{L('คำแนะนำ','Recommendation')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(34,197,94,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🏆</div>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ok)' }}>{L('คำแนะนำ','Recommendation')}</span>
           </div>
-          <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em' }}>{L('ตัวเลือกดีที่สุดโดยรวม','BEST OVERALL CHOICE')}</div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#15803d', margin: '5px 0 10px', lineHeight: 1.3 }}>{supName(best)}</div>
-          <ul style={{ listStyle: 'none', fontSize: 12, color: '#475569' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--txt3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{L('ตัวเลือกดีที่สุดโดยรวม','BEST OVERALL CHOICE')}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ok)', margin: '5px 0 10px', lineHeight: 1.3 }}>{supName(best)}</div>
+          <ul style={{ listStyle: 'none', fontSize: 12, color: 'var(--txt2)' }}>
             {[
               `฿ ${UTILS.fmt(best.costEx)} / ${drug.unit}`,
               best.deal.expDate ? `EXP: ${best.deal.expDate}` : null,
@@ -5744,62 +5744,62 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
               `${L('มูลค่ารวม','Total')}: ฿ ${UTILS.fmt(best.totalCost)}`,
             ].filter(Boolean).map((pt, i) => (
               <li key={i} style={{ display: 'flex', gap: 7, marginBottom: 5, alignItems: 'flex-start' }}>
-                <div style={{ width: 16, height: 16, background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0, marginTop: 1 }}>✓</div>
+                <div style={{ width: 16, height: 16, background: 'rgba(34,197,94,.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, flexShrink: 0, marginTop: 1, color: 'var(--ok)' }}>✓</div>
                 {pt}
               </li>
             ))}
           </ul>
           {maxSavings > 0 && (
-            <div style={{ background: 'linear-gradient(135deg,#f0fdf4,#ecfdf5)', border: '1px solid #bbf7d0', borderRadius: 8, padding: '9px 11px', marginTop: 10, fontSize: 11, color: '#374151', lineHeight: 1.55 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#15803d', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 3 }}>💡 {L('ส่วนต่าง','Savings')}</div>
+            <div style={{ background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 8, padding: '9px 11px', marginTop: 10, fontSize: 11, color: 'var(--txt)', lineHeight: 1.55 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--ok)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 3 }}>💡 {L('ส่วนต่าง','Savings')}</div>
               {L(`ประหยัดกว่าแพงสุด ฿${UTILS.fmt(maxSavings)} / ${drug.unit}`, `Saves ฿${UTILS.fmt(maxSavings)}/${drug.unit} vs most expensive`)}
             </div>
           )}
         </div>
 
         {/* Price Highlight */}
-        <div style={{ padding: '16px 18px', borderRight: '1px solid #e2e8f0', background: '#fff', position: 'relative' }}>
+        <div style={{ padding: '16px 18px', borderRight: '1px solid var(--border)', background: 'var(--bg1)', position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#d97706,#fb923c)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#fef3c7,#fde68a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🏷️</div>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#92400e' }}>{L('ราคาโดดเด่น','Price Highlight')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(245,158,11,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🏷️</div>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#f59e0b' }}>{L('ราคาโดดเด่น','Price Highlight')}</span>
           </div>
           {[
-            { gradFrom: '#16a34a', gradTo: '#22c55e', label: L('มูลค่ารวมต่ำสุด','LOWEST TOTAL'), bgCard: '#f0fdf4', borderCard: '#bbf7d0', row: best, priceColor: '#16a34a' },
+            { gradFrom: '#16a34a', gradTo: '#22c55e', label: L('มูลค่ารวมต่ำสุด','LOWEST TOTAL'), bgCard: 'rgba(22,163,74,.1)', borderCard: 'rgba(34,197,94,.3)', row: best, priceColor: 'var(--ok)' },
             realRows.length > 1
-              ? { gradFrom: '#dc2626', gradTo: '#ef4444', label: L('แพงสุด','MOST EXPENSIVE'), bgCard: '#fff7f7', borderCard: '#fecaca', row: realRows[realRows.length - 1], priceColor: '#dc2626' }
+              ? { gradFrom: '#dc2626', gradTo: '#ef4444', label: L('แพงสุด','MOST EXPENSIVE'), bgCard: 'rgba(220,38,38,.08)', borderCard: 'rgba(220,38,38,.25)', row: realRows[realRows.length - 1], priceColor: 'var(--err)' }
               : null,
           ].filter(Boolean).map(({ gradFrom, gradTo, label, bgCard, borderCard, row, priceColor }, i) => (
             <div key={i} style={{ marginBottom: i === 0 ? 10 : 0 }}>
               <div style={{ fontSize: 10, fontWeight: 800, background: `linear-gradient(90deg,${gradFrom},${gradTo})`, color: '#fff', padding: '6px 10px', borderRadius: '6px 6px 0 0', letterSpacing: '.04em', textAlign: 'center', textTransform: 'uppercase' }}>{label}</div>
               <div style={{ background: bgCard, border: `1px solid ${borderCard}`, borderTop: 'none', borderRadius: '0 0 7px 7px', padding: '9px 12px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 700, fontSize: 12 }}>{supName(row)}</div>
+                <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--txt)' }}>{supName(row)}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: priceColor, margin: '3px 0', fontVariantNumeric: 'tabular-nums' }}>฿ {UTILS.fmt(row.totalCost)}</div>
-                {row.shippingCost > 0 && <div style={{ fontSize: 10, color: '#64748b' }}>฿{UTILS.fmt(row.costEx)} + ฿{UTILS.fmt(row.shippingCost)} {L('ขนส่ง','ship')}</div>}
-                {row.deal.expDate && <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>EXP {row.deal.expDate}</div>}
+                {row.shippingCost > 0 && <div style={{ fontSize: 10, color: 'var(--txt3)' }}>฿{UTILS.fmt(row.costEx)} + ฿{UTILS.fmt(row.shippingCost)} {L('ขนส่ง','ship')}</div>}
+                {row.deal.expDate && <div style={{ fontSize: 10, color: 'var(--txt3)', marginTop: 3 }}>EXP {row.deal.expDate}</div>}
               </div>
             </div>
           ))}
         </div>
 
         {/* Quick Comparison */}
-        <div style={{ padding: '16px 18px', background: '#fff', position: 'relative' }}>
+        <div style={{ padding: '16px 18px', background: 'var(--bg1)', position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#2563eb,#60a5fa)' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#dbeafe,#bfdbfe)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📊</div>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#1d4ed8' }}>{L('เปรียบเทียบอย่างรวดเร็ว','Quick Comparison')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(96,165,250,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📊</div>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#60a5fa' }}>{L('เปรียบเทียบอย่างรวดเร็ว','Quick Comparison')}</span>
           </div>
           {[
-            { ico: '🏷️', icoBg: '#fef3c7', lbl: L('ถูกสุด (รวมขนส่ง)','Cheapest (Incl. Ship)'), val: `${supName(best)}`, sub: `฿ ${UTILS.fmt(best.totalCost)}`, valColor: '#d97706' },
-            { ico: '📅', icoBg: '#eff6ff', lbl: L('EXP นานสุด','Longest EXP'), val: bestExpRow.deal.expDate ? `${supName(bestExpRow)} (${bestExpRow.deal.expDate})` : L('ไม่มีข้อมูล EXP','No EXP data'), valColor: bestExpRow.deal.expDate ? '#15803d' : '#94a3b8' },
-            { ico: '🚚', icoBg: '#fff7ed', lbl: L('ค่าขนส่ง','Shipping'), val: freeShipCount === rows.length ? L('ทุกเจ้าฟรี','All free') : `${L('ฟรี','Free')} ${freeShipCount} / ${rows.length}` },
-            { ico: '🥇', icoBg: '#f0fdf4', lbl: L('ดีสุดโดยรวม','Best Overall'), val: supName(best), valColor: '#15803d' },
+            { ico: '🏷️', icoBg: 'rgba(245,158,11,.15)', lbl: L('ถูกสุด (รวมขนส่ง)','Cheapest (Incl. Ship)'), val: `${supName(best)}`, sub: `฿ ${UTILS.fmt(best.totalCost)}`, valColor: '#f59e0b' },
+            { ico: '📅', icoBg: 'rgba(96,165,250,.15)', lbl: L('EXP นานสุด','Longest EXP'), val: bestExpRow.deal.expDate ? `${supName(bestExpRow)} (${bestExpRow.deal.expDate})` : L('ไม่มีข้อมูล EXP','No EXP data'), valColor: bestExpRow.deal.expDate ? 'var(--ok)' : 'var(--txt4)' },
+            { ico: '🚚', icoBg: 'rgba(251,146,60,.15)', lbl: L('ค่าขนส่ง','Shipping'), val: freeShipCount === rows.length ? L('ทุกเจ้าฟรี','All free') : `${L('ฟรี','Free')} ${freeShipCount} / ${rows.length}` },
+            { ico: '🥇', icoBg: 'rgba(34,197,94,.15)', lbl: L('ดีสุดโดยรวม','Best Overall'), val: supName(best), valColor: 'var(--ok)' },
           ].map(({ ico, icoBg, lbl, val, sub, valColor }, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < 3 ? '1px solid #f1f5f9' : 'none' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < 3 ? '1px solid var(--border)' : 'none' }}>
               <div style={{ width: 30, height: 30, borderRadius: 7, background: icoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{ico}</div>
               <div>
-                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{lbl}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: valColor || '#1e293b', marginTop: 2, lineHeight: 1.3 }}>{val}{sub && <span style={{ marginLeft: 5, fontWeight: 800 }}>{sub}</span>}</div>
+                <div style={{ fontSize: 10, color: 'var(--txt4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{lbl}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: valColor || 'var(--txt)', marginTop: 2, lineHeight: 1.3 }}>{val}{sub && <span style={{ marginLeft: 5, fontWeight: 800 }}>{sub}</span>}</div>
               </div>
             </div>
           ))}
