@@ -339,11 +339,11 @@ const UTILS = (() => {
 
 /* ===== db.js ===== */
 // ============================================================
-// UNIPHARMA — Cloud data layer (Supabase)  [plain JS, no JSX]
+// UNIPHARMA โ€” Cloud data layer (Supabase)  [plain JS, no JSX]
 // ------------------------------------------------------------
 // Exposes a small async API on window.UNI_DB. If Supabase is not
 // configured (config.js empty) or the library failed to load, every
-// method is a safe no-op and `enabled` is false — the app then runs
+// method is a safe no-op and `enabled` is false โ€” the app then runs
 // exactly as before, on localStorage only.
 //
 // Storage strategy: each entity row keeps its FULL app object in a
@@ -396,14 +396,23 @@ const UTILS = (() => {
       notes: r.notes || "", image: r.image || null, reported_by: r.reportedBy || "",
       period_start: r.periodStart || null, created_at: r.createdAt,
       resolved_at: r.resolvedAt || null, resolved_by: r.resolvedBy || null,
+      status: r.status || "pending",
+      data: r,
     };
   }
   function oosFromRow(row) {
+    if (row.data && typeof row.data === "object" && row.data.id) {
+      var d = row.data;
+      return Object.assign({}, d, {
+        timestamp: new Date(d.createdAt || row.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
+      });
+    }
     return {
       id: row.id, productCode: row.product_code, productName: row.product_name,
       notes: row.notes, image: row.image, reportedBy: row.reported_by,
       periodStart: row.period_start, createdAt: row.created_at,
       resolvedAt: row.resolved_at || null, resolvedBy: row.resolved_by || null,
+      status: row.resolved_at ? "arrived" : (row.status || "pending"),
       timestamp: new Date(row.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }),
     };
   }
@@ -414,7 +423,7 @@ const UTILS = (() => {
     return { id: row.id, name: row.name_th, nameEN: row.name_en, color: row.color, subs: row.subs || [] };
   }
 
-  // ── IndexedDB helpers for large data (drugs cache ~15 MB, too big for localStorage) ──
+  // โ”€โ”€ IndexedDB helpers for large data (drugs cache ~15 MB, too big for localStorage) โ”€โ”€
   var _idb = null;
   function openIdb() {
     if (_idb) return Promise.resolve(_idb);
@@ -459,6 +468,23 @@ const UTILS = (() => {
     return out;
   }
 
+  // Normalize drug nameEN so EN mode never shows blank or raw drug code
+  // Also recalculate costInc/sellInc when trigger has reset them to 0
+  function normDrugs(arr) {
+    return arr.map(function(d) {
+      var en = (d.nameEN || '').trim();
+      if (!en || en === d.code) en = (d.nameTH || d.code || '');
+      var out = en === d.nameEN ? d : Object.assign({}, d, { nameEN: en });
+      var vat = out.hasVat ? (1 + (out.vatRate || 7) / 100) : 1;
+      var changed = {};
+      if ((!out.costInc || out.costInc === 0) && out.costEx > 0)
+        changed.costInc = +((out.costEx * vat).toFixed(2));
+      if ((!out.sellInc || out.sellInc === 0) && out.sellEx > 0)
+        changed.sellInc = +((out.sellEx * vat).toFixed(2));
+      return Object.keys(changed).length ? Object.assign({}, out, changed) : out;
+    });
+  }
+
   async function selectAll(table) {
     // First, get the total count so we can fetch all pages in parallel
     // (10k+ rows over sequential requests is too slow on first load).
@@ -488,26 +514,28 @@ const UTILS = (() => {
 
     // Returns {drugs,suppliers,orders} from the cloud, or null if not
     // enabled / nothing stored yet.
-    // Caching strategy:
-    //   DRUGS:     IndexedDB 24 h — ~15 MB, too large for localStorage
-    //   SUPPLIERS: localStorage 30 min — small, but always-fresh was a major egress driver
-    //   ORDERS:    localStorage 10 min — moderate, acceptable staleness
+    // Fast path: if data was synced from Supabase within CACHE_TTL ms, return
+    // whatever is already in localStorage without hitting Supabase at all.
     async loadAll() {
       if (!enabled) return null;
 
+      // Cache TTLs
+      // DRUGS:     IndexedDB, 24 h โ€” master data rarely changes; localStorage can't hold 10k+ drugs (~15 MB)
+      // SUPPLIERS: localStorage, 6 h  โ€” small data; extended to cut Supabase egress
+      // ORDERS:    localStorage, 1 h  โ€” moderate size; extended to cut Supabase egress
       var DRUG_CACHE_TTL     = 24 * 3600 * 1000;
       var SUPPLIER_CACHE_TTL =  6 * 3600 * 1000;
       var ORDER_CACHE_TTL    =  1 * 3600 * 1000;
       var now = Date.now();
 
-      // ── Read caches ──────────────────────────────────────────
+      // โ”€โ”€ Read caches โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
       var drugsFromCache = null;
       try {
         var drugTs = parseInt(localStorage.getItem('uni_drug_idb_ts') || '0', 10);
         if (drugTs && (now - drugTs) < DRUG_CACHE_TTL) {
           var cd = await idbGet('drugs');
           if (cd && cd.length) {
-            console.info('[UNI_DB] drug cache hit (IDB) — ' + cd.length + ' drugs (' + Math.round((now-drugTs)/60000) + 'min old)');
+            console.info('[UNI_DB] drug cache hit (IDB) โ€” ' + cd.length + ' drugs (' + Math.round((now-drugTs)/60000) + 'min old)');
             drugsFromCache = cd;
           }
         }
@@ -518,18 +546,24 @@ const UTILS = (() => {
         var supTs = parseInt(localStorage.getItem('uni_sup_ts') || '0', 10);
         if (supTs && (now - supTs) < SUPPLIER_CACHE_TTL) {
           var cs = JSON.parse(localStorage.getItem('uni_sup_cache') || 'null');
-          if (cs && cs.length) { console.info('[UNI_DB] supplier cache hit'); suppliersFromCache = cs; }
+          if (cs && cs.length) {
+            console.info('[UNI_DB] supplier cache hit โ€” ' + cs.length + ' suppliers');
+            suppliersFromCache = cs;
+          }
         }
-      } catch(e) {}
+      } catch(e) { /* cache miss */ }
 
       var ordersFromCache = null;
       try {
         var ordTs = parseInt(localStorage.getItem('uni_ord_ts') || '0', 10);
         if (ordTs && (now - ordTs) < ORDER_CACHE_TTL) {
           var co = JSON.parse(localStorage.getItem('uni_ord_cache') || 'null');
-          if (co && co.length >= 0) { console.info('[UNI_DB] order cache hit'); ordersFromCache = co; }
+          if (co && co.length >= 0) {
+            console.info('[UNI_DB] order cache hit โ€” ' + co.length + ' orders');
+            ordersFromCache = co;
+          }
         }
-      } catch(e) {}
+      } catch(e) { /* cache miss */ }
 
       try {
         var drugs, suppliers, orders;
@@ -538,37 +572,36 @@ const UTILS = (() => {
         var needsOrders    = !ordersFromCache;
 
         if (drugsFromCache) {
-          // Drug cache hit — check count; run startup SQL only on fresh drug fetch
+          // Drug cache hit โ€” check count to detect bulk import/delete
           var countJobs = [];
           if (needsSuppliers) countJobs.push(selectAll("suppliers")); else countJobs.push(Promise.resolve(suppliersFromCache));
           if (needsOrders)    countJobs.push(selectAll("purchase_orders")); else countJobs.push(Promise.resolve(ordersFromCache));
           countJobs.push(client.from("drugs").select("*", { count: "estimated", head: true }));
 
           var parallel = await Promise.all(countJobs);
-          suppliers = parallel[0]; orders = parallel[1];
-          var countRes = parallel[2];
+          suppliers = parallel[0];
+          orders    = parallel[1];
+          var countRes    = parallel[2];
           var remoteCount = (countRes && !countRes.error) ? (countRes.count || 0) : -1;
           var cachedCount = parseInt(localStorage.getItem('uni_drug_count') || '0', 10);
 
           if (remoteCount >= 0 && remoteCount !== cachedCount) {
-            console.info('[UNI_DB] drug count changed (' + cachedCount + ' → ' + remoteCount + '), refreshing');
-            var fn = function(d) { var en=(d.nameEN||'').trim(); if(!en||en===d.code)en=(d.nameTH||d.code||''); return en===d.nameEN?d:Object.assign({},d,{nameEN:en}); };
-            drugs = (await selectAll("drugs")).map(fn);
-            idbSet('drugs', drugs).then(function() {
-              try { localStorage.setItem('uni_drug_idb_ts', Date.now().toString()); localStorage.setItem('uni_drug_count', String(drugs.length)); } catch(e) {}
-            });
+            console.info('[UNI_DB] drug count changed (' + cachedCount + ' โ’ ' + remoteCount + '), refreshing');
+            drugs = normDrugs(await selectAll("drugs"));
+            await idbSet('drugs', drugs);
+            try { localStorage.setItem('uni_drug_idb_ts', now.toString()); localStorage.setItem('uni_drug_count', String(drugs.length)); } catch(e) {}
           } else {
             drugs = drugsFromCache;
           }
         } else {
-          // Drug cache miss — run startup SQL first
+          // Drug cache miss โ€” run startup SQL first if configured
           var startupSql = '';
           try { startupSql = (localStorage.getItem('uni_startup_sql') || '').trim(); } catch(e) {}
           if (startupSql) {
             try {
               var sr = await client.rpc('exec_sql', { sql: startupSql });
-              var status = sr.error ? ('error: ' + (sr.error.message || sr.error)) : 'ok';
-              try { localStorage.setItem('uni_startup_sql_last_run', new Date().toISOString()); localStorage.setItem('uni_startup_sql_last_status', status); } catch(e) {}
+              var sqlStatus = sr.error ? ('error: ' + (sr.error.message || sr.error)) : 'ok';
+              try { localStorage.setItem('uni_startup_sql_last_run', new Date().toISOString()); localStorage.setItem('uni_startup_sql_last_status', sqlStatus); } catch(e) {}
               if (sr.error) console.warn('[UNI_DB] Startup SQL error:', sr.error);
               else console.info('[UNI_DB] Startup SQL executed OK');
             } catch(e) {
@@ -582,19 +615,22 @@ const UTILS = (() => {
           if (needsOrders)    fetchJobs.push(selectAll("purchase_orders")); else fetchJobs.push(Promise.resolve(ordersFromCache));
 
           var allParts = await Promise.all(fetchJobs);
-          var normFn = function(d) { var en=(d.nameEN||'').trim(); if(!en||en===d.code)en=(d.nameTH||d.code||''); return en===d.nameEN?d:Object.assign({},d,{nameEN:en}); };
-          drugs = allParts[0].map(normFn); suppliers = allParts[1]; orders = allParts[2];
+          drugs = allParts[0]; suppliers = allParts[1]; orders = allParts[2];
           if (!drugs.length && !suppliers.length && !orders.length) return null;
+          drugs = normDrugs(drugs);
+          // Save drug cache to IndexedDB (no size limit unlike localStorage)
           idbSet('drugs', drugs).then(function() {
             try { localStorage.setItem('uni_drug_idb_ts', Date.now().toString()); localStorage.setItem('uni_drug_count', String(drugs.length)); } catch(e) {}
           });
         }
 
+        // Normalise suppliers
         suppliers = suppliers.map(function(s) {
           var en = (s.nameEN || '').trim();
           return en ? s : Object.assign({}, s, { nameEN: (s.name || s.id || '') });
         });
 
+        // Cache suppliers + orders for next load
         if (needsSuppliers) {
           try { localStorage.setItem('uni_sup_cache', JSON.stringify(suppliers)); localStorage.setItem('uni_sup_ts', now.toString()); } catch(e) {}
         }
@@ -619,19 +655,22 @@ const UTILS = (() => {
     },
 
     // Run arbitrary SQL via the exec_sql Postgres function.
-    // Returns { rows, rowsAffected } — throws on error.
+    // Returns { rows, rowsAffected } โ€” throws on error.
     async execSql(sql) {
       if (!enabled) throw new Error('Supabase not configured');
       const { data, error } = await client.rpc('exec_sql', { sql });
       if (error) throw error;
-      // SELECT → array of row objects; DML → { rowsAffected, type:'write' }
+      // SELECT โ’ array of row objects; DML โ’ { rowsAffected, type:'write' }
       if (Array.isArray(data)) return { rows: data, rowsAffected: data.length };
       return { rows: [], rowsAffected: data?.rowsAffected ?? 0 };
     },
 
     async saveDrug(d) {
       if (!enabled) return;
-      try { await client.from("drugs").upsert(drugRow(d)); }
+      try {
+        await client.from("drugs").upsert(drugRow(d));
+        try { localStorage.removeItem('uni_drug_idb_ts'); localStorage.removeItem('uni_drug_count'); } catch(_) {}
+      }
       catch (e) { console.warn("[UNI_DB] saveDrug:", e); }
     },
     async saveSupplier(s) {
@@ -647,7 +686,7 @@ const UTILS = (() => {
     async savePOWithUnits(p, items, drugs) {
       if (!enabled) return;
       try {
-        await client.from("purchase_orders").upsert(poRow(p)); try { localStorage.removeItem('uni_ord_ts'); } catch(_) {}
+        await client.from("purchase_orders").upsert(poRow(p));
         for (const item of items) {
           const drug = drugs.find(d => d.code === item.code);
           if (drug && drug.unit !== item.unit) {
@@ -676,13 +715,14 @@ const UTILS = (() => {
       catch (e) { console.warn("[UNI_DB] deleteSupplier:", e); }
     },
 
-    // Bulk push — used by Data Sync import & first-time seed.
+    // Bulk push โ€” used by Data Sync import & first-time seed.
     async saveDrugsBulk(arr) {
       if (!enabled || !arr || !arr.length) return;
       for (var c of chunk(arr.map(drugRow), 500)) {
         var res = await client.from("drugs").upsert(c);
         if (res.error) throw res.error;
       }
+      // Invalidate IDB drug cache so next load re-fetches
       try { localStorage.removeItem('uni_drug_idb_ts'); localStorage.removeItem('uni_drug_count'); } catch(e) {}
       idbSet('drugs', null);
     },
@@ -732,10 +772,31 @@ const UTILS = (() => {
       try { await client.from("out_of_stock").delete().eq("id", id); }
       catch (e) { console.warn("[UNI_DB] deleteOutOfStock:", e); }
     },
+    async updateOutOfStock(id, updatedReport) {
+      if (!enabled) return false;
+      try {
+        var res = await client.from("out_of_stock").update({
+          status: updatedReport.status || "pending",
+          resolved_at: updatedReport.resolvedAt || null,
+          resolved_by: updatedReport.resolvedBy || null,
+          data: updatedReport,
+        }).eq("id", id);
+        if (res.error) throw res.error;
+        return true;
+      } catch (e) { console.warn("[UNI_DB] updateOutOfStock:", e); return false; }
+    },
+    async loadOutOfStockAll() {
+      if (!enabled) return null;
+      try {
+        var res = await client.from("out_of_stock").select("*").order("created_at", { ascending: false });
+        if (res.error) throw res.error;
+        return (res.data || []).map(oosFromRow);
+      } catch (e) { console.warn("[UNI_DB] loadOutOfStockAll:", e); return null; }
+    },
     // ---- Drug categories (shared master list) ----
     async loadCategories() {
       if (!enabled) return null;
-      // Cache 24 h — categories change only when admin edits them
+      // Cache 24 h โ€” categories change only when admin edits them
       try {
         var CAT_TTL = 24 * 3600 * 1000;
         var ts = parseInt(localStorage.getItem('uni_cat_ts') || '0', 10);
@@ -778,7 +839,29 @@ const UTILS = (() => {
         return true;
       } catch (e) { console.warn("[UNI_DB] setOutOfStockResolved:", e); return false; }
     },
-    // CW Pharma stock — cached in IndexedDB, 6 h TTL (sync runs 10:00 + 18:00)
+    // ---- Price history ----
+    async savePriceHistory(entries) {
+      if (!enabled || !entries || !entries.length) return;
+      try {
+        var rows = entries.map(function(e) {
+          return { drug_code: e.drugCode, supplier_id: e.supplierId || null, cost_ex: e.costEx || 0, po_number: e.poNumber || null, po_date: e.poDate || null, recorded_by: e.recordedBy || null };
+        });
+        var res = await client.from('price_history').insert(rows);
+        if (res.error) throw res.error;
+      } catch(e) { console.warn('[UNI_DB] savePriceHistory:', e); }
+    },
+    async loadPriceHistory(drugCode, supplierId) {
+      if (!enabled) return [];
+      try {
+        var q = client.from('price_history').select('*').eq('drug_code', drugCode).order('recorded_at', { ascending: false }).limit(50);
+        if (supplierId) q = q.eq('supplier_id', supplierId);
+        var res = await q;
+        if (res.error) throw res.error;
+        return res.data || [];
+      } catch(e) { console.warn('[UNI_DB] loadPriceHistory:', e); return []; }
+    },
+    // CW Pharma stock โ€” cached in IndexedDB, 6 h TTL (sync runs 10:00 + 18:00)
+    // Shared by Drugs.jsx and CreatePO.jsx so the table is never fetched twice per session.
     async loadCwStock() {
       if (!enabled) return null;
       var CW_TTL = 6 * 3600 * 1000;
@@ -787,35 +870,95 @@ const UTILS = (() => {
       if (ts && (now - ts) < CW_TTL) {
         var cached = await idbGet('cwstock');
         if (cached && cached.length) {
-          console.info('[UNI_DB] CW stock cache hit — ' + cached.length + ' items (' + Math.round((now - ts) / 60000) + 'min old)');
+          console.info('[UNI_DB] CW stock cache hit โ€” ' + cached.length + ' items (' + Math.round((now - ts) / 60000) + 'min old)');
           return cached;
         }
       }
       try {
-        var res = await client.from('cwpharma_stock_test')
-          .select('code,name,stock_00,stock_01,stock_02,cost_00,cost_01,cost_02,sell_00,sell_01,sell_02,qty_sold,synced_at')
-          .limit(15000);
-        if (res.error) throw res.error;
-        var data = res.data || [];
-        await idbSet('cwstock', data);
+        var PAGE = 1000, all = [], from = 0;
+        while (true) {
+          var res = await client.from('cwpharma_stock_test')
+            .select('code,name,stock_00,stock_01,stock_02,cost_00,cost_01,cost_02,sell_00,sell_01,sell_02,qty_sold,synced_at,unit')
+            .range(from, from + PAGE - 1);
+          if (res.error) throw res.error;
+          var chunk = res.data || [];
+          all = all.concat(chunk);
+          if (chunk.length < PAGE) break;
+          from += PAGE;
+        }
+        await idbSet('cwstock', all);
         try { localStorage.setItem('uni_cw_idb_ts', Date.now().toString()); } catch(e) {}
-        console.info('[UNI_DB] CW stock fetched — ' + data.length + ' items');
-        return data;
+        console.info('[UNI_DB] CW stock fetched โ€” ' + all.length + ' items');
+        return all;
       } catch(e) {
         console.warn('[UNI_DB] loadCwStock:', e && (e.message || String(e)));
         return null;
       }
     },
-    // Realtime disabled — was generating 15 GB/month egress on free tier (random channel
+
+    // Load price history for given codes from cw_price_history (last 12 months).
+    // Returns { code: [{sync_date, cost_00..02, sell_00..02, stock_00..02, qty_sold}] }
+    async loadCwPriceHistory(codes) {
+      if (!enabled) return {};
+      try {
+        var cutoff = new Date();
+        cutoff.setFullYear(cutoff.getFullYear() - 1);
+        var cutoffStr = cutoff.toISOString().split('T')[0];
+        var all = {}, from = 0, PAGE = 1000;
+        while (true) {
+          var q = client.from('cw_price_history')
+            .select('code,sync_date,cost_00,cost_01,cost_02,sell_00,sell_01,sell_02,stock_00,stock_01,stock_02,qty_sold')
+            .gte('sync_date', cutoffStr)
+            .order('sync_date', { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (codes && codes.length) q = q.in('code', codes);
+          var res = await q;
+          if (res.error) throw res.error;
+          var chunk = res.data || [];
+          chunk.forEach(function(r) {
+            if (!all[r.code]) all[r.code] = [];
+            all[r.code].push(r);
+          });
+          if (chunk.length < PAGE) break;
+          from += PAGE;
+        }
+        return all;
+      } catch(e) {
+        console.warn('[UNI_DB] loadCwPriceHistory:', e && (e.message || String(e)));
+        return {};
+      }
+    },
+
+    // Realtime disabled โ€” was generating 15 GB/month egress on free tier (random channel
     // names created a new channel per page load, never reused). Data stays fresh via cache
     // TTLs + explicit reload after save. Re-enable if plan is upgraded to Pro.
     onOutOfStockChange(cb) { return function () {}; },
     onDataChange(cb) { return function () {}; },
 
+    // Returns Set of drug codes that appear in at least one PO's items
+    async loadUsedDrugCodes() {
+      if (!enabled) return new Set();
+      try {
+        var res = await client.from('purchase_orders').select('data');
+        if (res.error) throw res.error;
+        var codes = new Set();
+        (res.data || []).forEach(function(row) {
+          ((row.data || {}).items || []).forEach(function(it) {
+            if (it.code) codes.add(it.code);
+          });
+        });
+        return codes;
+      } catch(e) { console.warn('[UNI_DB] loadUsedDrugCodes:', e); return new Set(); }
+    },
+
     // ---- Authentication ----
     async getSession() {
       if (!enabled) return null;
-      try { const { data } = await client.auth.getSession(); return (data.session && data.session.user) ? data.session : null; }
+      try {
+        const timeout = new Promise(resolve => setTimeout(() => resolve({ data: { session: null } }), 5000));
+        const { data } = await Promise.race([client.auth.getSession(), timeout]);
+        return (data.session && data.session.user) ? data.session : null;
+      }
       catch (e) { return null; }
     },
     async signIn(email, password) {
@@ -843,7 +986,7 @@ const UTILS = (() => {
           }
           await new Promise(function (r) { setTimeout(r, 400); });
         }
-        // Profile genuinely missing after retries → safe default.
+        // Profile genuinely missing after retries โ’ safe default.
         return { role: "viewer", email: u.user.email };
       } catch (e) { return { role: "viewer" }; }
     },
@@ -859,7 +1002,6 @@ const UTILS = (() => {
   if (enabled) console.info("[UNI_DB] Supabase cloud sync ENABLED.");
   else console.info("[UNI_DB] Running offline (localStorage only).");
 })();
-
 
 /* ===== auth.jsx ===== */
 // auth.jsx — Login screen (shown only when cloud is enabled & login is required)

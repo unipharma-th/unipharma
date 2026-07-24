@@ -129,11 +129,19 @@
   }
 
   // Normalize drug nameEN so EN mode never shows blank or raw drug code
+  // Also recalculate costInc/sellInc when trigger has reset them to 0
   function normDrugs(arr) {
     return arr.map(function(d) {
       var en = (d.nameEN || '').trim();
       if (!en || en === d.code) en = (d.nameTH || d.code || '');
-      return en === d.nameEN ? d : Object.assign({}, d, { nameEN: en });
+      var out = en === d.nameEN ? d : Object.assign({}, d, { nameEN: en });
+      var vat = out.hasVat ? (1 + (out.vatRate || 7) / 100) : 1;
+      var changed = {};
+      if ((!out.costInc || out.costInc === 0) && out.costEx > 0)
+        changed.costInc = +((out.costEx * vat).toFixed(2));
+      if ((!out.sellInc || out.sellInc === 0) && out.sellEx > 0)
+        changed.sellInc = +((out.sellEx * vat).toFixed(2));
+      return Object.keys(changed).length ? Object.assign({}, out, changed) : out;
     });
   }
 
