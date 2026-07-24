@@ -656,6 +656,25 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
                       placeholder={L('เช่น โทรขอก่อนสั่ง, เฉพาะออนไลน์, ต้องสั่งขั้นต่ำ...','e.g. Call before ordering, online only, minimum order...')}
                       onChange={e=>setDeal(id,'note',e.target.value)} />
                   </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 148px', gap:8, marginTop:4 }}>
+                    <div>
+                      <div className="label" style={{ fontSize:10 }}>📅 {L('วันหมดอายุที่สอบถาม (MM/YYYY)','EXP Date Quoted (MM/YYYY)')}</div>
+                      <input className="input input-sm" type="text" value={deal.expDate||''} placeholder="09/2027"
+                        onChange={e=>setDeal(id,'expDate',e.target.value)} />
+                    </div>
+                    <div>
+                      <div className="label" style={{ fontSize:10 }}>🚚 {L('ค่าขนส่ง (฿)','Shipping (฿)')}</div>
+                      <input className="input input-sm" type="number" min="0" step="1"
+                        value={deal.shippingCost===undefined||deal.shippingCost===''?'':deal.shippingCost} placeholder="0"
+                        style={{ textAlign:'center' }}
+                        onChange={e=>setDeal(id,'shippingCost', e.target.value===''?'':parseFloat(e.target.value)||0)} />
+                    </div>
+                    <div>
+                      <div className="label" style={{ fontSize:10 }}>📋 {L('วันที่อ้างอิงราคา','Quote Date')}</div>
+                      <input className="input input-sm" type="date" value={deal.quotedDate||''}
+                        onChange={e=>setDeal(id,'quotedDate',e.target.value)} />
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -716,6 +735,24 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
           <label className="label">{L('หมายเหตุเพิ่มเติม','Additional Note')}</label>
           <input className="input" value={form.remarkNote||''} onChange={e=>set('remarkNote',e.target.value)}
             placeholder={L('หมายเหตุเพิ่มเติม (ถ้ามี)','Additional note (optional)')} />
+        </div>
+      </div>
+
+      <div className="divider" />
+      <div className="form-group" style={{ marginBottom: 4 }}>
+        <label className="label">🖼️ {L('URL รูปภาพสินค้า', 'Product Image URL')}</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <input className="input" type="url" value={form.imageUrl || ''} onChange={e => set('imageUrl', e.target.value)}
+              placeholder="https://..." />
+            <div style={{ fontSize: 11, color: 'var(--txt4)', marginTop: 3 }}>
+              {L('วางลิงก์รูปภาพ — จะแสดงในหน้าเปรียบเทียบผู้จัดจำหน่าย', 'Paste image URL — shown on Supplier Comparison page')}
+            </div>
+          </div>
+          {form.imageUrl && (
+            <img src={form.imageUrl} alt="preview" onError={e => { e.target.style.display = 'none'; }}
+              style={{ width: 60, height: 60, objectFit: 'contain', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg2)', flexShrink: 0 }} />
+          )}
         </div>
       </div>
 
