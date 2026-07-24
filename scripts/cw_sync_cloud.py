@@ -685,6 +685,11 @@ def upload_to_supabase(products, batch=500):
         r.pop('stock_total', None)
         r.pop('last_cost', None)   # internal field — already pre-filled into cost_XX
         r.pop('last_sell', None)   # internal field — already pre-filled into sell_XX
+        # If CW has no sell data (0), omit the field so Supabase keeps any
+        # manually-set retail price (e.g. products priced per box, not per unit).
+        for col in ('sell_00', 'sell_01', 'sell_02'):
+            if r.get(col, 0) == 0:
+                r.pop(col, None)
     headers = {
         'apikey':        SUPABASE_KEY,
         'Authorization': f'Bearer {SUPABASE_KEY}',
