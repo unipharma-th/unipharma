@@ -855,7 +855,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                   {drugs.filter(d => d.archived).sort((a,b)=>(a.code||'').localeCompare(b.code||'',undefined,{numeric:true,sensitivity:'base'})).map(d => {
                     const cat = cats.find(c=>c.id===d.catId)||{name:d.catId||'—',nameEN:d.catId||'—',color:'#94a3b8'};
                     return (
-                      <tr key={d.code}>
+                      <tr key={d.code} style={{ cursor:'pointer' }} onClick={() => setDetailDrug(d)}>
                         <td><span style={{ fontSize:12, fontFamily:'monospace', color:'var(--warn)', fontWeight:700 }}>{d.code}</span></td>
                         <td>
                           <div style={{ fontWeight:600, fontSize:12 }}>{lang==='th'?d.nameTH:(d.nameEN||d.nameTH)}</div>
@@ -865,7 +865,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                         <td style={{ textAlign:'center', fontSize:11, color:'var(--txt3)' }}>
                           {d.lastOrdered ? UTILS.fmtDate(d.lastOrdered, lang) : L('ไม่มีข้อมูล','—')}
                         </td>
-                        <td style={{ textAlign:'center' }}>
+                        <td style={{ textAlign:'center' }} onClick={e => e.stopPropagation()}>
                           {perm.canWrite && (
                             <button className="btn btn-ghost btn-xs" onClick={() => restoreDrug(d)}>
                               ↩ {L('Restore','Restore')}
