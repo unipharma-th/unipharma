@@ -641,8 +641,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
   const archiveDetected = useCallback(async () => {
     const candidates = drugs.filter(d =>
       !d.archived &&
-      d.totalStock === 0 &&
-      (!d.lastOrdered || d.lastOrdered < TWO_YRS_AGO)
+      d.totalStock === 0
     );
     if (!candidates.length) { notify(L('ไม่พบสินค้าที่ตรงเกณฑ์', 'No inactive products found'), 'ok'); return; }
     const updated = candidates.map(d => ({ ...d, archived: true }));

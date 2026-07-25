@@ -2070,6 +2070,7 @@ Object.assign(window, { Modal, StatusBadge, BranchBadge, Pagination, SearchInput
 // Dashboard.jsx
 
 function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, setShowCreate }) {
+  const archivedCount = useMemo(() => drugs.filter(d => d.archived).length, [drugs]);
   const lowStock = useMemo(() => drugs.filter(d => !d.archived && Object.values(d.stock || {}).some(v => v <= d.minStock)), [drugs]);
 
   // All order-derived stats memoized together — single pass over orders
@@ -2194,9 +2195,12 @@ function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, 
         <StatCard label={L('มูลค่าสต็อกรวม', 'Total Stock Value')} val={'฿' + (stockValue/1000000).toFixed(2) + 'M'}
           sub={`${totalStock.toLocaleString()} ${L('หน่วย', 'units')}`} icon="🏪"
           onClick={() => setPage('stock')} />
-        <StatCard label={L('จำนวนรายการยา', 'Drug Items')} val={drugs.length.toLocaleString()}
-          sub={L('รายการในระบบ', 'items in system')} icon="💊"
+        <StatCard label={L('จำนวนรายการยา', 'Drug Items')} val={(drugs.length - archivedCount).toLocaleString()}
+          sub={L('รายการที่ใช้งานอยู่', 'active items')} icon="💊"
           onClick={() => setPage('drugs')} />
+        <StatCard label={L('สินค้าไม่ใช้งาน', 'Inactive Items')} val={archivedCount.toLocaleString()}
+          sub={L('stock=0 ซ่อนจากสถิติ', 'stock=0, hidden from stats')} icon="🗄️" color="var(--warn)"
+          onClick={() => { setPage('drugs'); }} />
         <StatCard label={L('ผู้จัดจำหน่าย', 'Suppliers')} val={suppliers.length}
           sub={L('ราย', 'suppliers')} icon="🏭" onClick={() => setPage('suppliers')} />
         <StatCard label={L('PO ที่อนุมัติแล้ว', 'Approved POs')} val={approved}
@@ -2986,8 +2990,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
   const archiveDetected = useCallback(async () => {
     const candidates = drugs.filter(d =>
       !d.archived &&
-      d.totalStock === 0 &&
-      (!d.lastOrdered || d.lastOrdered < TWO_YRS_AGO)
+      d.totalStock === 0
     );
     if (!candidates.length) { notify(L('ไม่พบสินค้าที่ตรงเกณฑ์', 'No inactive products found'), 'ok'); return; }
     const updated = candidates.map(d => ({ ...d, archived: true }));
@@ -6722,7 +6725,7 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
   const PER = 50;
 
   const filtered = useMemo(() => {
-    let list = [...drugs];
+    let list = drugs.filter(d => !d.archived);
     if (search) { const q = search.toLowerCase(); list = list.filter(d => d.code.toLowerCase().includes(q) || d.nameTH.includes(q) || d.nameEN.toLowerCase().includes(q)); }
     if (catFilter) list = list.filter(d => d.catId === catFilter);
     if (statusFilter === 'low') list = list.filter(d => Object.entries(d.stock).some(([br, v]) => (!branchFilter || br === branchFilter) && v <= d.minStock));
@@ -6732,8 +6735,9 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
     return list;
   }, [drugs, search, catFilter, statusFilter, branchFilter]);
 
+  const archivedCount = drugs.filter(d => d.archived).length;
   const lowCount = drugs.filter(d => !d.archived && Object.values(d.stock).some(v => v <= d.minStock)).length;
-  const warnCount = drugs.filter(d => Object.entries(d.stock).some(([, v]) => v > drugs.find(x=>x.code===d.code)?.minStock && v <= drugs.find(x=>x.code===d.code)?.minStock * 2)).length;
+  const warnCount = drugs.filter(d => !d.archived && Object.entries(d.stock).some(([, v]) => v > d.minStock && v <= d.minStock * 2)).length;
   const pageData = filtered.slice((page - 1) * PER, page * PER);
 
   const movements = DB.STOCK_MOVEMENTS.slice(0, 10);
@@ -6774,6 +6778,11 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
           <div className="stat-label">{L('ระวัง (ใกล้ขีดต่ำ)', 'Warning Level')}</div>
           <div className="stat-val" style={{ color: 'var(--warn)' }}>{warnCount}</div>
           <div className="stat-sub">{L('รายการ', 'items')}</div>
+        </div>
+        <div className="stat-card" style={{ borderTop: '3px solid var(--warn)', cursor:'pointer' }} onClick={() => setPage('drugs')}>
+          <div className="stat-label" style={{ color:'var(--warn)' }}>🗄️ {L('สินค้าไม่ใช้งาน', 'Inactive Items')}</div>
+          <div className="stat-val" style={{ color: 'var(--warn)' }}>{archivedCount.toLocaleString()}</div>
+          <div className="stat-sub">{L('stock=0 ซ่อนจากสถิติ', 'stock=0, hidden from stats')}</div>
         </div>
       </div>
 
