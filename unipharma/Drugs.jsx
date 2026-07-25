@@ -852,7 +852,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                   </tr>
                 </thead>
                 <tbody>
-                  {drugs.filter(d => d.archived).map(d => {
+                  {drugs.filter(d => d.archived).sort((a,b)=>(a.code||'').localeCompare(b.code||'',undefined,{numeric:true,sensitivity:'base'})).map(d => {
                     const cat = cats.find(c=>c.id===d.catId)||{name:d.catId||'—',nameEN:d.catId||'—',color:'#94a3b8'};
                     return (
                       <tr key={d.code}>
