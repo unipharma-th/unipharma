@@ -2070,7 +2070,7 @@ Object.assign(window, { Modal, StatusBadge, BranchBadge, Pagination, SearchInput
 // Dashboard.jsx
 
 function DashboardPage({ lang, L, drugs, orders, suppliers, setPage, setViewPO, setShowCreate }) {
-  const lowStock = useMemo(() => drugs.filter(d => Object.values(d.stock || {}).some(v => v <= d.minStock)), [drugs]);
+  const lowStock = useMemo(() => drugs.filter(d => !d.archived && Object.values(d.stock || {}).some(v => v <= d.minStock)), [drugs]);
 
   // All order-derived stats memoized together — single pass over orders
   const orderStats = useMemo(() => {
@@ -2875,6 +2875,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
     const needFilter = q || catFilter || subFilter || vatFilter !== 'all' || branchFilter;
     let list = needFilter
       ? drugs.filter(d => {
+          if (d.archived) return false;
           if (q && !d.code.toLowerCase().includes(q) && !(d.nameTH||'').toLowerCase().includes(q) && !(d.nameEN||'').toLowerCase().includes(q)) return false;
           if (catFilter && d.catId !== catFilter) return false;
           if (subFilter && d.subId !== subFilter) return false;
@@ -2883,7 +2884,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
           if (branchFilter && !((d.stock && d.stock[branchFilter]) || 0)) return false;
           return true;
         })
-      : drugs.slice(); // shallow copy needed for in-place sort
+      : drugs.filter(d => !d.archived); // exclude archived
     list.sort((a, b) => {
       const av = a[sortCol], bv = b[sortCol];
       const cmp = (typeof av === 'string' || typeof bv === 'string')
@@ -2961,6 +2962,44 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
     notify(L(`เปิดแก้ไขสินค้ารหัส ${matchedDrug.code}`, `Editing existing product ${matchedDrug.code}`));
   }, [notify, L]);
 
+  const TWO_YRS_AGO = useMemo(() => {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 2);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const archivedCount = useMemo(() => drugs.filter(d => d.archived).length, [drugs]);
+
+  const archiveDrug = useCallback(async d => {
+    const updated = { ...d, archived: true };
+    setDrugs(prev => prev.map(x => x.code === d.code ? updated : x));
+    if (window.UNI_DB?.enabled) await window.UNI_DB.saveDrug(updated).catch(e => console.warn('[archive]', e));
+    notify(L(`Archive "${d.nameTH}" เรียบร้อย`, `Archived "${d.nameEN || d.nameTH}"`), 'ok');
+  }, [setDrugs, notify, L]);
+
+  const restoreDrug = useCallback(async d => {
+    const updated = { ...d, archived: false };
+    setDrugs(prev => prev.map(x => x.code === d.code ? updated : x));
+    if (window.UNI_DB?.enabled) await window.UNI_DB.saveDrug(updated).catch(e => console.warn('[restore]', e));
+    notify(L(`Restore "${d.nameTH}" เรียบร้อย`, `Restored "${d.nameEN || d.nameTH}"`), 'ok');
+  }, [setDrugs, notify, L]);
+
+  const archiveDetected = useCallback(async () => {
+    const candidates = drugs.filter(d =>
+      !d.archived &&
+      d.orderCount === 0 &&
+      d.totalStock === 0 &&
+      (!d.lastOrdered || d.lastOrdered < TWO_YRS_AGO)
+    );
+    if (!candidates.length) { notify(L('ไม่พบสินค้าที่ตรงเกณฑ์', 'No inactive products found'), 'ok'); return; }
+    const updated = candidates.map(d => ({ ...d, archived: true }));
+    setDrugs(prev => {
+      const map = {}; updated.forEach(u => { map[u.code] = u; });
+      return prev.map(d => map[d.code] || d);
+    });
+    if (window.UNI_DB?.enabled) await window.UNI_DB.saveDrugsBulk(updated).catch(e => console.warn('[archive bulk]', e));
+    notify(L(`Archive ${updated.length} รายการ ✓`, `Archived ${updated.length} items ✓`), 'ok');
+  }, [drugs, TWO_YRS_AGO, setDrugs, notify, L]);
+
   const stockStatus = d => {
     const total = d.totalStock;
     if (total <= d.minStock) return 'err';
@@ -2981,7 +3020,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
         <div>
           <div className="page-title">{L('ฐานข้อมูลยา', 'Drug Database')}</div>
           <div className="page-subtitle" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-            <span>{L('แสดง', 'Showing')} {filtered.length.toLocaleString()} {L('จาก', 'of')} {drugs.length.toLocaleString()} {L('รายการ', 'items')}
+            <span>{L('แสดง', 'Showing')} {filtered.length.toLocaleString()} {L('จาก', 'of')} {(drugs.length - archivedCount).toLocaleString()} {L('รายการ', 'items')}
             {branchFilter && ` · ${lang === 'th' ? (DB.BRANCHES.find(b=>b.id===branchFilter)||{}).name : (DB.BRANCHES.find(b=>b.id===branchFilter)||{}).nameEN}`}</span>
             {cwSyncedAt && (
               <span onClick={refreshCw} title={L('คลิกเพื่อรีเฟรชข้อมูล CW ล่าสุด','Click to refresh CW data')} style={{ fontSize:11, background:'var(--ok-bg)', color:'var(--ok)', borderRadius:99, padding:'1px 9px', fontWeight:500, cursor:'pointer' }}>
@@ -3020,13 +3059,14 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       {/* TAB BAR */}
       <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:0}}>
         {[
-          {key:'all',  label:L('สินค้าทั้งหมด','All Products'), icon:'💊'},
-          {key:'unused',label:L('ยังไม่มี PO','No PO Yet'),   icon:'📋'},
+          {key:'all',      label:L('สินค้าทั้งหมด','All Products'), icon:'💊'},
+          {key:'unused',   label:L('ยังไม่มี PO','No PO Yet'),      icon:'📋'},
+          {key:'archived', label:L(`🗄️ ไม่ใช้งาน${archivedCount?' ('+archivedCount+')':''}`,`🗄️ Archived${archivedCount?' ('+archivedCount+')':''}`), icon:''},
         ].map(({key,label,icon})=>(
           <button key={key} onClick={()=>setActiveTab(key)}
             style={{padding:'6px 14px',border:'none',background:'none',cursor:'pointer',fontWeight:activeTab===key?700:400,
-              color:activeTab===key?'var(--acc2)':'var(--txt3)',
-              borderBottom:activeTab===key?'2px solid var(--acc2)':'2px solid transparent',
+              color:activeTab===key?(key==='archived'?'var(--warn)':'var(--acc2)'):'var(--txt3)',
+              borderBottom:activeTab===key?`2px solid ${key==='archived'?'var(--warn)':'var(--acc2)'}`:'2px solid transparent',
               marginBottom:-2,fontSize:13}}>
             {icon} {label}
           </button>
@@ -3081,6 +3121,13 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
               ✕ {L('ล้าง', 'Clear')}
             </button>
           )}
+          {perm.canWrite && (
+            <button className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', color:'var(--warn)', borderColor:'rgba(245,158,11,.3)', whiteSpace:'nowrap' }}
+              onClick={archiveDetected}
+              title={L('ตรวจหาสินค้า orderCount=0 & stock=0 แล้ว Archive ทันที','Detect inactive drugs (orderCount=0 & stock=0) and archive them')}>
+              🔍 {L('ตรวจหาไม่ใช้งาน', 'Detect Inactive')}
+            </button>
+          )}
         </div>
       </div>
       )}
@@ -3117,6 +3164,68 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
       {activeTab === 'unused' && (
         <div className="card" style={{padding:16}}>
           <UnusedDrugsPanel lang={lang} L={L} drugs={drugs} onEdit={d=>{setEditDrug(d);setShowAdd(false);}} />
+        </div>
+      )}
+
+      {/* ARCHIVED PANEL */}
+      {activeTab === 'archived' && (
+        <div className="card" style={{ padding:0, overflow:'hidden' }}>
+          <div style={{ padding:'12px 16px', background:'var(--bg3)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+            <div>
+              <span style={{ fontSize:13, fontWeight:700, color:'var(--warn)' }}>🗄️ {L('สินค้าไม่ใช้งาน','Archived Items')}</span>
+              <span style={{ fontSize:11, color:'var(--txt3)', marginLeft:8 }}>{L('ไม่แสดงในตารางหลักและไม่นับในสถิติ','Hidden from main table and excluded from all stats')}</span>
+            </div>
+            {perm.canWrite && (
+              <button className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', color:'var(--warn)', borderColor:'rgba(245,158,11,.3)' }}
+                onClick={archiveDetected}>
+                🔍 {L('ตรวจหาเพิ่มเติม','Detect More')}
+              </button>
+            )}
+          </div>
+          {drugs.filter(d => d.archived).length === 0 ? (
+            <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--txt3)', fontSize:13 }}>
+              {L('ยังไม่มีสินค้าใน Archive — กด "🔍 ตรวจหาไม่ใช้งาน" เพื่อเริ่มต้น','No archived items yet — click "🔍 Detect Inactive" to start')}
+            </div>
+          ) : (
+            <div className="tbl-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{L('รหัส','Code')}</th>
+                    <th>{L('ชื่อยา','Drug Name')}</th>
+                    <th>{L('หมวดหมู่','Category')}</th>
+                    <th style={{textAlign:'center'}}>{L('สั่งซื้อล่าสุด','Last Order')}</th>
+                    <th style={{textAlign:'center'}}>{L('คืนค่า','Restore')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drugs.filter(d => d.archived).map(d => {
+                    const cat = cats.find(c=>c.id===d.catId)||{name:d.catId||'—',nameEN:d.catId||'—',color:'#94a3b8'};
+                    return (
+                      <tr key={d.code}>
+                        <td><span style={{ fontSize:12, fontFamily:'monospace', color:'var(--warn)', fontWeight:700 }}>{d.code}</span></td>
+                        <td>
+                          <div style={{ fontWeight:600, fontSize:12 }}>{lang==='th'?d.nameTH:(d.nameEN||d.nameTH)}</div>
+                          <div style={{ fontSize:10, color:'var(--txt3)' }}>{lang==='th'?(d.nameEN||''):d.nameTH}</div>
+                        </td>
+                        <td><span style={{ fontSize:11, color:cat.color, fontWeight:600 }}>{lang==='th'?cat.name:cat.nameEN}</span></td>
+                        <td style={{ textAlign:'center', fontSize:11, color:'var(--txt3)' }}>
+                          {d.lastOrdered ? UTILS.fmtDate(d.lastOrdered, lang) : L('ไม่มีข้อมูล','—')}
+                        </td>
+                        <td style={{ textAlign:'center' }}>
+                          {perm.canWrite && (
+                            <button className="btn btn-ghost btn-xs" onClick={() => restoreDrug(d)}>
+                              ↩ {L('Restore','Restore')}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -3260,9 +3369,14 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
                       </td>
                       <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                         {perm.canWrite ? (
-                        <button className="btn btn-ghost btn-xs" onClick={() => setEditDrug(d)}>
-                          ✏ {L('แก้ไข', 'Edit')}
-                        </button>
+                        <div style={{ display:'flex', gap:3, justifyContent:'center' }}>
+                          <button className="btn btn-ghost btn-xs" onClick={() => setEditDrug(d)}>
+                            ✏ {L('แก้ไข', 'Edit')}
+                          </button>
+                          <button className="btn btn-ghost btn-xs" style={{ color:'var(--txt3)', fontSize:11 }}
+                            title={L('Archive — ซ่อนสินค้าไม่ใช้งาน','Archive — hide inactive item')}
+                            onClick={() => archiveDrug(d)}>🗄️</button>
+                        </div>
                         ) : <span className="text-muted" style={{ fontSize: 11 }}>—</span>}
                       </td>
                     </tr>
@@ -6619,7 +6733,7 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
     return list;
   }, [drugs, search, catFilter, statusFilter, branchFilter]);
 
-  const lowCount = drugs.filter(d => Object.values(d.stock).some(v => v <= d.minStock)).length;
+  const lowCount = drugs.filter(d => !d.archived && Object.values(d.stock).some(v => v <= d.minStock)).length;
   const warnCount = drugs.filter(d => Object.entries(d.stock).some(([, v]) => v > drugs.find(x=>x.code===d.code)?.minStock && v <= drugs.find(x=>x.code===d.code)?.minStock * 2)).length;
   const pageData = filtered.slice((page - 1) * PER, page * PER);
 
@@ -6640,7 +6754,7 @@ function StockPage({ lang, L, drugs, orders, setPage, setShowCreate }) {
       {/* Summary Cards */}
       <div className="stat-grid" style={{ marginBottom: 20 }}>
         {DB.BRANCHES.map(br => {
-          const brLow = drugs.filter(d => d.stock[br.id] <= d.minStock).length;
+          const brLow = drugs.filter(d => !d.archived && d.stock[br.id] <= d.minStock).length;
           const brTotal = drugs.reduce((s, d) => s + d.stock[br.id], 0);
           const brValue = drugs.reduce((s, d) => s + d.costEx * d.stock[br.id], 0);
           return (
@@ -10211,7 +10325,7 @@ function App() {
     { id: 'sync', icon: '🔄', th: 'ซิงค์ข้อมูล', en: 'Data Sync', adminOnly: true },
   ];
 
-  const lowStockCount = useMemo(() => drugs.filter(d => Object.values(d.stock || {}).some(v => v <= d.minStock)).length, [drugs]);
+  const lowStockCount = useMemo(() => drugs.filter(d => !d.archived && Object.values(d.stock || {}).some(v => v <= d.minStock)).length, [drugs]);
   const pendingCount = useMemo(() => orders.filter(o => o.status === 'pending').length, [orders]);
 
   // Let the mouse wheel scroll the horizontal top-nav (non-passive so we can
