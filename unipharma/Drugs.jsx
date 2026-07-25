@@ -641,7 +641,6 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
   const archiveDetected = useCallback(async () => {
     const candidates = drugs.filter(d =>
       !d.archived &&
-      d.orderCount === 0 &&
       d.totalStock === 0 &&
       (!d.lastOrdered || d.lastOrdered < TWO_YRS_AGO)
     );
@@ -779,7 +778,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
           {perm.canWrite && (
             <button className="btn btn-ghost btn-sm" style={{ marginLeft:'auto', color:'var(--warn)', borderColor:'rgba(245,158,11,.3)', whiteSpace:'nowrap' }}
               onClick={archiveDetected}
-              title={L('ตรวจหาสินค้า orderCount=0 & stock=0 แล้ว Archive ทันที','Detect inactive drugs (orderCount=0 & stock=0) and archive them')}>
+              title={L('ตรวจหาสินค้าที่ stock=0 และไม่มีการสั่งซื้อในช่วง 2 ปี แล้ว Archive ทันที','Detect drugs with stock=0 and no orders in 2 years, then archive them')}>
               🔍 {L('ตรวจหาไม่ใช้งาน', 'Detect Inactive')}
             </button>
           )}
