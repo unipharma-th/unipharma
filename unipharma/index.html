@@ -203,6 +203,8 @@ select.input{cursor:pointer}
   .po-print-wrap{display:block!important}
 }
 .po-doc{width:210mm;min-height:297mm;background:#fff;color:#111;font-family:'Noto Sans Thai','Inter',sans-serif;font-size:10pt;padding:14mm;box-shadow:var(--shadow2)}
+.po-doc td,.po-doc th{color:#111!important}
+.po-doc *{color:inherit}
 
 /* Pagination */
 .pagination{display:flex;align-items:center;gap:6px;margin-top:14px;justify-content:flex-end}
@@ -281,7 +283,7 @@ select.input{cursor:pointer}
   preloadAsync('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
   preloadAsync('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
 
-  var v = '20260727c';
+  var v = '20260727d';
   function loadFallback() {
     function loadJS(src, type) {
       var el = document.createElement('script');
