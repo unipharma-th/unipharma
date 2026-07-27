@@ -616,12 +616,6 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
     notify(L(`เปิดแก้ไขสินค้ารหัส ${matchedDrug.code}`, `Editing existing product ${matchedDrug.code}`));
   }, [notify, L]);
 
-  // Threshold for "no order in 2 years": today minus 730 days
-  const TWO_YRS_AGO = useMemo(() => {
-    const d = new Date(); d.setFullYear(d.getFullYear() - 2);
-    return d.toISOString().split('T')[0];
-  }, []);
-
   const archivedCount = useMemo(() => drugs.filter(d => d.archived).length, [drugs]);
 
   const archiveDrug = useCallback(async d => {
@@ -651,7 +645,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
     });
     if (window.UNI_DB?.enabled) await window.UNI_DB.saveDrugsBulk(updated).catch(e => console.warn('[archive bulk]', e));
     notify(L(`Archive ${updated.length} รายการ ✓`, `Archived ${updated.length} items ✓`), 'ok');
-  }, [drugs, TWO_YRS_AGO, setDrugs, notify, L]);
+  }, [drugs, setDrugs, notify, L]);
 
   const stockStatus = d => {
     const total = d.totalStock;
