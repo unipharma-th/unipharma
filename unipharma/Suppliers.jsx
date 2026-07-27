@@ -7,19 +7,35 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
   const [showAdd, setShowAdd] = useState(false);
   const [viewSup, setViewSup] = useState(null);
   const [confirmSupId, setConfirmSupId] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const [creditFilter, setCreditFilter] = useState(null); // null | 30 | 45 | 60
+  const [hasRepFilter, setHasRepFilter] = useState(false);
+  const [sortBy, setSortBy] = useState('name');
+
+  const getSupStats = sup => {
+    const supOrders = orders.filter(o => o.supplierId === sup.id && o.status !== 'cancelled');
+    return { orderCount: supOrders.length, totalSpend: supOrders.reduce((s, o) => s + (o.grandTotal || 0), 0) };
+  };
 
   const filtered = useMemo(() => {
     const natCmp = new Intl.Collator(lang === 'th' ? 'th' : 'en', { sensitivity: 'base' });
     let list = suppliers;
     if (search) {
       const q = search.toLowerCase();
-      list = suppliers.filter(s => s.name.toLowerCase().includes(q) || s.nameEN.toLowerCase().includes(q) || (s.contact||'').toLowerCase().includes(q) || (s.contacts||[]).some(c=>(c.name||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q)));
+      list = list.filter(s => s.name.toLowerCase().includes(q) || s.nameEN.toLowerCase().includes(q) || (s.contact||'').toLowerCase().includes(q) || (s.contacts||[]).some(c=>(c.name||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q)));
     }
-    return [...list].sort((a, b) => natCmp.compare(
-      lang === 'th' ? (a.name || '') : (a.nameEN || a.name || ''),
-      lang === 'th' ? (b.name || '') : (b.nameEN || b.name || '')
-    ));
-  }, [suppliers, search, lang]);
+    if (creditFilter === 30) list = list.filter(s => (s.creditTerm||0) <= 30);
+    else if (creditFilter === 45) list = list.filter(s => (s.creditTerm||0) === 45);
+    else if (creditFilter === 60) list = list.filter(s => (s.creditTerm||0) >= 60);
+    if (hasRepFilter) list = list.filter(s => (s.reps||[]).some(r => r.name));
+    return [...list].sort((a, b) => {
+      if (sortBy === 'spend') return getSupStats(b).totalSpend - getSupStats(a).totalSpend;
+      if (sortBy === 'orders') return getSupStats(b).orderCount - getSupStats(a).orderCount;
+      if (sortBy === 'rating') return (b.rating||0) - (a.rating||0);
+      if (sortBy === 'drugs') return (b.drugs?.length||0) - (a.drugs?.length||0);
+      return natCmp.compare(lang==='th'?(a.name||''):(a.nameEN||a.name||''), lang==='th'?(b.name||''):(b.nameEN||b.name||''));
+    });
+  }, [suppliers, search, lang, creditFilter, hasRepFilter, sortBy, orders]);
 
   const exportSuppliers = () => {
     if (!window.XLSX) { notify(L('กำลังโหลด SheetJS กรุณารอสักครู่', 'Loading SheetJS, please wait'), 'warn'); return; }
@@ -49,18 +65,13 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
     notify(L(`Export ${filtered.length} รายการ ✓`, `Exported ${filtered.length} items ✓`), 'ok');
   };
 
-  const getSupStats = sup => {
-    const supOrders = orders.filter(o => o.supplierId === sup.id && o.status !== 'cancelled');
-    const totalSpend = supOrders.reduce((s, o) => s + (o.grandTotal || 0), 0);
-    return { orderCount: supOrders.length, totalSpend };
-  };
-
   const deleteSup = id => {
     setSuppliers(prev => prev.filter(s => s.id !== id));
     if (window.UNI_DB?.enabled) window.UNI_DB.deleteSupplier(id).catch(() => {});
     notify(L('ลบผู้จัดจำหน่ายแล้ว', 'Supplier deleted'), 'warn');
     setConfirmSupId(null);
     if (viewSup?.id === id) setViewSup(null);
+    if (openId === id) setOpenId(null);
   };
 
   const saveSup = saved => {
@@ -76,93 +87,194 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
 
   const showForm = showAdd || !!editSup;
 
+  const AVATAR_COLORS = ['#1177cc','#0f6e56','#854f0b','#534ab7','#a32d2d','#185fa5','#3b6d11','#6b3fa0','#1a6b3c','#8b4513','#2e5b8a','#5a5a58'];
+  const getInitials = name => {
+    const clean = (name||'').replace(/^D-/,'').trim();
+    const words = clean.split(/[\s\(\[]/);
+    return ((words[0]?.slice(0,1)||'')+(words[1]?.slice(0,1)||words[0]?.slice(1,2)||'')).toUpperCase();
+  };
+  const fmtSpend = n => n>=1e6?'฿'+(n/1e6).toFixed(1)+'M':n>=1000?'฿'+(n/1000).toFixed(0)+'K':'฿'+n;
+
+  const CreditChip = ({ term }) => {
+    if (!term) return null;
+    const [bg, clr] = term<=30 ? ['var(--ok-bg)','var(--ok)'] : term<=45 ? ['rgba(234,179,8,.12)','var(--warn)'] : ['var(--err-bg)','var(--err)'];
+    return <span style={{ display:'inline-flex', alignItems:'center', fontSize:10, padding:'2px 8px', borderRadius:20, fontWeight:500, background:bg, color:clr, whiteSpace:'nowrap' }}>{term}{L('วัน','d')}</span>;
+  };
+
+  const hasFilters = creditFilter || hasRepFilter || search;
+
   return (
     <div className="page">
       <div className="sticky-bar">
         <div className="page-header">
           <div>
-            <div className="page-title">{L('ผู้จัดจำหน่าย', 'Suppliers')}</div>
-            <div className="page-subtitle">{filtered.length} {L('ราย', 'suppliers')}</div>
+            <div className="page-title">{L('ผู้จัดจำหน่าย','Suppliers')}</div>
+            <div className="page-subtitle">{filtered.length}{L(' ราย',' suppliers')}</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel', 'Export Excel')}</button>}
-            {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย', 'Add Supplier')}</button>}
+          <div style={{ display:'flex', gap:8 }}>
+            {perm.canWrite && <button className="btn btn-ghost" onClick={exportSuppliers}>📥 {L('Export Excel','Export Excel')}</button>}
+            {perm.canWrite && <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ {L('เพิ่มผู้จัดจำหน่าย','Add Supplier')}</button>}
           </div>
         </div>
-        <div style={{ maxWidth: 360 }}>
-          <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…', 'Search supplier…')} />
+
+        {/* Filter bar */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', paddingBottom:4 }}>
+          <div style={{ flex:'1 1 200px', maxWidth:360 }}>
+            <SearchInput value={search} onChange={setSearch} placeholder={L('ค้นหาผู้จัดจำหน่าย…','Search supplier…')} />
+          </div>
+          <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, color:'var(--txt3)', fontWeight:500 }}>{L('เครดิต:','Credit:')}</span>
+            {[30,45,60].map(d => {
+              const on = creditFilter === d;
+              return (
+                <button key={d} onClick={() => setCreditFilter(on ? null : d)}
+                  style={{ borderRadius:20, padding:'4px 11px', fontSize:11, border:`1px solid ${on?'var(--acc2)':'var(--bdr)'}`, background:on?'var(--acc-bg)':'transparent', color:on?'var(--acc2)':'var(--txt3)', fontWeight:on?600:400, cursor:'pointer', transition:'.15s' }}>
+                  {d}{d===60?'+':''}{L('วัน','d')}
+                </button>
+              );
+            })}
+            <button onClick={() => setHasRepFilter(!hasRepFilter)}
+              style={{ borderRadius:20, padding:'4px 11px', fontSize:11, border:`1px solid ${hasRepFilter?'var(--ok)':'var(--bdr)'}`, background:hasRepFilter?'var(--ok-bg)':'transparent', color:hasRepFilter?'var(--ok)':'var(--txt3)', fontWeight:hasRepFilter?600:400, cursor:'pointer', transition:'.15s' }}>
+              {L('มี Rep','Has Rep')}
+            </button>
+            <div style={{ width:1, height:20, background:'var(--bdr)', margin:'0 2px' }} />
+            <span style={{ fontSize:11, color:'var(--txt3)' }}>{L('เรียง:','Sort:')}</span>
+            <select style={{ padding:'4px 8px', fontSize:11, border:'1px solid var(--bdr)', borderRadius:6, background:'var(--card2)', color:'var(--txt)', cursor:'pointer', outline:'none' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="name">{L('ชื่อ A-Z','Name A-Z')}</option>
+              <option value="spend">{L('ยอดรวม ↓','Spend ↓')}</option>
+              <option value="orders">Orders ↓</option>
+              <option value="rating">Rating ↓</option>
+              <option value="drugs">{L('รายการยา ↓','Products ↓')}</option>
+            </select>
+            {hasFilters && (
+              <button onClick={() => { setSearch(''); setCreditFilter(null); setHasRepFilter(false); }}
+                style={{ fontSize:11, padding:'4px 10px', border:'1px solid var(--bdr)', borderRadius:6, background:'transparent', color:'var(--txt3)', cursor:'pointer' }}>
+                ✕ {L('ล้าง','Clear')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
-        {filtered.map(sup => {
+      {/* Accordion list */}
+      <div style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+        {filtered.length === 0 && (
+          <div style={{ textAlign:'center', padding:'48px 24px', color:'var(--txt4)', fontSize:14 }}>
+            🔍 {L('ไม่พบข้อมูลที่ค้นหา','No results found')}
+          </div>
+        )}
+        {filtered.map((sup, idx) => {
           const stats = getSupStats(sup);
+          const isOpen = openId === sup.id;
+          const displayName = lang==='th' ? (sup.name||'') : (sup.nameEN||sup.name||'');
+          const primaryContact = (sup.contacts||[]).find(c=>c.name||c.phone) || { name:sup.contact, phone:sup.phone };
+          const initials = getInitials(displayName);
+          const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+
           return (
-            <div key={sup.id} className="card" style={{ cursor: 'pointer' }} onClick={() => setViewSup(sup)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--txt)', marginBottom: 2 }} className="ellipsis">{lang==='th'?sup.name:(sup.nameEN||sup.name)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--txt3)' }} className="ellipsis">{lang==='th'?(sup.nameEN||''):sup.name}</div>
+            <div key={sup.id} style={{ borderBottom: idx < filtered.length-1 ? '1px solid var(--bdr)' : 'none' }}>
+              {/* Row header */}
+              <div role="button"
+                onClick={() => setOpenId(isOpen ? null : sup.id)}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', cursor:'pointer', userSelect:'none', background:isOpen?'var(--acc-bg)':'', transition:'background .1s' }}
+                onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background='var(--card2)'; }}
+                onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background=''; }}>
+                {/* Avatar */}
+                <div style={{ width:38, height:38, borderRadius:9, background:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0, letterSpacing:.5 }}>
+                  {initials}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 8 }} onClick={e => e.stopPropagation()}>
-                  {perm.canWrite && <button className="btn btn-ghost btn-xs" onClick={() => setEditSup(sup)}>✏</button>}
-                  {perm.canWrite && <button className="btn btn-primary btn-xs" onClick={() => { setShowCreate && setShowCreate(true); }}>+ PO</button>}
-                  {perm.canDelete && <button className="btn btn-xs" style={{ background: 'var(--err-bg)', color: 'var(--err)', border: '1px solid var(--err)' }} onClick={() => setConfirmSupId(sup.id)}>🗑</button>}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                {[
-                  [L('ผู้ติดต่อ', 'Contact'), sup.contact],
-                  [L('โทร', 'Phone'), sup.phone],
-                  [L('เครดิต', 'Credit'), `${sup.creditTerm} ${L('วัน', 'days')}`],
-                  [L('ระยะส่ง', 'Delivery'), `${sup.deliveryDays} ${L('วัน', 'days')}`],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <div style={{ fontSize: 10, color: 'var(--txt4)' }}>{k}</div>
-                    <div style={{ fontSize: 12, color: 'var(--txt)', fontWeight: 500 }}>{v}</div>
+                {/* Name */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:13, color:'var(--txt)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayName}</div>
+                  <div style={{ fontSize:11, color:'var(--txt3)', marginTop:1 }}>
+                    {sup.id}{primaryContact?.phone?' · '+primaryContact.phone:''}{sup.deliveryDays?' · '+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d'):''}
                   </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <div className="card-sm" style={{ flex: 1, textAlign: 'center', padding: '8px 4px' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--acc2)' }}>{stats.orderCount}</div>
-                  <div style={{ fontSize: 10, color: 'var(--txt3)' }}>{L('ใบสั่งซื้อ', 'Orders')}</div>
                 </div>
-                <div className="card-sm" style={{ flex: 2, textAlign: 'center', padding: '8px 4px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ok)' }}>฿{(stats.totalSpend / 1000).toFixed(0)}K</div>
-                  <div style={{ fontSize: 10, color: 'var(--txt3)' }}>{L('ยอดรวม', 'Total Spend')}</div>
-                </div>
-                <div className="card-sm" style={{ flex: 1, textAlign: 'center', padding: '8px 4px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--warn)' }}>{sup.rating}</div>
-                  <div style={{ fontSize: 10, color: 'var(--txt3)' }}>★ {L('คะแนน', 'Rating')}</div>
-                </div>
-              </div>
-
-              {sup.promotions?.length > 0 && (
-                <div style={{ marginBottom: sup.returnPolicy ? 6 : 0 }}>
-                  <div style={{ fontSize: 10, color: 'var(--txt4)', marginBottom: 4, fontWeight: 600 }}>🎁 {L('โปรโมชั่น', 'Promotions')}</div>
-                  {sup.promotions.map(p => (
-                    <div key={p.id} style={{ fontSize: 11, color: 'var(--ok)', background: 'var(--ok-bg)', borderRadius: 4, padding: '3px 8px', marginBottom: 3 }}>
-                      {lang==='th'?`ซื้อ ${p.buyQty||0} แถม ${p.freeQty||0}`:
-                       `Buy ${p.buyQty||0} → Free ${p.freeQty||0}`}
-                      {p.discount>0 && ` · ${p.discount}%`}
-                      {p.dealNote && ` (${p.dealNote})`}
+                {/* Metrics */}
+                <div style={{ display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+                  <CreditChip term={sup.creditTerm} />
+                  <div style={{ textAlign:'right', minWidth:38 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--ok)', fontVariantNumeric:'tabular-nums' }}>{sup.drugs?.length||0}</div>
+                    <div style={{ fontSize:10, color:'var(--txt3)' }}>{L('สินค้า','items')}</div>
+                  </div>
+                  <div style={{ textAlign:'right', minWidth:34 }}>
+                    <div style={{ fontSize:13, fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{stats.orderCount}</div>
+                    <div style={{ fontSize:10, color:'var(--txt3)' }}>Orders</div>
+                  </div>
+                  <div style={{ textAlign:'right', minWidth:60 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--acc2)', fontVariantNumeric:'tabular-nums' }}>{fmtSpend(stats.totalSpend)}</div>
+                    <div style={{ fontSize:10, color:'var(--txt3)' }}>{L('ยอดรวม','Spend')}</div>
+                  </div>
+                  {sup.rating ? (
+                    <div style={{ textAlign:'center', minWidth:28 }}>
+                      <div style={{ fontSize:12, color:'#e9a820', fontVariantNumeric:'tabular-nums' }}>{sup.rating}</div>
+                      <div style={{ fontSize:10, color:'var(--txt3)' }}>★</div>
                     </div>
-                  ))}
+                  ) : null}
                 </div>
-              )}
-              {(sup.returnPolicy || sup.returnPolicyEN) && (
-                <div style={{ fontSize: 11, color: 'var(--txt3)', background: 'var(--card2)', borderRadius: 6, padding: '5px 8px' }}>
-                  <span style={{ color: 'var(--txt4)', marginRight: 4 }}>↩</span>{lang==='en' ? (sup.returnPolicyEN || sup.returnPolicy) : (sup.returnPolicy || sup.returnPolicyEN)}
-                </div>
-              )}
-              {(sup.drugs?.length > 0) && (
-                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'var(--card2)', borderRadius: 6 }}>
-                  <span style={{ fontSize: 13 }}>📦</span>
-                  <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--txt2)' }}>{sup.drugs.length.toLocaleString()} {L('รายการสินค้า', 'Products')}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 10, background: 'var(--ok-bg)', color: 'var(--ok)', padding: '1px 7px', borderRadius: 10, fontWeight: 600 }}>{L('ใหม่', 'New')}</span>
+                {/* Chevron */}
+                <div style={{ color:isOpen?'var(--acc2)':'var(--txt3)', fontSize:11, flexShrink:0, width:16, textAlign:'center', transition:'transform .2s', transform:isOpen?'rotate(90deg)':'none' }}>▶</div>
+              </div>
+
+              {/* Expanded body */}
+              {isOpen && (
+                <div style={{ borderTop:'1px solid var(--border)', background:'var(--acc-bg)', padding:'16px 16px 16px 66px' }}>
+                  {/* KPI row */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
+                    {[[L('ใบสั่งซื้อ','Orders'), stats.orderCount, 'var(--txt)'], [L('ยอดรวม','Total Spend'), fmtSpend(stats.totalSpend), 'var(--acc2)'], [L('รายการสินค้า','Products'), sup.drugs?.length||0, 'var(--ok)']].map(([lbl,val,clr]) => (
+                      <div key={lbl} style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>
+                        <div style={{ fontSize:20, fontWeight:700, color:clr, fontVariantNumeric:'tabular-nums' }}>{val}</div>
+                        <div style={{ fontSize:10, color:'var(--txt3)', marginTop:3 }}>{lbl}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Info grid */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 20px', background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:8, padding:'4px 12px', marginBottom:12 }}>
+                    {[['Tax ID', sup.taxId], [L('โทรศัพท์','Phone'), primaryContact?.phone], [L('เครดิต','Credit'), sup.creditTerm?`${sup.creditTerm} ${L('วัน','days')}`:null], [L('ระยะส่ง','Lead time'), sup.deliveryDays?`${sup.deliveryDays} ${L('วัน','days')}`:null], [L('ที่อยู่','Address'), [sup.address,sup.city,sup.province].filter(Boolean).join(', ')||null], [L('อีเมล','Email'), sup.email], [L('หมายเหตุ','Notes'), sup.notes]].filter(([,v])=>v).map(([lbl,val]) => (
+                      <div key={lbl} style={{ display:'flex', alignItems:'baseline', gap:8, padding:'6px 0', borderBottom:'1px solid var(--border)' }}>
+                        <span style={{ fontSize:11, color:'var(--txt3)', minWidth:64, flexShrink:0 }}>{lbl}</span>
+                        <span style={{ fontSize:12, color:'var(--txt)' }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* First rep */}
+                  {(sup.reps||[]).length > 0 && (
+                    <div style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:8, padding:'10px 12px', marginBottom:12, display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--acc-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--acc2)', flexShrink:0 }}>
+                        {(sup.reps[0].name||'R').replace(/คุณ/,'').trim().slice(0,2)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:12, fontWeight:500 }}>{sup.reps[0].name}{sup.reps[0].brand?` (${sup.reps[0].brand})`:''}</div>
+                        {sup.reps[0].phone && <div style={{ fontSize:11, color:'var(--txt3)', marginTop:1 }}>📞 {sup.reps[0].phone}</div>}
+                        {sup.reps.length > 1 && <div style={{ fontSize:10, color:'var(--txt4)', marginTop:1 }}>+{sup.reps.length-1} {L('คนเพิ่มเติม','more reps')}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Promotions */}
+                  {sup.promotions?.length > 0 && (
+                    <div style={{ marginBottom:12, padding:'8px 12px', background:'var(--ok-bg)', border:'1px solid rgba(52,211,153,.25)', borderRadius:8 }}>
+                      <div style={{ fontSize:10, fontWeight:600, color:'var(--ok)', marginBottom:3 }}>🎁 {L('โปรโมชั่น','Promotions')} ({sup.promotions.length})</div>
+                      {sup.promotions.slice(0,2).map(p => (
+                        <div key={p.id} style={{ fontSize:11, color:'var(--ok)' }}>
+                          {lang==='th'?`ซื้อ ${p.buyQty||0} แถม ${p.freeQty||0}`:`Buy ${p.buyQty||0} → Free ${p.freeQty||0}`}{p.discount>0?` · ${p.discount}%`:''}{p.dealNote?` (${p.dealNote})`:''}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div style={{ display:'flex', gap:8 }} onClick={e => e.stopPropagation()}>
+                    {perm.canWrite && <button className="btn btn-primary" style={{ fontSize:12, padding:'7px 16px' }} onClick={() => setShowCreate && setShowCreate(true)}>+ PO</button>}
+                    {perm.canWrite && <button className="btn btn-ghost" style={{ fontSize:12, padding:'7px 14px' }} onClick={() => setEditSup(sup)}>✏ {L('แก้ไข','Edit')}</button>}
+                    <button className="btn btn-ghost" style={{ fontSize:12, padding:'7px 14px' }} onClick={() => setViewSup(sup)}>📋 {L('ประวัติ / ดีล','History / Deals')}</button>
+                    {perm.canDelete && (
+                      <button style={{ fontSize:12, padding:'7px 14px', borderRadius:6, border:'1px solid var(--err)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer' }}
+                        onClick={() => setConfirmSupId(sup.id)}>🗑 {L('ลบ','Delete')}</button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -171,11 +283,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
       </div>
 
       {viewSup && <SupplierDetail sup={viewSup} lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} orders={orders} onClose={() => setViewSup(null)} onEdit={() => { setEditSup(viewSup); setViewSup(null); }} />}
-
-      {showForm && (
-        <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} suppliers={suppliers} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />
-      )}
-
+      {showForm && <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} suppliers={suppliers} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />}
       {confirmSupId && (() => {
         const sup = suppliers.find(s => s.id === confirmSupId);
         const orderCount = orders.filter(o => o.supplierId === confirmSupId).length;
