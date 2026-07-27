@@ -650,13 +650,28 @@
     },
 
     async uploadDrugImage(file, drugCode) {
-      if (!enabled) throw new Error('Supabase not configured');
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const path = 'drugs/' + (drugCode || 'misc') + '_' + Date.now() + '.' + ext;
-      const { error } = await client.storage.from('drug-images').upload(path, file, { upsert: true, contentType: file.type });
-      if (error) throw error;
-      const { data: pub } = client.storage.from('drug-images').getPublicUrl(path);
-      return pub.publicUrl;
+      // Compress + resize to base64 via canvas — no Storage bucket needed
+      return new Promise((resolve, reject) => {
+        const MAX = 400; // max width/height px
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          try {
+            let w = img.naturalWidth, h = img.naturalHeight;
+            if (w > MAX || h > MAX) {
+              if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+              else        { w = Math.round(w * MAX / h); h = MAX; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/jpeg', 0.78));
+          } catch(e) { reject(e); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('ไม่สามารถโหลดรูปได้')); };
+        img.src = url;
+      });
     },
 
     _client: client,

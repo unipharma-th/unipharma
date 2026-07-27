@@ -1851,7 +1851,6 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
           const handleImgFile = async e => {
             const file = e.target.files[0];
             if (!file) return;
-            if (!window.UNI_DB?.enabled) { setImgErr(L('ต้องเชื่อมต่อ Supabase ก่อน','Supabase not connected')); return; }
             setImgUploading(true); setImgErr('');
             try {
               const url = await window.UNI_DB.uploadDrugImage(file, form.code);
