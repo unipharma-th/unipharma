@@ -176,89 +176,94 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
               {/* Row header */}
               <div role="button"
                 onClick={() => setOpenId(isOpen ? null : sup.id)}
-                style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', cursor:'pointer', userSelect:'none', background:isOpen?'var(--acc-bg)':'', transition:'background .1s' }}
-                onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background='var(--card2)'; }}
-                onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background=''; }}>
+                style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 20px 14px 0', cursor:'pointer', userSelect:'none',
+                         borderLeft: isOpen ? '3px solid var(--acc2)' : '3px solid transparent',
+                         paddingLeft: isOpen ? 17 : 17,
+                         background:isOpen ? 'var(--acc-bg)' : '', transition:'background .12s, border-color .12s' }}
+                onMouseEnter={e => { if (!isOpen) { e.currentTarget.style.background='var(--card2)'; e.currentTarget.style.borderLeftColor='var(--bdr)'; }}}
+                onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.background=''; e.currentTarget.style.borderLeftColor='transparent'; }}}>
                 {/* Avatar */}
-                <div style={{ width:38, height:38, borderRadius:9, background:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0, letterSpacing:.5 }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#fff', flexShrink:0, letterSpacing:.5, boxShadow:'0 2px 6px rgba(0,0,0,.2)' }}>
                   {initials}
                 </div>
-                {/* Name */}
+                {/* Name + sub */}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:600, fontSize:13, color:'var(--txt)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayName}</div>
-                  <div style={{ fontSize:11, color:'var(--txt3)', marginTop:1 }}>
-                    {sup.id}{primaryContact?.phone?' · '+primaryContact.phone:''}{sup.deliveryDays?' · '+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d'):''}
+                  <div style={{ fontWeight:700, fontSize:14, color:'var(--txt)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', lineHeight:1.3 }}>{displayName}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:3, flexWrap:'nowrap', overflow:'hidden' }}>
+                    <span style={{ fontSize:12, color:'var(--txt2)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {sup.id}{primaryContact?.phone ? ' · '+primaryContact.phone : ''}{sup.deliveryDays ? ' · '+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d') : ''}
+                    </span>
+                    <CreditChip term={sup.creditTerm} />
                   </div>
                 </div>
                 {/* Metrics */}
-                <div style={{ display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-                  <CreditChip term={sup.creditTerm} />
-                  <div style={{ textAlign:'right', minWidth:38 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--ok)', fontVariantNumeric:'tabular-nums' }}>{sup.drugs?.length||0}</div>
-                    <div style={{ fontSize:10, color:'var(--txt3)' }}>{L('สินค้า','items')}</div>
+                <div style={{ display:'flex', alignItems:'center', gap:16, flexShrink:0 }}>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'var(--ok)', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{sup.drugs?.length||0}</div>
+                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop:1 }}>{L('สินค้า','items')}</div>
                   </div>
-                  <div style={{ textAlign:'right', minWidth:34 }}>
-                    <div style={{ fontSize:13, fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{stats.orderCount}</div>
-                    <div style={{ fontSize:10, color:'var(--txt3)' }}>Orders</div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'var(--txt)', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{stats.orderCount}</div>
+                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop:1 }}>Orders</div>
                   </div>
-                  <div style={{ textAlign:'right', minWidth:60 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--acc2)', fontVariantNumeric:'tabular-nums' }}>{fmtSpend(stats.totalSpend)}</div>
-                    <div style={{ fontSize:10, color:'var(--txt3)' }}>{L('ยอดรวม','Spend')}</div>
+                  <div style={{ textAlign:'right', minWidth:66 }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'var(--acc2)', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{fmtSpend(stats.totalSpend)}</div>
+                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop:1 }}>{L('ยอดรวม','Spend')}</div>
                   </div>
                   {sup.rating ? (
-                    <div style={{ textAlign:'center', minWidth:28 }}>
-                      <div style={{ fontSize:12, color:'#e9a820', fontVariantNumeric:'tabular-nums' }}>{sup.rating}</div>
-                      <div style={{ fontSize:10, color:'var(--txt3)' }}>★</div>
+                    <div style={{ textAlign:'center', minWidth:30 }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:'#e9a820', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{sup.rating}</div>
+                      <div style={{ fontSize:11, color:'#e9a820', marginTop:1 }}>★</div>
                     </div>
                   ) : null}
                 </div>
                 {/* Chevron */}
-                <div style={{ color:isOpen?'var(--acc2)':'var(--txt3)', fontSize:11, flexShrink:0, width:16, textAlign:'center', transition:'transform .2s', transform:isOpen?'rotate(90deg)':'none' }}>▶</div>
+                <div style={{ color:isOpen?'var(--acc2)':'var(--txt2)', fontSize:10, flexShrink:0, width:18, textAlign:'center', transition:'transform .2s', transform:isOpen?'rotate(90deg)':'none' }}>▶</div>
               </div>
 
               {/* Expanded body */}
               {isOpen && (
-                <div style={{ borderTop:'1px solid var(--border)', background:'var(--acc-bg)', padding:'16px 16px 16px 66px' }}>
+                <div style={{ borderTop:'1px solid var(--border)', background:'var(--acc-bg)', padding:'16px 20px 18px 74px' }}>
                   {/* KPI row */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
                     {[[L('ใบสั่งซื้อ','Orders'), stats.orderCount, 'var(--txt)'], [L('ยอดรวม','Total Spend'), fmtSpend(stats.totalSpend), 'var(--acc2)'], [L('รายการสินค้า','Products'), sup.drugs?.length||0, 'var(--ok)']].map(([lbl,val,clr]) => (
-                      <div key={lbl} style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:8, padding:'10px 12px', textAlign:'center' }}>
-                        <div style={{ fontSize:20, fontWeight:700, color:clr, fontVariantNumeric:'tabular-nums' }}>{val}</div>
-                        <div style={{ fontSize:10, color:'var(--txt3)', marginTop:3 }}>{lbl}</div>
+                      <div key={lbl} style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, padding:'12px 14px', textAlign:'center' }}>
+                        <div style={{ fontSize:22, fontWeight:800, color:clr, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{val}</div>
+                        <div style={{ fontSize:11, color:'var(--txt2)', marginTop:5 }}>{lbl}</div>
                       </div>
                     ))}
                   </div>
 
                   {/* Info grid */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 20px', background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:8, padding:'4px 12px', marginBottom:12 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 24px', background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, padding:'6px 14px', marginBottom:12 }}>
                     {[['Tax ID', sup.taxId], [L('โทรศัพท์','Phone'), primaryContact?.phone], [L('เครดิต','Credit'), sup.creditTerm?`${sup.creditTerm} ${L('วัน','days')}`:null], [L('ระยะส่ง','Lead time'), sup.deliveryDays?`${sup.deliveryDays} ${L('วัน','days')}`:null], [L('ที่อยู่','Address'), [sup.address,sup.city,sup.province].filter(Boolean).join(', ')||null], [L('อีเมล','Email'), sup.email], [L('หมายเหตุ','Notes'), sup.notes]].filter(([,v])=>v).map(([lbl,val]) => (
-                      <div key={lbl} style={{ display:'flex', alignItems:'baseline', gap:8, padding:'6px 0', borderBottom:'1px solid var(--border)' }}>
-                        <span style={{ fontSize:11, color:'var(--txt3)', minWidth:64, flexShrink:0 }}>{lbl}</span>
-                        <span style={{ fontSize:12, color:'var(--txt)' }}>{val}</span>
+                      <div key={lbl} style={{ display:'flex', alignItems:'baseline', gap:10, padding:'7px 0', borderBottom:'1px solid var(--border)' }}>
+                        <span style={{ fontSize:11, color:'var(--txt3)', minWidth:68, flexShrink:0, letterSpacing:.2 }}>{lbl}</span>
+                        <span style={{ fontSize:13, color:'var(--txt)', fontWeight:500 }}>{val}</span>
                       </div>
                     ))}
                   </div>
 
                   {/* First rep */}
                   {(sup.reps||[]).length > 0 && (
-                    <div style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:8, padding:'10px 12px', marginBottom:12, display:'flex', alignItems:'center', gap:10 }}>
-                      <div style={{ width:30, height:30, borderRadius:'50%', background:'var(--acc-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--acc2)', flexShrink:0 }}>
+                    <div style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--acc-bg)', border:'1.5px solid var(--acc2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'var(--acc2)', flexShrink:0 }}>
                         {(sup.reps[0].name||'R').replace(/คุณ/,'').trim().slice(0,2)}
                       </div>
                       <div>
-                        <div style={{ fontSize:12, fontWeight:500 }}>{sup.reps[0].name}{sup.reps[0].brand?` (${sup.reps[0].brand})`:''}</div>
-                        {sup.reps[0].phone && <div style={{ fontSize:11, color:'var(--txt3)', marginTop:1 }}>📞 {sup.reps[0].phone}</div>}
-                        {sup.reps.length > 1 && <div style={{ fontSize:10, color:'var(--txt4)', marginTop:1 }}>+{sup.reps.length-1} {L('คนเพิ่มเติม','more reps')}</div>}
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--txt)' }}>{sup.reps[0].name}{sup.reps[0].brand?<span style={{ fontWeight:400, color:'var(--txt2)' }}> · {sup.reps[0].brand}</span>:null}</div>
+                        {sup.reps[0].phone && <div style={{ fontSize:12, color:'var(--txt2)', marginTop:2 }}>📞 {sup.reps[0].phone}</div>}
+                        {sup.reps.length > 1 && <div style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>+{sup.reps.length-1} {L('คนเพิ่มเติม','more reps')}</div>}
                       </div>
                     </div>
                   )}
 
                   {/* Promotions */}
                   {sup.promotions?.length > 0 && (
-                    <div style={{ marginBottom:12, padding:'8px 12px', background:'var(--ok-bg)', border:'1px solid rgba(52,211,153,.25)', borderRadius:8 }}>
-                      <div style={{ fontSize:10, fontWeight:600, color:'var(--ok)', marginBottom:3 }}>🎁 {L('โปรโมชั่น','Promotions')} ({sup.promotions.length})</div>
+                    <div style={{ marginBottom:14, padding:'10px 14px', background:'var(--ok-bg)', border:'1px solid rgba(52,211,153,.3)', borderRadius:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:'var(--ok)', marginBottom:4 }}>🎁 {L('โปรโมชั่น','Promotions')} ({sup.promotions.length})</div>
                       {sup.promotions.slice(0,2).map(p => (
-                        <div key={p.id} style={{ fontSize:11, color:'var(--ok)' }}>
+                        <div key={p.id} style={{ fontSize:12, color:'var(--ok)', marginTop:2 }}>
                           {lang==='th'?`ซื้อ ${p.buyQty||0} แถม ${p.freeQty||0}`:`Buy ${p.buyQty||0} → Free ${p.freeQty||0}`}{p.discount>0?` · ${p.discount}%`:''}{p.dealNote?` (${p.dealNote})`:''}
                         </div>
                       ))}
@@ -267,11 +272,11 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
 
                   {/* Action buttons */}
                   <div style={{ display:'flex', gap:8 }} onClick={e => e.stopPropagation()}>
-                    {perm.canWrite && <button className="btn btn-primary" style={{ fontSize:12, padding:'7px 16px' }} onClick={() => setShowCreate && setShowCreate(true)}>+ PO</button>}
-                    {perm.canWrite && <button className="btn btn-ghost" style={{ fontSize:12, padding:'7px 14px' }} onClick={() => setEditSup(sup)}>✏ {L('แก้ไข','Edit')}</button>}
-                    <button className="btn btn-ghost" style={{ fontSize:12, padding:'7px 14px' }} onClick={() => setViewSup(sup)}>📋 {L('ประวัติ / ดีล','History / Deals')}</button>
+                    {perm.canWrite && <button className="btn btn-primary" style={{ fontSize:12, padding:'8px 18px' }} onClick={() => setShowCreate && setShowCreate(true)}>+ PO</button>}
+                    {perm.canWrite && <button className="btn btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={() => setEditSup(sup)}>✏ {L('แก้ไข','Edit')}</button>}
+                    <button className="btn btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={() => setViewSup(sup)}>📋 {L('ประวัติ / ดีล','History / Deals')}</button>
                     {perm.canDelete && (
-                      <button style={{ fontSize:12, padding:'7px 14px', borderRadius:6, border:'1px solid var(--err)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer' }}
+                      <button style={{ fontSize:12, padding:'8px 14px', borderRadius:6, border:'1px solid var(--err)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer' }}
                         onClick={() => setConfirmSupId(sup.id)}>🗑 {L('ลบ','Delete')}</button>
                     )}
                   </div>
