@@ -4599,7 +4599,7 @@ function PODocumentModal({ po, lang, L, suppliers, onClose, onEdit }) {
         </div>
         <div className="modal-body" style={{ background: '#e0e0e0', padding: 24 }}>
           {/* A4 Document */}
-          <div id="po-doc-inner" className="po-doc" style={{ margin: '0 auto', display: 'flex', flexDirection: 'column', minHeight: '297mm' }}>
+          <div id="po-doc-inner" className="po-doc" style={{ margin: '0 auto', display: 'flex', flexDirection: 'column', minHeight: '297mm', color: '#000', background: '#fff' }}>
 
             {/* HEADER */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 14, borderBottom: '2px solid #222', paddingBottom: 12 }}>
