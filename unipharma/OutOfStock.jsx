@@ -24,6 +24,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const [remainingQty, setRemainingQty] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
   const dropRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -399,7 +400,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
           {reports.map(r => (
             <div key={r.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               {r.image ? (
-                <img src={r.image} alt="" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, cursor: 'pointer' }} onClick={() => window.open(r.image, '_blank')} />
+                <img src={r.image} alt="" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, cursor: 'pointer' }} onClick={() => setLightboxUrl(r.image)} />
               ) : (
                 <div style={{ width: '56px', height: '56px', borderRadius: '6px', background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>💊</div>
               )}
@@ -496,7 +497,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
               {/* Header row */}
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 {r.image ? (
-                  <img src={r.image} alt="" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, cursor: 'pointer' }} onClick={() => window.open(r.image, '_blank')} />
+                  <img src={r.image} alt="" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, cursor: 'pointer' }} onClick={() => setLightboxUrl(r.image)} />
                 ) : (
                   <div style={{ width: '64px', height: '64px', borderRadius: '6px', background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>💊</div>
                 )}
@@ -671,7 +672,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
                     {items.map(r => (
                       <div key={r.id} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                         {r.image ? (
-                          <img src={r.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0, cursor: 'pointer' }} onClick={() => window.open(r.image, '_blank')} />
+                          <img src={r.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0, cursor: 'pointer' }} onClick={() => setLightboxUrl(r.image)} />
                         ) : (
                           <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>💊</div>
                         )}
@@ -725,6 +726,18 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       {tab === 'report' && ReportTab()}
       {tab === 'manage' && ManageTab()}
       {tab === 'history' && HistoryTab()}
+
+      {/* Image lightbox */}
+      {lightboxUrl && (
+        <div onClick={() => setLightboxUrl(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', cursor:'zoom-out' }}>
+          <img src={lightboxUrl} alt=""
+            style={{ maxWidth:'90vw', maxHeight:'90vh', objectFit:'contain', borderRadius:12, boxShadow:'0 24px 64px rgba(0,0,0,.6)' }}
+            onClick={e => e.stopPropagation()} />
+          <button onClick={() => setLightboxUrl(null)}
+            style={{ position:'absolute', top:20, right:24, background:'rgba(255,255,255,.15)', border:'none', color:'#fff', fontSize:24, width:44, height:44, borderRadius:'50%', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>✕</button>
+        </div>
+      )}
     </div>
   );
 };

@@ -7,7 +7,6 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
   const [showAdd, setShowAdd] = useState(false);
   const [viewSup, setViewSup] = useState(null);
   const [confirmSupId, setConfirmSupId] = useState(null);
-  const [openId, setOpenId] = useState(null);
   const [creditFilter, setCreditFilter] = useState(null); // null | 30 | 45 | 60
   const [hasRepFilter, setHasRepFilter] = useState(false);
   const [sortBy, setSortBy] = useState('name');
@@ -71,7 +70,6 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
     notify(L('ลบผู้จัดจำหน่ายแล้ว', 'Supplier deleted'), 'warn');
     setConfirmSupId(null);
     if (viewSup?.id === id) setViewSup(null);
-    if (openId === id) setOpenId(null);
   };
 
   const saveSup = saved => {
@@ -156,136 +154,124 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
         </div>
       </div>
 
-      {/* Accordion list */}
-      <div style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
-        {filtered.length === 0 && (
-          <div style={{ textAlign:'center', padding:'48px 24px', color:'var(--txt4)', fontSize:14 }}>
-            🔍 {L('ไม่พบข้อมูลที่ค้นหา','No results found')}
-          </div>
-        )}
-        {filtered.map((sup, idx) => {
-          const stats = getSupStats(sup);
-          const isOpen = openId === sup.id;
-          const displayName = lang==='th' ? (sup.name||'') : (sup.nameEN||sup.name||'');
-          const primaryContact = (sup.contacts||[]).find(c=>c.name||c.phone) || { name:sup.contact, phone:sup.phone };
-          const initials = getInitials(displayName);
-          const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+      {/* Card Grid */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign:'center', padding:'60px 24px', color:'var(--txt4)', fontSize:14 }}>
+          🔍 {L('ไม่พบข้อมูลที่ค้นหา','No results found')}
+        </div>
+      )}
+      {filtered.length > 0 && (() => {
+        const maxSpend = Math.max(...filtered.map(s => getSupStats(s).totalSpend), 1);
+        return (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
+            {filtered.map((sup, idx) => {
+              const stats      = getSupStats(sup);
+              const displayName = lang==='th' ? (sup.name||'') : (sup.nameEN||sup.name||'');
+              const primaryContact = (sup.contacts||[]).find(c=>c.name||c.phone) || { name:sup.contact, phone:sup.phone };
+              const initials   = getInitials(displayName);
+              const accentColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+              const firstRep   = (sup.reps||[])[0];
+              const spendPct   = (stats.totalSpend / maxSpend * 100).toFixed(1);
 
-          return (
-            <div key={sup.id} style={{ borderBottom: idx < filtered.length-1 ? '1px solid var(--bdr)' : 'none' }}>
-              {/* Row header */}
-              <div role="button"
-                onClick={() => setOpenId(isOpen ? null : sup.id)}
-                style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 20px 14px 0', cursor:'pointer', userSelect:'none',
-                         borderLeft: isOpen ? '3px solid var(--acc2)' : '3px solid transparent',
-                         paddingLeft: isOpen ? 17 : 17,
-                         background:isOpen ? 'var(--acc-bg)' : '', transition:'background .12s, border-color .12s' }}
-                onMouseEnter={e => { if (!isOpen) { e.currentTarget.style.background='var(--card2)'; e.currentTarget.style.borderLeftColor='var(--bdr)'; }}}
-                onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.background=''; e.currentTarget.style.borderLeftColor='transparent'; }}}>
-                {/* Avatar */}
-                <div style={{ width:40, height:40, borderRadius:10, background:avatarColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#fff', flexShrink:0, letterSpacing:.5, boxShadow:'0 2px 6px rgba(0,0,0,.2)' }}>
-                  {initials}
-                </div>
-                {/* Name + sub */}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:700, fontSize:14, color:'var(--txt)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', lineHeight:1.3 }}>{displayName}</div>
-                  <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:3, flexWrap:'nowrap', overflow:'hidden' }}>
-                    <span style={{ fontSize:12, color:'var(--txt2)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                      {sup.id}{primaryContact?.phone ? ' · '+primaryContact.phone : ''}{sup.deliveryDays ? ' · '+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d') : ''}
-                    </span>
-                    <CreditChip term={sup.creditTerm} />
-                  </div>
-                </div>
-                {/* Metrics */}
-                <div style={{ display:'flex', alignItems:'center', gap:16, flexShrink:0 }}>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:15, fontWeight:700, color:'var(--ok)', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{sup.drugs?.length||0}</div>
-                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop:1 }}>{L('สินค้า','items')}</div>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:15, fontWeight:700, color:'var(--txt)', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{stats.orderCount}</div>
-                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop:1 }}>Orders</div>
-                  </div>
-                  <div style={{ textAlign:'right', minWidth:66 }}>
-                    <div style={{ fontSize:15, fontWeight:700, color:'var(--acc2)', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{fmtSpend(stats.totalSpend)}</div>
-                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop:1 }}>{L('ยอดรวม','Spend')}</div>
-                  </div>
-                  {sup.rating ? (
-                    <div style={{ textAlign:'center', minWidth:30 }}>
-                      <div style={{ fontSize:14, fontWeight:700, color:'#e9a820', fontVariantNumeric:'tabular-nums', lineHeight:1.2 }}>{sup.rating}</div>
-                      <div style={{ fontSize:11, color:'#e9a820', marginTop:1 }}>★</div>
-                    </div>
-                  ) : null}
-                </div>
-                {/* Chevron */}
-                <div style={{ color:isOpen?'var(--acc2)':'var(--txt2)', fontSize:10, flexShrink:0, width:18, textAlign:'center', transition:'transform .2s', transform:isOpen?'rotate(90deg)':'none' }}>▶</div>
-              </div>
+              return (
+                <div key={sup.id}
+                  style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:16, overflow:'hidden',
+                           display:'flex', flexDirection:'column',
+                           transition:'transform .15s, box-shadow .15s, border-color .15s', cursor:'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='0 12px 32px rgba(0,0,0,.35)'; e.currentTarget.style.borderColor='rgba(148,163,184,.3)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; e.currentTarget.style.borderColor=''; }}
+                  onClick={() => setViewSup(sup)}>
 
-              {/* Expanded body */}
-              {isOpen && (
-                <div style={{ borderTop:'1px solid var(--border)', background:'var(--acc-bg)', padding:'16px 20px 18px 74px' }}>
-                  {/* KPI row */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
-                    {[[L('ใบสั่งซื้อ','Orders'), stats.orderCount, 'var(--txt)'], [L('ยอดรวม','Total Spend'), fmtSpend(stats.totalSpend), 'var(--acc2)'], [L('รายการสินค้า','Products'), sup.drugs?.length||0, 'var(--ok)']].map(([lbl,val,clr]) => (
-                      <div key={lbl} style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, padding:'12px 14px', textAlign:'center' }}>
-                        <div style={{ fontSize:22, fontWeight:800, color:clr, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{val}</div>
-                        <div style={{ fontSize:11, color:'var(--txt2)', marginTop:5 }}>{lbl}</div>
+                  {/* Color strip */}
+                  <div style={{ height:6, background:accentColor, flexShrink:0 }} />
+
+                  {/* Card body */}
+                  <div style={{ padding:'16px 18px 0', flex:1 }}>
+                    {/* Row 1: avatar + name + rating */}
+                    <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:12 }}>
+                      <div style={{ width:46, height:46, borderRadius:12, background:accentColor+'28', border:`2px solid ${accentColor}55`,
+                                    display:'flex', alignItems:'center', justifyContent:'center',
+                                    fontSize:14, fontWeight:800, color:accentColor, flexShrink:0, letterSpacing:.5 }}>
+                        {initials}
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Info grid */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 24px', background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, padding:'6px 14px', marginBottom:12 }}>
-                    {[['Tax ID', sup.taxId], [L('โทรศัพท์','Phone'), primaryContact?.phone], [L('เครดิต','Credit'), sup.creditTerm?`${sup.creditTerm} ${L('วัน','days')}`:null], [L('ระยะส่ง','Lead time'), sup.deliveryDays?`${sup.deliveryDays} ${L('วัน','days')}`:null], [L('ที่อยู่','Address'), [sup.address,sup.city,sup.province].filter(Boolean).join(', ')||null], [L('อีเมล','Email'), sup.email], [L('หมายเหตุ','Notes'), sup.notes]].filter(([,v])=>v).map(([lbl,val]) => (
-                      <div key={lbl} style={{ display:'flex', alignItems:'baseline', gap:10, padding:'7px 0', borderBottom:'1px solid var(--border)' }}>
-                        <span style={{ fontSize:11, color:'var(--txt3)', minWidth:68, flexShrink:0, letterSpacing:.2 }}>{lbl}</span>
-                        <span style={{ fontSize:13, color:'var(--txt)', fontWeight:500 }}>{val}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* First rep */}
-                  {(sup.reps||[]).length > 0 && (
-                    <div style={{ background:'var(--card)', border:'1px solid var(--bdr)', borderRadius:10, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', gap:12 }}>
-                      <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--acc-bg)', border:'1.5px solid var(--acc2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'var(--acc2)', flexShrink:0 }}>
-                        {(sup.reps[0].name||'R').replace(/คุณ/,'').trim().slice(0,2)}
-                      </div>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600, color:'var(--txt)' }}>{sup.reps[0].name}{sup.reps[0].brand?<span style={{ fontWeight:400, color:'var(--txt2)' }}> · {sup.reps[0].brand}</span>:null}</div>
-                        {sup.reps[0].phone && <div style={{ fontSize:12, color:'var(--txt2)', marginTop:2 }}>📞 {sup.reps[0].phone}</div>}
-                        {sup.reps.length > 1 && <div style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>+{sup.reps.length-1} {L('คนเพิ่มเติม','more reps')}</div>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Promotions */}
-                  {sup.promotions?.length > 0 && (
-                    <div style={{ marginBottom:14, padding:'10px 14px', background:'var(--ok-bg)', border:'1px solid rgba(52,211,153,.3)', borderRadius:10 }}>
-                      <div style={{ fontSize:11, fontWeight:600, color:'var(--ok)', marginBottom:4 }}>🎁 {L('โปรโมชั่น','Promotions')} ({sup.promotions.length})</div>
-                      {sup.promotions.slice(0,2).map(p => (
-                        <div key={p.id} style={{ fontSize:12, color:'var(--ok)', marginTop:2 }}>
-                          {lang==='th'?`ซื้อ ${p.buyQty||0} แถม ${p.freeQty||0}`:`Buy ${p.buyQty||0} → Free ${p.freeQty||0}`}{p.discount>0?` · ${p.discount}%`:''}{p.dealNote?` (${p.dealNote})`:''}
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontWeight:700, fontSize:13, color:'var(--txt)', lineHeight:1.35,
+                                      display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                          {displayName}
                         </div>
-                      ))}
+                        <div style={{ fontSize:11, color:'var(--txt3)', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                          {sup.id}{primaryContact?.phone ? ' · '+primaryContact.phone : ''}{sup.deliveryDays ? ' · '+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d') : ''}
+                        </div>
+                      </div>
+                      {sup.rating ? (
+                        <div style={{ textAlign:'center', flexShrink:0 }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:'#e9a820', lineHeight:1 }}>{sup.rating}</div>
+                          <div style={{ fontSize:11, color:'#e9a820' }}>★</div>
+                        </div>
+                      ) : null}
                     </div>
-                  )}
 
-                  {/* Action buttons */}
-                  <div style={{ display:'flex', gap:8 }} onClick={e => e.stopPropagation()}>
-                    {perm.canWrite && <button className="btn btn-primary" style={{ fontSize:12, padding:'8px 18px' }} onClick={() => setShowCreate && setShowCreate(true)}>+ PO</button>}
-                    {perm.canWrite && <button className="btn btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={() => setEditSup(sup)}>✏ {L('แก้ไข','Edit')}</button>}
-                    <button className="btn btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={() => setViewSup(sup)}>📋 {L('ประวัติ / ดีล','History / Deals')}</button>
+                    {/* Row 2: chips */}
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:12, flexWrap:'wrap' }}>
+                      <CreditChip term={sup.creditTerm} />
+                      {firstRep && (
+                        <span style={{ fontSize:10, color:'var(--ok)', background:'var(--ok-bg)', padding:'2px 8px', borderRadius:20, fontWeight:600, whiteSpace:'nowrap' }}>
+                          👤 {firstRep.name}
+                        </span>
+                      )}
+                      {sup.promotions?.length > 0 && (
+                        <span style={{ fontSize:10, color:'var(--warn)', background:'var(--warn-bg)', padding:'2px 8px', borderRadius:20, fontWeight:600 }}>
+                          🎁 ×{sup.promotions.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Spend bar */}
+                    <div style={{ height:4, background:'var(--bg4)', borderRadius:2, marginBottom:14, overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:spendPct+'%', background:accentColor, borderRadius:2, transition:'width .6s' }} />
+                    </div>
+
+                    {/* Stats row */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', borderTop:'1px solid var(--bdr)', paddingTop:14, marginBottom:14 }}>
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:'var(--ok)', fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{sup.drugs?.length||0}</div>
+                        <div style={{ fontSize:10, color:'var(--txt3)', marginTop:4 }}>{L('สินค้า','items')}</div>
+                      </div>
+                      <div style={{ textAlign:'center', borderLeft:'1px solid var(--bdr)', borderRight:'1px solid var(--bdr)' }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:'var(--txt)', fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{stats.orderCount}</div>
+                        <div style={{ fontSize:10, color:'var(--txt3)', marginTop:4 }}>Orders</div>
+                      </div>
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ fontSize:15, fontWeight:800, color:accentColor, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{fmtSpend(stats.totalSpend)}</div>
+                        <div style={{ fontSize:10, color:'var(--txt3)', marginTop:4 }}>{L('ยอดรวม','Spend')}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card footer — actions */}
+                  <div style={{ display:'flex', gap:6, padding:'10px 14px 14px', borderTop:'1px solid var(--bdr)' }}
+                       onClick={e => e.stopPropagation()}>
+                    {perm.canWrite && (
+                      <button className="btn btn-primary" style={{ fontSize:11, padding:'6px 12px', flex:'none' }}
+                        onClick={() => setShowCreate && setShowCreate(true)}>+ PO</button>
+                    )}
+                    {perm.canWrite && (
+                      <button className="btn btn-ghost" style={{ fontSize:11, padding:'6px 10px', flex:'none' }}
+                        onClick={() => setEditSup(sup)}>✏</button>
+                    )}
+                    <button className="btn btn-ghost" style={{ fontSize:11, padding:'6px 10px', flex:1 }}
+                      onClick={() => setViewSup(sup)}>📋 {L('ประวัติ','History')}</button>
                     {perm.canDelete && (
-                      <button style={{ fontSize:12, padding:'8px 14px', borderRadius:6, border:'1px solid var(--err)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer' }}
-                        onClick={() => setConfirmSupId(sup.id)}>🗑 {L('ลบ','Delete')}</button>
+                      <button style={{ fontSize:11, padding:'6px 10px', borderRadius:6, border:'1px solid var(--err)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer', flex:'none' }}
+                        onClick={() => setConfirmSupId(sup.id)}>🗑</button>
                     )}
                   </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {viewSup && <SupplierDetail sup={viewSup} lang={lang} L={L} drugs={drugs} setDrugs={setDrugs} orders={orders} onClose={() => setViewSup(null)} onEdit={() => { setEditSup(viewSup); setViewSup(null); }} />}
       {showForm && <SupplierForm sup={editSup} lang={lang} L={L} drugs={drugs} suppliers={suppliers} onSave={saveSup} onClose={() => { setShowAdd(false); setEditSup(null); }} />}
