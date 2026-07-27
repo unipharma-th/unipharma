@@ -200,7 +200,7 @@ function SuppliersPage({ lang, L, suppliers, setSuppliers, drugs, setDrugs, orde
                           {displayName}
                         </div>
                         <div style={{ fontSize:11, color:'var(--txt3)', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                          {sup.id}{primaryContact?.phone ? ' · '+primaryContact.phone : ''}{sup.deliveryDays ? ' · '+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d') : ''}
+                          {primaryContact?.phone || ''}{sup.deliveryDays ? (primaryContact?.phone ? ' · ' : '')+L('ส่ง ','del ')+sup.deliveryDays+L('วัน','d') : ''}
                         </div>
                       </div>
                       {sup.rating ? (
