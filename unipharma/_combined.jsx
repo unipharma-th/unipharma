@@ -7661,6 +7661,7 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
   const [activeTab, setActiveTab] = useState('movement');
   const [branchFilter, setBranchFilter] = useState('');
   const [monthFilter, setMonthFilter] = React.useState(() => new Date().toISOString().slice(0, 7));
+  const [openPO, setOpenPO] = useState(null);
 
   const months = useMemo(() => {
     const s = new Set(orders.map(o => o.poDate?.slice(0, 7)).filter(Boolean));
@@ -7747,11 +7748,67 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
     datasets: [{ label: L('ยอดสั่งซื้อ', 'Spend'), data: byBranch.map(b => b.total), backgroundColor: byBranch.map(b => b.branch.color + 'cc'), borderColor: byBranch.map(b => b.branch.color), borderWidth: 2, borderRadius: 6 }]
   };
 
+  // ── 2-Month History ──────────────────────────────────────────
+  const H2M_SUP_COLORS = ['#38bdf8','#4ade80','#a78bfa','#fbbf24','#fb923c','#f87171','#34d399','#e879f9'];
+  const TH_MONTHS_H = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const EN_MONTHS_H = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const h2mCutoff = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 2);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const history2m = useMemo(() =>
+    orders
+      .filter(o => o.status !== 'cancelled' && o.status !== 'draft' && (o.poDate || '') >= h2mCutoff)
+      .sort((a, b) => (b.poDate || '').localeCompare(a.poDate || '')),
+    [orders, h2mCutoff]);
+
+  const h2mByMonth = useMemo(() => {
+    const m = {};
+    history2m.forEach(o => {
+      const k = (o.poDate || '').slice(0, 7);
+      if (!m[k]) m[k] = [];
+      m[k].push(o);
+    });
+    return Object.entries(m).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [history2m]);
+
+  const h2mTotal      = history2m.reduce((s, o) => s + (o.grandTotal || 0), 0);
+  const h2mSupIds     = [...new Set(history2m.map(o => o.supplierId).filter(Boolean))];
+  const h2mLines      = history2m.reduce((s, o) => s + (o.items?.length || 0), 0);
+  const h2mUniqDrugs  = new Set(history2m.flatMap(o => (o.items || []).map(it => it.code))).size;
+
+  const h2mBySupplier = useMemo(() => {
+    const m = {};
+    history2m.forEach(o => {
+      if (!o.supplierId) return;
+      if (!m[o.supplierId]) m[o.supplierId] = { id: o.supplierId, total: 0, count: 0 };
+      m[o.supplierId].total += o.grandTotal || 0;
+      m[o.supplierId].count++;
+    });
+    return Object.values(m)
+      .sort((a, b) => b.total - a.total)
+      .map((row, i) => ({ ...row, sup: UTILS.getSupplier(row.id), color: H2M_SUP_COLORS[i % H2M_SUP_COLORS.length] }));
+  }, [history2m]);
+
+  const h2mMaxSpend = h2mBySupplier[0]?.total || 1;
+
+  function h2mMonthLabel(ym) {
+    const [y, m] = ym.split('-');
+    const idx = parseInt(m, 10) - 1;
+    const monthStr = lang === 'th' ? TH_MONTHS_H[idx] : EN_MONTHS_H[idx];
+    const yearBE = lang === 'th' ? (parseInt(y, 10) + 543) : parseInt(y, 10);
+    return `${monthStr} ${yearBE}`;
+  }
+
   const TABS = [
     { id: 'movement', label: L('รายงานการเคลื่อนไหว', 'Movement Report') },
     { id: 'top10', label: L('Top 10 สั่งบ่อย', 'Top 10 Ordered') },
     { id: 'bottom10', label: L('10 ไม่ได้สั่ง', '10 Rarely Ordered') },
     { id: 'supplier', label: L('ผู้จัดจำหน่าย', 'Supplier Analysis') },
+    { id: 'history2m', label: L('📋 ประวัติ 2 เดือน', '📋 2-Month History') },
   ];
 
   return (
@@ -8001,6 +8058,155 @@ function ReportsPage({ lang, L, drugs, orders, suppliers }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: 2-Month Purchase History ───────────────────────── */}
+      {activeTab === 'history2m' && (
+        <div>
+          {/* KPI row */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }}>
+            {[
+              [L('ใบสั่งซื้อ','POs'), history2m.length, 'var(--acc2)'],
+              [L('ยอดรวม (excl.VAT)','Total Spend'), '฿'+UTILS.fmt(h2mTotal,0), 'var(--ok)'],
+              [L('ซัพพลายเออร์','Suppliers'), h2mSupIds.length, 'var(--warn)'],
+              [L('รายการยาไม่ซ้ำ','Unique Drugs'), h2mUniqDrugs, 'var(--acc)'],
+            ].map(([lbl, val, clr]) => (
+              <div key={lbl} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px 16px' }}>
+                <div style={{ fontSize:20, fontWeight:800, color:clr, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{val}</div>
+                <div style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>{lbl}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Spend by supplier bar chart */}
+          {h2mBySupplier.length > 0 && (
+            <div className="card" style={{ marginBottom:16 }}>
+              <div className="card-header"><span className="card-title">{L('ยอดสั่งซื้อแยกซัพพลายเออร์','Spend by Supplier')}</span></div>
+              <div style={{ padding:'4px 0' }}>
+                {h2mBySupplier.map(row => {
+                  const name = row.sup ? (lang==='th' ? row.sup.name : (row.sup.nameEN||row.sup.name)) : row.id;
+                  const pct  = (row.total / h2mTotal * 100).toFixed(1);
+                  const barW = (row.total / h2mMaxSpend * 100).toFixed(1);
+                  return (
+                    <div key={row.id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                      <div style={{ width:140, fontSize:12, color:'var(--txt2)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', flexShrink:0 }} title={name}>{name}</div>
+                      <div style={{ flex:1, height:22, background:'var(--bg4)', borderRadius:4, overflow:'hidden', position:'relative' }}>
+                        <div style={{ width:barW+'%', height:'100%', background:row.color, borderRadius:4, display:'flex', alignItems:'center', paddingLeft:8, transition:'width .4s' }}>
+                          <span style={{ fontSize:11, fontWeight:700, color:'#fff', whiteSpace:'nowrap', fontVariantNumeric:'tabular-nums' }}>฿{UTILS.fmt(row.total,0)}</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize:11, color:'var(--txt3)', width:36, textAlign:'right', flexShrink:0 }}>{pct}%</div>
+                      <div style={{ fontSize:11, color:'var(--txt3)', width:26, textAlign:'right', flexShrink:0 }}>{row.count} {L('ใบ','POs')}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* PO list grouped by month */}
+          {history2m.length === 0 ? (
+            <div className="card" style={{ textAlign:'center', padding:40, color:'var(--txt3)' }}>
+              {L('ไม่มีข้อมูลการสั่งซื้อในช่วง 2 เดือนที่ผ่านมา','No purchase orders in the last 2 months')}
+            </div>
+          ) : h2mByMonth.map(([ym, pos]) => (
+            <div key={ym} style={{ marginBottom:20 }}>
+              {/* Month separator */}
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                <span style={{ fontSize:12, fontWeight:700, color:'var(--txt2)', whiteSpace:'nowrap' }}>{h2mMonthLabel(ym)}</span>
+                <div style={{ flex:1, height:1, background:'var(--border)' }} />
+                <span style={{ fontSize:11, color:'var(--txt3)', whiteSpace:'nowrap' }}>
+                  {pos.length} {L('ใบ','POs')} · ฿{UTILS.fmt(pos.reduce((s,o)=>s+(o.grandTotal||0),0),0)}
+                </span>
+              </div>
+
+              {/* PO rows */}
+              <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
+                {pos.map((po, idx) => {
+                  const sup     = UTILS.getSupplier(po.supplierId);
+                  const supName = sup ? (lang==='th' ? sup.name : (sup.nameEN||sup.name)) : (po.supplierId || '-');
+                  const supClr  = h2mBySupplier.find(r => r.id === po.supplierId)?.color || 'var(--txt2)';
+                  const isOpen  = openPO === po.id;
+                  const isLast  = idx === pos.length - 1;
+                  return (
+                    <div key={po.id} style={{ borderBottom: isLast ? 'none' : '1px solid var(--border)' }}>
+                      <div
+                        onClick={() => setOpenPO(isOpen ? null : po.id)}
+                        style={{ display:'grid', gridTemplateColumns:'100px 1fr 110px 110px 80px', alignItems:'center', gap:8, padding:'12px 16px', cursor:'pointer', background: isOpen ? 'var(--acc-bg)' : '', transition:'background .1s' }}
+                        onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background='var(--bg3)'; }}
+                        onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background=''; }}
+                      >
+                        <div>
+                          <div style={{ fontSize:12, color:'var(--txt3)', fontVariantNumeric:'tabular-nums' }}>{UTILS.fmtDate(po.poDate, lang)}</div>
+                          <div style={{ fontFamily:'monospace', fontSize:11, color:'var(--txt4)', marginTop:2 }}>{po.poNumber || po.id?.slice(0,10)}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:600, color:supClr, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{supName}</div>
+                          <div style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>{po.items?.length||0} {L('รายการ','lines')}{po.branch ? ' · '+po.branch : ''}</div>
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--acc2)', fontVariantNumeric:'tabular-nums' }}>฿{UTILS.fmt(po.grandTotal||0,0)}</div>
+                          {po.vat > 0 && <div style={{ fontSize:10, color:'var(--txt3)' }}>+VAT ฿{UTILS.fmt(po.vat,0)}</div>}
+                        </div>
+                        <div style={{ textAlign:'center' }}>
+                          <span style={{ fontSize:10, fontWeight:700, padding:'3px 9px', borderRadius:20, background:UTILS.statusColor(po.status)+'22', color:UTILS.statusColor(po.status) }}>
+                            {UTILS.statusLabel(po.status, lang)}
+                          </span>
+                        </div>
+                        <div style={{ textAlign:'center', fontSize:9, color: isOpen ? 'var(--acc2)' : 'var(--txt3)', transition:'transform .2s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▶</div>
+                      </div>
+                      {isOpen && (po.items||[]).length > 0 && (
+                        <div style={{ borderTop:'1px solid var(--border)', background:'var(--bg3)', padding:'10px 16px 14px' }}>
+                          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                            <thead>
+                              <tr>
+                                {[L('ชื่อยา','Drug'), L('จำนวน','Qty'), L('ราคา/หน่วย','Unit Price'), L('รวม','Total')].map((h,i) => (
+                                  <th key={h} style={{ fontSize:10, textTransform:'uppercase', letterSpacing:'.5px', color:'var(--txt3)', padding:'4px 0 8px', textAlign: i===0?'left':'right', fontWeight:600 }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {po.items.map(it => (
+                                <tr key={it.code}>
+                                  <td style={{ fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)', color:'var(--txt)' }}>
+                                    <span style={{ fontFamily:'monospace', fontSize:11, color:'var(--txt3)', marginRight:6 }}>{it.code}</span>
+                                    {lang==='th' ? (it.nameTH||it.code) : (it.nameEN||it.nameTH||it.code)}
+                                  </td>
+                                  <td style={{ fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)', color:'var(--txt2)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{it.qty?.toLocaleString()||'-'} {it.unit||''}</td>
+                                  <td style={{ fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)', color:'var(--txt2)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{it.unitPrice ? UTILS.fmt(it.unitPrice)+' ฿' : '-'}</td>
+                                  <td style={{ fontSize:12, padding:'5px 0', borderBottom:'1px solid var(--border)', fontWeight:600, color:'var(--acc2)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>
+                                    {it.qty && it.unitPrice ? '฿'+UTILS.fmt(Math.round(it.qty * it.unitPrice),0) : '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Summary footer */}
+          {history2m.length > 0 && (
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px 20px', marginTop:4 }}>
+              {[
+                [L('ยอดรวม 2 เดือน','2-Month Total'), '฿'+UTILS.fmt(h2mTotal,0), 'var(--ok)'],
+                [L('เฉลี่ย/ใบสั่งซื้อ','Avg per PO'), history2m.length ? '฿'+UTILS.fmt(Math.round(h2mTotal/history2m.length),0) : '-', 'var(--acc2)'],
+                [L('รายการทั้งหมด','Total Lines'), h2mLines.toLocaleString(), 'var(--txt)'],
+                [L('ยาที่สั่ง (ไม่ซ้ำ)','Unique Drugs'), h2mUniqDrugs, 'var(--acc)'],
+              ].map(([lbl, val, clr]) => (
+                <div key={lbl} style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:clr, fontVariantNumeric:'tabular-nums' }}>{val}</div>
+                  <div style={{ fontSize:10, color:'var(--txt3)', marginTop:3 }}>{lbl}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
