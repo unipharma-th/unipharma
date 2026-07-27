@@ -1844,20 +1844,48 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
 
       <div className="divider" />
       <div className="form-group" style={{ marginBottom: 4 }}>
-        <label className="label">🖼️ {L('URL รูปภาพสินค้า', 'Product Image URL')}</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <input className="input" type="url" value={form.imageUrl || ''} onChange={e => set('imageUrl', e.target.value)}
-              placeholder="https://..." />
-            <div style={{ fontSize: 11, color: 'var(--txt4)', marginTop: 3 }}>
-              {L('วางลิงก์รูปภาพ — จะแสดงในหน้าเปรียบเทียบผู้จัดจำหน่าย', 'Paste image URL — shown on Supplier Comparison page')}
+        <label className="label">🖼️ {L('รูปภาพสินค้า', 'Product Image')}</label>
+        {(() => {
+          const [imgUploading, setImgUploading] = React.useState(false);
+          const [imgErr, setImgErr] = React.useState('');
+          const handleImgFile = async e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!window.UNI_DB?.enabled) { setImgErr(L('ต้องเชื่อมต่อ Supabase ก่อน','Supabase not connected')); return; }
+            setImgUploading(true); setImgErr('');
+            try {
+              const url = await window.UNI_DB.uploadDrugImage(file, form.code);
+              set('imageUrl', url);
+            } catch(err) {
+              setImgErr(err.message || L('อัปโหลดไม่สำเร็จ','Upload failed'));
+            } finally { setImgUploading(false); e.target.value = ''; }
+          };
+          return (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <input className="input" type="url" value={form.imageUrl || ''} onChange={e => set('imageUrl', e.target.value)}
+                  placeholder={L('วางลิงก์รูปภาพ เช่น https://...', 'Paste image URL e.g. https://...')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '5px 12px',
+                    borderRadius: 6, border: '1px solid var(--bdr)', background: 'var(--bg2)', color: imgUploading ? 'var(--txt3)' : 'var(--txt2)',
+                    cursor: imgUploading ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
+                    {imgUploading ? '⏳ ' + L('กำลังอัปโหลด…','Uploading…') : '📁 ' + L('เลือกรูปจากเครื่อง','Upload from device')}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={imgUploading} onChange={handleImgFile} />
+                  </label>
+                  {form.imageUrl && (
+                    <button type="button" className="btn btn-ghost btn-xs" style={{ color: 'var(--err)', fontSize: 11 }}
+                      onClick={() => set('imageUrl', '')}>✕ {L('ลบรูป','Remove')}</button>
+                  )}
+                </div>
+                {imgErr && <div style={{ fontSize: 11, color: 'var(--err)', marginTop: 4 }}>⚠ {imgErr}</div>}
+              </div>
+              {form.imageUrl && (
+                <img src={form.imageUrl} alt="preview" onError={e => { e.target.style.display = 'none'; }}
+                  style={{ width: 72, height: 72, objectFit: 'contain', border: '1px solid var(--bdr)', borderRadius: 10, background: 'var(--bg2)', flexShrink: 0 }} />
+              )}
             </div>
-          </div>
-          {form.imageUrl && (
-            <img src={form.imageUrl} alt="preview" onError={e => { e.target.style.display = 'none'; }}
-              style={{ width: 60, height: 60, objectFit: 'contain', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg2)', flexShrink: 0 }} />
-          )}
-        </div>
+          );
+        })()}
       </div>
 
       <div className="divider" />
@@ -2828,6 +2856,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
   const [sortDir, setSortDir] = useState('asc');
   const [showPkg, setShowPkg] = useState(false);
   const [detailDrug, setDetailDrug] = useState(null);
+  const [imgLightbox, setImgLightbox] = useState(null);
   const [showCatMgr, setShowCatMgr] = useState(false);
   const [cwStock, setCwStock] = useState({});
   const [cwSyncedAt, setCwSyncedAt] = useState(null);
@@ -3342,13 +3371,22 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
                         <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--acc2)', fontWeight: 700 }}>{d.code}</span>
                       </td>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
-                        <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang === 'th' ? (d.nameEN||'') : d.nameTH}</div>
-                        {d.remark && (() => { const r = DRUG_REMARKS.find(x=>x.code===d.remark); return r ? (
-                          <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'var(--warn-bg)', color:'var(--warn)', fontWeight:600, display:'inline-block', marginTop:2 }}>
-                            📝 {lang==='th'?r.th:r.en}
-                          </span>
-                        ) : null; })()}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {d.imageUrl ? (
+                            <img src={d.imageUrl} alt="" onError={e => e.target.style.display='none'}
+                              onClick={e => { e.stopPropagation(); setImgLightbox(d.imageUrl); }}
+                              style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--bdr)', background: 'var(--bg2)', flexShrink: 0, cursor: 'zoom-in' }} />
+                          ) : null}
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
+                            <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang === 'th' ? (d.nameEN||'') : d.nameTH}</div>
+                            {d.remark && (() => { const r = DRUG_REMARKS.find(x=>x.code===d.remark); return r ? (
+                              <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'var(--warn-bg)', color:'var(--warn)', fontWeight:600, display:'inline-block', marginTop:2 }}>
+                                📝 {lang==='th'?r.th:r.en}
+                              </span>
+                            ) : null; })()}
+                          </div>
+                        </div>
                       </td>
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{UTILS.getUnit(d.unit, lang)}</span>
@@ -3489,6 +3527,18 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
           cwName={(cwStock[editDrug.code]||{}).name||''}
           cwData={cwStock[editDrug.code]||{}}
           onSave={saveDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
+      )}
+
+      {/* Image lightbox */}
+      {imgLightbox && (
+        <div onClick={() => setImgLightbox(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.88)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', cursor:'zoom-out' }}>
+          <img src={imgLightbox} alt=""
+            style={{ maxWidth:'88vw', maxHeight:'88vh', objectFit:'contain', borderRadius:14, boxShadow:'0 24px 80px rgba(0,0,0,.8)' }}
+            onClick={e => e.stopPropagation()} />
+          <button onClick={() => setImgLightbox(null)}
+            style={{ position:'absolute', top:20, right:24, background:'rgba(255,255,255,.13)', border:'none', color:'#fff', fontSize:22, width:42, height:42, borderRadius:'50%', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
       )}
     </div>
   );

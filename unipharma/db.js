@@ -649,6 +649,16 @@
       return function () { data && data.subscription && data.subscription.unsubscribe(); };
     },
 
+    async uploadDrugImage(file, drugCode) {
+      if (!enabled) throw new Error('Supabase not configured');
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = 'drugs/' + (drugCode || 'misc') + '_' + Date.now() + '.' + ext;
+      const { error } = await client.storage.from('drug-images').upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data: pub } = client.storage.from('drug-images').getPublicUrl(path);
+      return pub.publicUrl;
+    },
+
     _client: client,
   };
 

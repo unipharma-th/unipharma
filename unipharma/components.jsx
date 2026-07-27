@@ -740,20 +740,48 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
 
       <div className="divider" />
       <div className="form-group" style={{ marginBottom: 4 }}>
-        <label className="label">🖼️ {L('URL รูปภาพสินค้า', 'Product Image URL')}</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <input className="input" type="url" value={form.imageUrl || ''} onChange={e => set('imageUrl', e.target.value)}
-              placeholder="https://..." />
-            <div style={{ fontSize: 11, color: 'var(--txt4)', marginTop: 3 }}>
-              {L('วางลิงก์รูปภาพ — จะแสดงในหน้าเปรียบเทียบผู้จัดจำหน่าย', 'Paste image URL — shown on Supplier Comparison page')}
+        <label className="label">🖼️ {L('รูปภาพสินค้า', 'Product Image')}</label>
+        {(() => {
+          const [imgUploading, setImgUploading] = useState(false);
+          const [imgErr, setImgErr] = useState('');
+          const handleImgFile = async e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!window.UNI_DB?.enabled) { setImgErr(L('ต้องเชื่อมต่อ Supabase ก่อน','Supabase not connected')); return; }
+            setImgUploading(true); setImgErr('');
+            try {
+              const url = await window.UNI_DB.uploadDrugImage(file, form.code);
+              set('imageUrl', url);
+            } catch(err) {
+              setImgErr(err.message || L('อัปโหลดไม่สำเร็จ','Upload failed'));
+            } finally { setImgUploading(false); e.target.value = ''; }
+          };
+          return (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <input className="input" type="url" value={form.imageUrl || ''} onChange={e => set('imageUrl', e.target.value)}
+                  placeholder={L('วางลิงก์รูปภาพ เช่น https://...', 'Paste image URL e.g. https://...')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '5px 12px',
+                    borderRadius: 6, border: '1px solid var(--bdr)', background: 'var(--bg2)', color: imgUploading ? 'var(--txt3)' : 'var(--txt2)',
+                    cursor: imgUploading ? 'not-allowed' : 'pointer', userSelect: 'none' }}>
+                    {imgUploading ? '⏳ ' + L('กำลังอัปโหลด…','Uploading…') : '📁 ' + L('เลือกรูปจากเครื่อง','Upload from device')}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={imgUploading} onChange={handleImgFile} />
+                  </label>
+                  {form.imageUrl && (
+                    <button type="button" className="btn btn-ghost btn-xs" style={{ color: 'var(--err)', fontSize: 11 }}
+                      onClick={() => set('imageUrl', '')}>✕ {L('ลบรูป','Remove')}</button>
+                  )}
+                </div>
+                {imgErr && <div style={{ fontSize: 11, color: 'var(--err)', marginTop: 4 }}>⚠ {imgErr}</div>}
+              </div>
+              {form.imageUrl && (
+                <img src={form.imageUrl} alt="preview" onError={e => { e.target.style.display = 'none'; }}
+                  style={{ width: 72, height: 72, objectFit: 'contain', border: '1px solid var(--bdr)', borderRadius: 10, background: 'var(--bg2)', flexShrink: 0 }} />
+              )}
             </div>
-          </div>
-          {form.imageUrl && (
-            <img src={form.imageUrl} alt="preview" onError={e => { e.target.style.display = 'none'; }}
-              style={{ width: 60, height: 60, objectFit: 'contain', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg2)', flexShrink: 0 }} />
-          )}
-        </div>
+          );
+        })()}
       </div>
 
       <div className="divider" />

@@ -475,6 +475,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
   const [sortDir, setSortDir] = useState('asc');
   const [showPkg, setShowPkg] = useState(false);
   const [detailDrug, setDetailDrug] = useState(null);
+  const [imgLightbox, setImgLightbox] = useState(null);
   const [showCatMgr, setShowCatMgr] = useState(false);
   const [cwStock, setCwStock] = useState({});
   const [cwSyncedAt, setCwSyncedAt] = useState(null);
@@ -992,13 +993,22 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
                         <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--acc2)', fontWeight: 700 }}>{d.code}</span>
                       </td>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
-                        <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang === 'th' ? (d.nameEN||'') : d.nameTH}</div>
-                        {d.remark && (() => { const r = DRUG_REMARKS.find(x=>x.code===d.remark); return r ? (
-                          <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'var(--warn-bg)', color:'var(--warn)', fontWeight:600, display:'inline-block', marginTop:2 }}>
-                            📝 {lang==='th'?r.th:r.en}
-                          </span>
-                        ) : null; })()}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {d.imageUrl ? (
+                            <img src={d.imageUrl} alt="" onError={e => e.target.style.display='none'}
+                              onClick={e => { e.stopPropagation(); setImgLightbox(d.imageUrl); }}
+                              style={{ width: 48, height: 48, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--bdr)', background: 'var(--bg2)', flexShrink: 0, cursor: 'zoom-in' }} />
+                          ) : null}
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{lang === 'th' ? d.nameTH : (d.nameEN||d.nameTH)}</div>
+                            <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{lang === 'th' ? (d.nameEN||'') : d.nameTH}</div>
+                            {d.remark && (() => { const r = DRUG_REMARKS.find(x=>x.code===d.remark); return r ? (
+                              <span style={{ fontSize:10, padding:'1px 7px', borderRadius:10, background:'var(--warn-bg)', color:'var(--warn)', fontWeight:600, display:'inline-block', marginTop:2 }}>
+                                📝 {lang==='th'?r.th:r.en}
+                              </span>
+                            ) : null; })()}
+                          </div>
+                        </div>
                       </td>
                       <td>
                         <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{UTILS.getUnit(d.unit, lang)}</span>
@@ -1141,6 +1151,18 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
           cwName={(cwStock[editDrug.code]||{}).name||''}
           cwData={cwStock[editDrug.code]||{}}
           onSave={saveDrug} onClose={() => { setShowAdd(false); setEditDrug(null); }} />
+      )}
+
+      {/* Image lightbox */}
+      {imgLightbox && (
+        <div onClick={() => setImgLightbox(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.88)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', cursor:'zoom-out' }}>
+          <img src={imgLightbox} alt=""
+            style={{ maxWidth:'88vw', maxHeight:'88vh', objectFit:'contain', borderRadius:14, boxShadow:'0 24px 80px rgba(0,0,0,.8)' }}
+            onClick={e => e.stopPropagation()} />
+          <button onClick={() => setImgLightbox(null)}
+            style={{ position:'absolute', top:20, right:24, background:'rgba(255,255,255,.13)', border:'none', color:'#fff', fontSize:22, width:42, height:42, borderRadius:'50%', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
       )}
     </div>
   );
