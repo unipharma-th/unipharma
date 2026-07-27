@@ -2480,12 +2480,31 @@ function CwPriceChart({ history, lang }) {
   );
 }
 
-function DrugDetailModal({ drug: d, lang, L, suppliers, cats, cwStock, cwHistory, onEdit, onClose }) {
+function DrugDetailModal({ drug: d, lang, L, suppliers, cats, cwStock, cwHistory, orders, onEdit, onClose }) {
   const [tab, setTab] = React.useState('info');
 
   const cat = cats.find(c => c.id === d.catId) || { name: d.catId || '', nameEN: d.catId || '', color: '#94a3b8', subs: [] };
   const sub = (cat.subs || []).find(s => s.id === d.subId) || { name: d.subId || '', nameEN: d.subId || '' };
   const supplier = suppliers.find(x => x.id === d.supplierId) || suppliers.find(x => (x.drugs || []).includes(d.code));
+
+  // PO history for this drug (non-cancelled, newest first)
+  const drugPOs = React.useMemo(() => (orders || [])
+    .filter(o => o.status !== 'cancelled' && (o.items || []).some(it => it.code === d.code))
+    .sort((a, b) => (b.poDate || '').localeCompare(a.poDate || '')),
+    [orders, d.code]);
+  const lastPO = drugPOs[0] || null;
+  const lastPOSup = lastPO ? suppliers.find(x => x.id === lastPO.supplierId) : null;
+  // Unique suppliers from PO history with count + latest date
+  const poSupRows = React.useMemo(() => {
+    const m = {};
+    drugPOs.forEach(o => {
+      if (!o.supplierId) return;
+      if (!m[o.supplierId]) m[o.supplierId] = { id: o.supplierId, count: 0, lastDate: '' };
+      m[o.supplierId].count++;
+      if (!m[o.supplierId].lastDate || o.poDate > m[o.supplierId].lastDate) m[o.supplierId].lastDate = o.poDate;
+    });
+    return Object.values(m).sort((a, b) => b.lastDate.localeCompare(a.lastDate));
+  }, [drugPOs]);
   const cw = cwStock[d.code];
   const history = cwHistory[d.code];
   const rmk = d.remark ? DRUG_REMARKS.find(x => x.code === d.remark) : null;
@@ -2667,10 +2686,11 @@ function DrugDetailModal({ drug: d, lang, L, suppliers, cats, cwStock, cwHistory
 
           {tab === 'supplier' && (
             <div>
+              {/* ── Main supplier ── */}
               {supplier ? (
-                <div style={{...CARD, marginBottom:14}}>
-                  <div style={CARD_T}>{L('ผู้จัดจำหน่ายหลัก','Main Supplier')}</div>
-                  <div style={{fontSize:16,fontWeight:700,marginBottom:10}}>{lang==='th'?supplier.name:(supplier.nameEN||supplier.name)}</div>
+                <div style={{...CARD, marginBottom:12}}>
+                  <div style={CARD_T}>🏢 {L('ซัพพลายเออร์หลัก','Main Supplier')}</div>
+                  <div style={{fontSize:15,fontWeight:700,marginBottom:8,color:'var(--txt)'}}>{lang==='th'?supplier.name:(supplier.nameEN||supplier.name)}</div>
                   {[
                     supplier.contactName && [L('ผู้ติดต่อ','Contact'), supplier.contactName],
                     supplier.phone       && [L('โทรศัพท์','Phone'),   supplier.phone],
@@ -2680,7 +2700,65 @@ function DrugDetailModal({ drug: d, lang, L, suppliers, cats, cwStock, cwHistory
                   ))}
                 </div>
               ) : (
-                <div style={{textAlign:'center',padding:20,color:'var(--txt3)',fontSize:13,marginBottom:14}}>{L('ยังไม่ได้กำหนดซัพพลายเออร์','No supplier assigned')}</div>
+                <div style={{textAlign:'center',padding:16,color:'var(--txt3)',fontSize:13,marginBottom:12,background:'var(--bg3)',borderRadius:10,border:'1px solid var(--border)'}}>{L('ยังไม่ได้กำหนดซัพพลายเออร์หลัก','No main supplier assigned')}</div>
+              )}
+
+              {/* ── Last purchased from ── */}
+              {lastPO && (
+                <div style={{...CARD, marginBottom:12, borderLeft:'3px solid var(--acc2)'}}>
+                  <div style={CARD_T}>🕐 {L('ซื้อล่าสุดจาก','Last Purchased From')}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:'var(--txt)',marginBottom:6}}>
+                    {lastPOSup ? (lang==='th'?lastPOSup.name:(lastPOSup.nameEN||lastPOSup.name)) : lastPO.supplierId}
+                    {lastPOSup?.id === (supplier?.id) && (
+                      <span style={{fontSize:10,marginLeft:8,padding:'2px 7px',background:'var(--ok-bg)',color:'var(--ok)',borderRadius:99,fontWeight:600}}>{L('= ซัพพลายเออร์หลัก','= Main')}</span>
+                    )}
+                    {lastPOSup && lastPOSup.id !== (supplier?.id) && (
+                      <span style={{fontSize:10,marginLeft:8,padding:'2px 7px',background:'var(--warn-bg)',color:'var(--warn)',borderRadius:99,fontWeight:600}}>{L('ต่างจากหลัก','≠ Main')}</span>
+                    )}
+                  </div>
+                  <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                    <div style={{fontSize:12,color:'var(--txt2)'}}>
+                      <span style={{color:'var(--txt3)',marginRight:4}}>{L('PO','PO')}</span>{lastPO.poNumber||lastPO.id?.slice(0,8)}
+                    </div>
+                    <div style={{fontSize:12,color:'var(--txt2)'}}>
+                      <span style={{color:'var(--txt3)',marginRight:4}}>{L('วันที่','Date')}</span>{UTILS.fmtDate(lastPO.poDate,lang)}
+                    </div>
+                    <div style={{fontSize:12,color:'var(--txt2)'}}>
+                      <span style={{color:'var(--txt3)',marginRight:4}}>{L('สถานะ','Status')}</span>
+                      <span style={{color:UTILS.statusColor(lastPO.status)}}>{UTILS.statusLabel(lastPO.status,lang)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PO supplier history ── */}
+              {poSupRows.length > 0 && (
+                <div style={{...CARD, marginBottom:12}}>
+                  <div style={CARD_T}>📋 {L('บริษัทที่เคยซื้อ','Purchase History by Supplier')}</div>
+                  {poSupRows.map(row => {
+                    const s = suppliers.find(x => x.id === row.id);
+                    const isMain = row.id === supplier?.id;
+                    return (
+                      <div key={row.id} style={{...ROW, borderBottom:'1px solid var(--border)'}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600,color:'var(--txt)',display:'flex',alignItems:'center',gap:6}}>
+                            {s?(lang==='th'?s.name:(s.nameEN||s.name)):row.id}
+                            {isMain && <span style={{fontSize:9,padding:'1px 6px',background:'var(--acc2)',color:'#fff',borderRadius:99,fontWeight:700}}>{L('หลัก','Main')}</span>}
+                          </div>
+                          <div style={{fontSize:11,color:'var(--txt3)',marginTop:2}}>{L('ล่าสุด','Last')}: {UTILS.fmtDate(row.lastDate,lang)}</div>
+                        </div>
+                        <div style={{textAlign:'right',flexShrink:0}}>
+                          <div style={{fontSize:14,fontWeight:700,color:'var(--acc2)',fontVariantNumeric:'tabular-nums'}}>{row.count}</div>
+                          <div style={{fontSize:10,color:'var(--txt3)'}}>{L('PO','POs')}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!lastPO && (
+                <div style={{textAlign:'center',padding:12,color:'var(--txt3)',fontSize:12,marginBottom:12}}>{L('ยังไม่มีประวัติการสั่งซื้อ','No purchase history yet')}</div>
               )}
               {activeDeals.length > 0 && (
                 <div style={{...CARD, marginBottom:14}}>
@@ -2736,7 +2814,7 @@ function DrugDetailModal({ drug: d, lang, L, suppliers, cats, cwStock, cwHistory
   );
 }
 
-function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategories, notify, perm = { canWrite: true } }) {
+function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, setCategories, notify, perm = { canWrite: true } }) {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [subFilter, setSubFilter] = useState('');
@@ -3395,6 +3473,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, categories, setCategor
           drug={detailDrug} lang={lang} L={L}
           suppliers={suppliers} cats={cats}
           cwStock={cwStock} cwHistory={cwHistory}
+          orders={orders}
           onEdit={() => { setEditDrug(detailDrug); setDetailDrug(null); }}
           onClose={() => setDetailDrug(null)}
         />
