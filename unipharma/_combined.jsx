@@ -9478,9 +9478,21 @@ function CategoryManagerModal({ lang, L, categories, setCategories, drugs = [], 
 
   const updateCat = (id, k, v) => setList(prev => prev.map(c => c.id === id ? { ...c, [k]: v } : c));
   const removeCat = (id) => { setList(prev => prev.filter(c => c.id !== id)); setRemovedIds(prev => [...prev, id]); };
-  const addCat = () => setList(prev => [...prev, { id: uid('CAT'), name: '', nameEN: '', color: '#1177cc', subs: [] }]);
+  const addCat = () => setList(prev => {
+    const nums = prev.map(c => c.id).filter(id => /^CAT\d+$/.test(id)).map(id => parseInt(id.slice(3)));
+    const next = nums.length ? Math.max(...nums) + 1 : 1;
+    return [...prev, { id: 'CAT' + String(next).padStart(2, '0'), name: '', nameEN: '', color: '#1177cc', subs: [] }];
+  });
 
-  const addSub = (cid) => setList(prev => prev.map(c => c.id === cid ? { ...c, subs: [...(c.subs || []), { id: uid('S'), name: '', nameEN: '' }] } : c));
+  const addSub = (cid) => setList(prev => prev.map(c => {
+    if (c.id !== cid) return c;
+    const m = c.id.match(/^CAT(\d+)$/);
+    if (!m) return { ...c, subs: [...(c.subs || []), { id: uid('S'), name: '', nameEN: '' }] };
+    const cn = m[1].padStart(2, '0');
+    const taken = (c.subs || []).map(s => s.id).filter(id => id.startsWith('S' + cn)).map(id => parseInt(id.slice(cn.length + 1)) || 0);
+    const next = taken.length ? Math.max(...taken) + 1 : 1;
+    return { ...c, subs: [...(c.subs || []), { id: 'S' + cn + String(next).padStart(2, '0'), name: '', nameEN: '' }] };
+  }));
   const updateSub = (cid, sid, k, v) => setList(prev => prev.map(c => c.id === cid ? { ...c, subs: c.subs.map(s => s.id === sid ? { ...s, [k]: v } : s) } : c));
   const removeSub = (cid, sid) => setList(prev => prev.map(c => c.id === cid ? { ...c, subs: (c.subs || []).filter(s => s.id !== sid) } : c));
 
