@@ -258,7 +258,7 @@
           try {
             var sr = await client.rpc('sync_cw_stock_to_drugs');
             if (sr.error) console.warn('[UNI_DB] CW stock sync:', sr.error.message || sr.error);
-            else console.info('[UNI_DB] CW synced — stock:', (sr.data||{}).stock_updated, 'drugs; prices:', (sr.data||{}).price_updated, 'drugs');
+            else { var _d=sr.data||{}; console.info('[UNI_DB] CW synced — stock:', _d.stock_updated??_d.stock??'?', 'prices:', _d.price_updated??_d.price??'?'); }
           } catch(e) {
             console.warn('[UNI_DB] CW stock sync skipped:', e.message);
           }
