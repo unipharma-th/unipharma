@@ -6083,7 +6083,7 @@ function getPrice(drug, sup) {
   if (sup.drugPrices?.[drug.code] !== undefined) return sup.drugPrices[drug.code];
   const comp = DB.COMP_PRICES[drug.code];
   if (comp && comp[sup.id] !== undefined) return comp[sup.id];
-  return drug.costEx || 0;
+  return (drug.costEx > 0) ? +drug.costEx : null;
 }
 
 function _drawCwHistoryChart(canvas, prevInst, data) {
@@ -6514,23 +6514,30 @@ function ComparisonPage({ lang, L, drugs, suppliers, onCreatePO }) {
     }
 
     return entries.map(({ sup, costEx, deal, isMain, isCwRef }) => {
-      const costInc = selectedDrug.hasVat ? +(costEx * 1.07).toFixed(2) : costEx;
+      const hasPrice = costEx != null;
+      const costInc = hasPrice && selectedDrug.hasVat ? +(costEx * 1.07).toFixed(2) : costEx;
       const promos = isCwRef ? [] : (sup.promotions || []).filter(p =>
         !p.catId || p.catId === selectedDrug.catId ||
         !p.drugCode || p.drugCode === selectedDrug.code
       );
       const bestPromoDisc = promos.reduce((m, p) => Math.max(m, p.discount || 0), 0);
-      const afterPromo = bestPromoDisc > 0 ? +(costEx * (1 - bestPromoDisc / 100)).toFixed(2) : costEx;
+      const afterPromo = hasPrice && bestPromoDisc > 0 ? +(costEx * (1 - bestPromoDisc / 100)).toFixed(2) : costEx;
       const shippingCost = (deal.shippingCost !== '' && deal.shippingCost !== undefined) ? parseFloat(deal.shippingCost) || 0 : 0;
-      const totalCost = +(afterPromo + shippingCost).toFixed(2);
+      const totalCost = hasPrice ? +(afterPromo + shippingCost).toFixed(2) : null;
       return { supplier: sup, costEx, costInc, promos, bestPromoDisc, afterPromo, shippingCost, totalCost, deal, isMain, isCwRef };
-    }).sort((a, b) => a.totalCost - b.totalCost);
+    }).sort((a, b) => {
+      if (a.totalCost == null && b.totalCost == null) return 0;
+      if (a.totalCost == null) return 1;
+      if (b.totalCost == null) return -1;
+      return a.totalCost - b.totalCost;
+    });
   }, [selectedDrug, suppliers, cwHistory]);
 
   const realRows    = rows.filter(r => !r.isCwRef);
-  const cheapest    = realRows[0] || rows[0];
-  const mostExp     = realRows[realRows.length - 1] || rows[rows.length - 1];
-  const maxSavings  = realRows.length > 1 ? +(mostExp.totalCost - cheapest.totalCost).toFixed(2) : 0;
+  const pricedReal  = realRows.filter(r => r.totalCost != null);
+  const cheapest    = pricedReal[0] || realRows[0] || rows[0];
+  const mostExp     = pricedReal[pricedReal.length - 1] || realRows[realRows.length - 1] || rows[rows.length - 1];
+  const maxSavings  = pricedReal.length > 1 ? +(mostExp.totalCost - cheapest.totalCost).toFixed(2) : 0;
 
   const popular = useMemo(() => {
     const linkedCodes = new Set([
@@ -6713,10 +6720,10 @@ function ComparisonPage({ lang, L, drugs, suppliers, onCreatePO }) {
                 </thead>
                 <tbody>
                   {rows.map((row, i) => {
-                    const isCheap = i === 0;
-                    const isExp = i === rows.length - 1 && rows.length > 1;
-                    const diff = +(row.totalCost - cheapest.totalCost).toFixed(2);
-                    const pctDiff = cheapest.totalCost > 0 ? +((diff / cheapest.totalCost) * 100).toFixed(1) : 0;
+                    const isCheap = i === 0 && row.totalCost != null;
+                    const isExp = i === rows.length - 1 && rows.length > 1 && row.totalCost != null;
+                    const diff = row.totalCost != null && cheapest?.totalCost != null ? +(row.totalCost - cheapest.totalCost).toFixed(2) : null;
+                    const pctDiff = diff != null && cheapest.totalCost > 0 ? +((diff / cheapest.totalCost) * 100).toFixed(1) : 0;
                     return (
                       <tr key={row.supplier.id} style={{ background: isCheap ? 'rgba(22,163,74,.07)' : isExp ? 'rgba(220,38,38,.05)' : undefined }}>
                         <td style={{ textAlign: 'center' }}>
@@ -6731,22 +6738,25 @@ function ComparisonPage({ lang, L, drugs, suppliers, onCreatePO }) {
                           {isCheap && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--ok)', background: 'var(--ok-bg)', padding: '1px 6px', borderRadius: 20, display: 'block', marginTop: 2, width: 'fit-content' }}>✓ {L('แนะนำ', 'BEST BUY')}</span>}
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: isCheap ? 'var(--ok)' : isExp ? 'var(--err)' : 'var(--txt)' }}>
-                          ฿{UTILS.fmt(row.costEx)}
+                          {row.costEx != null ? '฿'+UTILS.fmt(row.costEx) : <span style={{ color:'var(--txt4)', fontWeight:400 }}>ไม่มีราคา</span>}
                         </td>
-                        {selectedDrug.hasVat && <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--info)' }}>฿{UTILS.fmt(row.costInc)}</td>}
+                        {selectedDrug.hasVat && <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--info)' }}>{row.costInc != null ? '฿'+UTILS.fmt(row.costInc) : '—'}</td>}
                         <td style={{ textAlign: 'right', fontSize: 12 }}>
                           {row.shippingCost > 0 ? <span style={{ color: 'var(--err)' }}>฿{UTILS.fmt(row.shippingCost)}</span> : <span style={{ color: 'var(--txt4)' }}>—</span>}
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 14, color: isCheap ? 'var(--ok)' : isExp ? 'var(--err)' : 'var(--txt)' }}>
-                          ฿{UTILS.fmt(row.totalCost)}
+                          {row.totalCost != null ? '฿'+UTILS.fmt(row.totalCost) : <span style={{ color:'var(--txt4)', fontWeight:400 }}>—</span>}
                         </td>
                         <td style={{ textAlign: 'center', fontSize: 12, color: row.deal.expDate ? 'var(--txt)' : 'var(--txt4)' }}>
                           {row.deal.expDate || '—'}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          {diff === 0 ? <span style={{ color: 'var(--ok)', fontWeight: 700 }}>— {L('ถูกสุด','Cheapest')}</span> : (
-                            <div><div style={{ color: 'var(--err)', fontWeight: 700 }}>+฿{UTILS.fmt(diff)}</div><div style={{ fontSize: 10, color: 'var(--txt3)' }}>+{pctDiff}%</div></div>
-                          )}
+                          {diff == null
+                            ? <span style={{ color: 'var(--txt4)' }}>—</span>
+                            : diff === 0
+                              ? <span style={{ color: 'var(--ok)', fontWeight: 700 }}>— {L('ถูกสุด','Cheapest')}</span>
+                              : <div><div style={{ color: 'var(--err)', fontWeight: 700 }}>+฿{UTILS.fmt(diff)}</div><div style={{ fontSize: 10, color: 'var(--txt3)' }}>+{pctDiff}%</div></div>
+                          }
                         </td>
                         <td style={{ maxWidth: 160 }}>
                           {row.promos.length > 0 ? row.promos.map(p => (
