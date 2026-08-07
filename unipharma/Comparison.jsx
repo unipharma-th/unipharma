@@ -358,8 +358,10 @@ function ComparisonSummary({ drug, rows, realRows: _realRows, lang, L, onCreateP
 }
 
 // ── MAIN COMPARISON PAGE ──────────────────────────────────────────
-function ComparisonPage({ lang, L, drugs, suppliers, onCreatePO }) {
+function ComparisonPage({ lang, L, drugs, suppliers, setSuppliers, notify, onCreatePO }) {
   const [search, setSearch] = useState('');
+  const [editPriceId, setEditPriceId] = useState(null);
+  const [editPriceVal, setEditPriceVal] = useState('');
   const [selectedDrug, setSelectedDrug] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [tab, setTab] = useState('current'); // 'current' | 'summary' | 'history'
@@ -475,8 +477,24 @@ function ComparisonPage({ lang, L, drugs, suppliers, onCreatePO }) {
     return drugs.filter(d => linkedCodes.has(d.code)).slice(0, 12);
   }, [drugs, suppliers]);
 
-  const selectDrug = d => { setSelectedDrug(d); setSearch(''); setShowSearch(false); setTab('current'); };
-  const clearDrug  = () => { setSelectedDrug(null); setSearch(''); setTab('current'); setCwHistory([]); setPoHistory([]); };
+  const selectDrug = d => { setSelectedDrug(d); setSearch(''); setShowSearch(false); setTab('current'); setEditPriceId(null); };
+  const clearDrug  = () => { setSelectedDrug(null); setSearch(''); setTab('current'); setCwHistory([]); setPoHistory([]); setEditPriceId(null); };
+
+  const savePriceInline = async (sup, val) => {
+    const price = parseFloat(val);
+    if (isNaN(price) || price < 0 || !selectedDrug) { setEditPriceId(null); return; }
+    const updated = { ...sup, drugPrices: { ...(sup.drugPrices || {}), [selectedDrug.code]: price } };
+    setSuppliers && setSuppliers(prev => prev.map(s => s.id === sup.id ? updated : s));
+    setEditPriceId(null);
+    if (window.UNI_DB?.enabled) {
+      try {
+        await window.UNI_DB.saveSupplier(updated);
+        notify && notify(L('บันทึกราคาแล้ว', 'Price saved'), 'ok');
+      } catch(e) {
+        notify && notify(L('บันทึกราคาไม่สำเร็จ', 'Price save failed'), 'err');
+      }
+    }
+  };
 
   return (
     <div className="page">
@@ -665,7 +683,20 @@ function ComparisonPage({ lang, L, drugs, suppliers, onCreatePO }) {
                           {isCheap && <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--ok)', background: 'var(--ok-bg)', padding: '1px 6px', borderRadius: 20, display: 'block', marginTop: 2, width: 'fit-content' }}>✓ {L('แนะนำ', 'BEST BUY')}</span>}
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, color: isCheap ? 'var(--ok)' : isExp ? 'var(--err)' : 'var(--txt)' }}>
-                          {row.costEx != null ? '฿'+UTILS.fmt(row.costEx) : <span style={{ color:'var(--txt4)', fontWeight:400 }}>ไม่มีราคา</span>}
+                          {row.isCwRef
+                            ? (row.costEx != null ? '฿'+UTILS.fmt(row.costEx) : <span style={{ color:'var(--txt4)', fontWeight:400 }}>ไม่มีราคา</span>)
+                            : editPriceId === row.supplier.id
+                              ? <input autoFocus type="number" step="0.01" min="0"
+                                  value={editPriceVal}
+                                  onChange={e => setEditPriceVal(e.target.value)}
+                                  onBlur={() => savePriceInline(row.supplier, editPriceVal)}
+                                  onKeyDown={e => { if (e.key === 'Enter') savePriceInline(row.supplier, editPriceVal); if (e.key === 'Escape') setEditPriceId(null); }}
+                                  style={{ width: 90, textAlign: 'right', padding: '3px 6px', borderRadius: 5, border: '2px solid var(--acc)', background: 'var(--bg2)', color: 'var(--txt)', fontSize: 13 }}
+                                />
+                              : row.costEx != null
+                                ? <span onClick={() => { setEditPriceId(row.supplier.id); setEditPriceVal(String(row.costEx)); }} style={{ cursor:'pointer' }} title={L('คลิกเพื่อแก้ไขราคา','Click to edit price')}>฿{UTILS.fmt(row.costEx)}</span>
+                                : <span onClick={() => { setEditPriceId(row.supplier.id); setEditPriceVal(''); }} style={{ color:'var(--txt4)', fontWeight:400, cursor:'pointer', borderBottom:'1px dashed var(--txt4)' }} title={L('คลิกเพื่อกรอกราคา','Click to enter price')}>ไม่มีราคา ✎</span>
+                          }
                         </td>
                         {selectedDrug.hasVat && <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--info)' }}>{row.costInc != null ? '฿'+UTILS.fmt(row.costInc) : '—'}</td>}
                         <td style={{ textAlign: 'right', fontSize: 12 }}>
