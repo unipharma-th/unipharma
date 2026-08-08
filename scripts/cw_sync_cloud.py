@@ -393,10 +393,11 @@ def _download_brnstock_part(page, part_idx, cw_url=None, dl_dir=None):
     all_frames = [f.url for f in page.frames]
     print(f"    Frames after Button3: {all_frames}")
 
-    rep_frame = next((f for f in page.frames if 'BrnStock_Rep' in f.url), None)
+    rep_frame = next((f for f in page.frames if 'BrnStock_Rep' in f.url or ('BrnStock' in f.url and '_Man' not in f.url)), None)
     if not rep_frame:
-        print("    ERROR: BrnStock_Rep iframe not found")
+        print(f"    ERROR: BrnStock report iframe not found (frames: {[f.url for f in page.frames]})")
         return None
+    print(f"    Found BrnStock report frame: {rep_frame.url}")
 
     btn_id = f'#MainContent_cDlPager_cBtnRepData_{part_idx}'
     if not rep_frame.evaluate(f"!!document.querySelector('{btn_id}')"):
@@ -496,7 +497,10 @@ def _setup_brnsale_page(page, cw_url=None, dl_dir=None):
     all_frames = [f.url for f in page.frames]
     print(f"    BrnSale frames after Button3: {all_frames}")
 
-    return next((f for f in page.frames if 'BrnSale_Rep' in f.url), None)
+    rep = next((f for f in page.frames if 'BrnSale_Rep' in f.url or ('BrnSale' in f.url and '_Man' not in f.url)), None)
+    if rep:
+        print(f"    Found BrnSale report frame: {rep.url}")
+    return rep
 
 
 def _download_brnsale_part(page, part_idx, cw_url=None, dl_dir=None):
