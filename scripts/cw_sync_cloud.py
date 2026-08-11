@@ -784,69 +784,116 @@ SET search_path = public
 AS $$
 DECLARE
   n_stock int := 0;
-  n_price int := 0;
+  n_cost  int := 0;
+  n_sell  int := 0;
 BEGIN
-  -- Step 1: sync stock quantities
+  -- Step 1: sync stock quantities + unit from cwpharma_stock_test
   UPDATE drugs d
   SET
     total_stock = COALESCE(c.stock_00,0) + COALESCE(c.stock_01,0) + COALESCE(c.stock_02,0),
-    data = d.data || jsonb_build_object(
-      'stock',      jsonb_build_object(
-                      'PTN', COALESCE(c.stock_00,0),
-                      'RAM', COALESCE(c.stock_01,0),
-                      'CNX', COALESCE(c.stock_02,0)
-                    ),
-      'totalStock', COALESCE(c.stock_00,0) + COALESCE(c.stock_01,0) + COALESCE(c.stock_02,0)
-    )
+    data = d.data
+      || jsonb_build_object(
+           'stock', jsonb_build_object(
+             'PTN', COALESCE(c.stock_00,0),
+             'RAM', COALESCE(c.stock_01,0),
+             'CNX', COALESCE(c.stock_02,0)
+           ),
+           'totalStock', COALESCE(c.stock_00,0) + COALESCE(c.stock_01,0) + COALESCE(c.stock_02,0)
+         )
+      || CASE WHEN NULLIF(TRIM(c.unit),'') IS NOT NULL
+           THEN jsonb_build_object('unit', TRIM(c.unit))
+           ELSE '{}'::jsonb
+         END
   FROM cwpharma_stock_test c
   WHERE c.code = d.code;
   GET DIAGNOSTICS n_stock = ROW_COUNT;
 
-  -- Step 2: sync cost + sell prices (only where CW has non-zero values)
+  -- Step 2: sync cost_ex from latest cw_price_history per drug
+  -- cwpharma_stock_test.cost_00 is always 0 (BrnStock has no cost); use price history instead.
   UPDATE drugs d
   SET
-    sell_ex = CASE WHEN cw.sell > 0 THEN ROUND(cw.sell::numeric, 2) ELSE d.sell_ex END,
-    data = d.data
-      -- cost fields: update only when CW has cost data
-      || CASE WHEN cw.cost > 0 THEN jsonb_build_object(
-           'costEx',  ROUND(cw.cost::numeric, 2),
-           'costInc', ROUND(cw.cost::numeric * (1 + COALESCE((d.data->>'vat')::numeric, 7) / 100), 2)
-         ) ELSE '{}'::jsonb END
-      -- sell fields: update only when CW has sell data
-      || CASE WHEN cw.sell > 0 THEN jsonb_build_object(
-           'sellEx',  ROUND(cw.sell::numeric, 2),
-           'sellInc', ROUND(cw.sell::numeric * (1 + COALESCE((d.data->>'vat')::numeric, 7) / 100), 2)
-         ) ELSE '{}'::jsonb END
-      -- profit: always recompute from final sell/cost
-      || jsonb_build_object(
-           'profitEx',
-           ROUND((
-             CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END -
-             CASE WHEN cw.cost > 0 THEN cw.cost ELSE COALESCE((d.data->>'costEx')::numeric, 0) END
-           )::numeric, 2),
-           'profitMargin',
-           CASE WHEN CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END > 0
-             THEN ROUND(((
-               CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END -
-               CASE WHEN cw.cost > 0 THEN cw.cost ELSE COALESCE((d.data->>'costEx')::numeric, 0) END
-             ) / (CASE WHEN cw.sell > 0 THEN cw.sell ELSE COALESCE((d.data->>'sellEx')::numeric, 0) END) * 100)::numeric, 2)
-             ELSE 0::numeric
-           END
-         )
+    cost_ex = ROUND(h.cost::numeric, 4),
+    data = d.data || jsonb_build_object(
+      'costEx',  ROUND(h.cost::numeric, 4),
+      'costInc', ROUND(h.cost::numeric * (1 + COALESCE((d.data->>'vat')::numeric, 7) / 100), 4)
+    )
+  FROM (
+    SELECT DISTINCT ON (code) code,
+      COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0)) AS cost
+    FROM cw_price_history
+    WHERE COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0)) > 0
+    ORDER BY code, sync_date DESC
+  ) h
+  WHERE h.code = d.code AND h.cost IS NOT NULL;
+  GET DIAGNOSTICS n_cost = ROW_COUNT;
+
+  -- Step 3: sync sell_ex from cwpharma_stock_test (only where CW has non-zero sell)
+  UPDATE drugs d
+  SET
+    sell_ex = ROUND(cw.sell::numeric, 2),
+    data = d.data || jsonb_build_object(
+      'sellEx',  ROUND(cw.sell::numeric, 2),
+      'sellInc', ROUND(cw.sell::numeric * (1 + COALESCE((d.data->>'vat')::numeric, 7) / 100), 2)
+    )
   FROM (
     SELECT code,
-      COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0), 0) AS cost,
-      COALESCE(NULLIF(sell_00,0), NULLIF(sell_01,0), NULLIF(sell_02,0), 0) AS sell
+      COALESCE(NULLIF(sell_00,0), NULLIF(sell_01,0), NULLIF(sell_02,0)) AS sell
     FROM cwpharma_stock_test
-    WHERE COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0)) > 0
-       OR COALESCE(NULLIF(sell_00,0), NULLIF(sell_01,0), NULLIF(sell_02,0)) > 0
+    WHERE COALESCE(NULLIF(sell_00,0), NULLIF(sell_01,0), NULLIF(sell_02,0)) > 0
   ) cw
   WHERE cw.code = d.code;
-  GET DIAGNOSTICS n_price = ROW_COUNT;
+  GET DIAGNOSTICS n_sell = ROW_COUNT;
+
+  -- Step 4: auto-import new CW products that don't exist in drugs table yet
+  INSERT INTO drugs (code, name_th, name_en, has_vat, cost_ex, sell_ex, total_stock, data)
+  SELECT
+    c.code,
+    c.name                                                                AS name_th,
+    c.name                                                                AS name_en,
+    true                                                                  AS has_vat,
+    COALESCE(h.cost, 0)                                                   AS cost_ex,
+    COALESCE(NULLIF(c.sell_00,0), NULLIF(c.sell_01,0), NULLIF(c.sell_02,0), 0) AS sell_ex,
+    COALESCE(c.stock_00,0) + COALESCE(c.stock_01,0) + COALESCE(c.stock_02,0)  AS total_stock,
+    jsonb_build_object(
+      'code',        c.code,
+      'nameTH',      c.name,
+      'nameEN',      c.name,
+      'unit',        COALESCE(NULLIF(TRIM(c.unit),''), 'หน่วย'),
+      'hasVat',      true,
+      'vatRate',     7,
+      'costEx',      COALESCE(h.cost, 0),
+      'costInc',     ROUND(COALESCE(h.cost, 0) * 1.07, 4),
+      'sellEx',      COALESCE(NULLIF(c.sell_00,0), NULLIF(c.sell_01,0), NULLIF(c.sell_02,0), 0),
+      'sellInc',     ROUND(COALESCE(NULLIF(c.sell_00,0), NULLIF(c.sell_01,0), NULLIF(c.sell_02,0), 0) * 1.07, 2),
+      'totalStock',  COALESCE(c.stock_00,0) + COALESCE(c.stock_01,0) + COALESCE(c.stock_02,0),
+      'stock',       jsonb_build_object(
+                       'PTN', COALESCE(c.stock_00,0),
+                       'RAM', COALESCE(c.stock_01,0),
+                       'CNX', COALESCE(c.stock_02,0)
+                     ),
+      'supplierId',  '',
+      'catId',       null,
+      'subId',       null,
+      'minStock',    0,
+      'orderCount',  0,
+      'profitEx',    0,
+      'profitMargin', 0
+    )
+  FROM cwpharma_stock_test c
+  LEFT JOIN (
+    SELECT DISTINCT ON (code) code,
+      COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0)) AS cost
+    FROM cw_price_history
+    WHERE COALESCE(NULLIF(cost_00,0), NULLIF(cost_01,0), NULLIF(cost_02,0)) > 0
+    ORDER BY code, sync_date DESC
+  ) h ON h.code = c.code
+  WHERE NOT EXISTS (SELECT 1 FROM drugs d WHERE d.code = c.code)
+  ON CONFLICT (code) DO NOTHING;
 
   RETURN json_build_object(
     'stock_updated', n_stock,
-    'price_updated', n_price,
+    'cost_updated',  n_cost,
+    'sell_updated',  n_sell,
     'synced_at',     now()::text
   );
 END;
@@ -854,6 +901,23 @@ $$;
 GRANT EXECUTE ON FUNCTION sync_cw_stock_to_drugs() TO anon;
 NOTIFY pgrst, 'reload schema';
 """
+
+def call_sync_drugs():
+    """Call sync_cw_stock_to_drugs() via Supabase RPC to update drugs table from CW data."""
+    headers = {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': f'Bearer {SUPABASE_KEY}',
+        'Content-Type':  'application/json',
+    }
+    res = requests.post(f'{SUPABASE_URL}/rest/v1/rpc/sync_cw_stock_to_drugs', headers=headers)
+    if res.status_code == 200:
+        result = res.json()
+        print(f'[SyncDrugs] stock_updated={result.get("stock_updated")} '
+              f'cost_updated={result.get("cost_updated")} '
+              f'sell_updated={result.get("sell_updated")}')
+    else:
+        print(f'[SyncDrugs] ERROR {res.status_code}: {res.text[:300]}')
+
 
 def ensure_supabase_functions():
     """Create sync_cw_stock_to_drugs() via Supabase pooler (uses SUPABASE_KEY as password)."""
@@ -971,6 +1035,9 @@ if __name__ == "__main__":
             print("\n[5] Uploading to Supabase...")
             upload_to_supabase(products)
             upload_price_history(products)
+
+            print("\n[6] Syncing drugs table (cost/stock/unit) from CW data...")
+            call_sync_drugs()
 
         except Exception as e:
             import traceback
