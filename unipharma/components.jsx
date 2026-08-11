@@ -333,8 +333,8 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
   const validate = () => {
     const e = {};
     if (!form.code) e.code = true;
-    if (!form.nameTH) e.nameTH = true;
-    if (!form.nameEN) e.nameEN = true;
+    if (!form.nameTH && !cwName) e.nameTH = true;
+    if (!form.nameEN && !cwName) e.nameEN = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -343,7 +343,10 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
     if (!validate()) return;
     const cEx = parseFloat(form.costEx) || 0, sEx = parseFloat(form.sellEx) || 0;
     const saved = {
-      ...form, costEx: cEx, sellEx: sEx,
+      ...form,
+      nameTH: form.nameTH || cwName,
+      nameEN: form.nameEN || cwName,
+      costEx: cEx, sellEx: sEx,
       costInc: form.hasVat ? +(cEx * 1.07).toFixed(2) : cEx,
       sellInc: form.hasVat ? +(sEx * 1.07).toFixed(2) : sEx,
       profitEx: +(sEx - cEx).toFixed(2),
@@ -390,14 +393,25 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
           {errors.unit && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
         </div>
       </div>
+      {cwName && (
+        <div style={{marginBottom:12,padding:'9px 12px',background:'rgba(167,139,250,.07)',border:'1px solid rgba(167,139,250,.25)',borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:10,fontWeight:700,color:'#a78bfa',background:'rgba(167,139,250,.15)',borderRadius:5,padding:'2px 7px',whiteSpace:'nowrap',flexShrink:0}}>🔄 CW</span>
+          <span style={{fontSize:13,color:'#a78bfa',flex:1,wordBreak:'break-word'}}>{cwName}</span>
+          <span style={{fontSize:11,color:'var(--txt3)',whiteSpace:'nowrap'}}>{L('ชื่ออ้างอิง','Reference')}</span>
+        </div>
+      )}
       <div className="form-group">
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
-          <label className="label">{L('ชื่อภาษาไทย','Thai Name')}</label>
+          <label className="label">
+            {L('ชื่อภาษาไทย','Thai Name')}
+            {cwName && <span style={{fontSize:10,color:'var(--txt3)',fontWeight:400,marginLeft:5}}>{L('(ว่างไว้ = ใช้ชื่อ CW)','(blank = use CW name)')}</span>}
+          </label>
           <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toTH')} style={{fontSize:11}}>
             {xlating==='toTH'?'⏳':'🤖'} {L('แปลจาก EN','← from EN')}
           </button>
         </div>
         <input className={`input${errors.nameTH?' border-red':''}`} type="text" value={form.nameTH||''}
+          placeholder={cwName ? L('ว่างไว้ = ใช้ชื่อ CW อัตโนมัติ','Leave blank to use CW name') : ''}
           onChange={e=>set('nameTH',e.target.value)} onBlur={e=>checkSimilar(e.target.value)} />
         {errors.nameTH && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
         {matchWarn && (
@@ -412,33 +426,18 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
       </div>
       <div className="form-group">
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
-          <label className="label">{L('ชื่อภาษาอังกฤษ','English Name')}</label>
+          <label className="label">
+            {L('ชื่อภาษาอังกฤษ','English Name')}
+            {cwName && <span style={{fontSize:10,color:'var(--txt3)',fontWeight:400,marginLeft:5}}>{L('(ว่างไว้ = ใช้ชื่อ CW)','(blank = use CW name)')}</span>}
+          </label>
           <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toEN')} style={{fontSize:11}}>
             {xlating==='toEN'?'⏳':'🤖'} {L('แปลจาก TH','← from TH')}
           </button>
         </div>
         <input className={`input${errors.nameEN?' border-red':''}`} type="text" value={form.nameEN||''}
+          placeholder={cwName ? L('ว่างไว้ = ใช้ชื่อ CW อัตโนมัติ','Leave blank to use CW name') : ''}
           onChange={e=>set('nameEN',e.target.value)} />
         {errors.nameEN && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
-        {cwName && _nameSim(cwName, form.nameEN||'') < 0.85 && (
-          <div style={{marginTop:6,padding:'8px 12px',background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.35)',borderRadius:6,fontSize:12}}>
-            📦 {L('ชื่อใน CW Pharma','CW name')}: <strong>{cwName}</strong>
-            <div style={{marginTop:6,display:'flex',gap:6,flexWrap:'wrap'}}>
-              <button type="button" className="btn btn-xs btn-primary" onClick={()=>set('nameEN',cwName)}>
-                {L('ใช้ชื่อนี้','Use this name')}
-              </button>
-              <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={async()=>{
-                set('nameEN',cwName);
-                setXlating('cwTH');
-                const r = await _gtranslate(cwName,'en','th');
-                if(r) set('nameTH',r);
-                setXlating('');
-              }}>
-                {xlating==='cwTH'?'⏳':'🤖'} {L('ใช้ชื่อนี้ + แปลเป็น TH','Use + translate → TH')}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       <div className="form-row">
         <div className="form-group">

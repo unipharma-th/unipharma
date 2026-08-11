@@ -1437,8 +1437,8 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
   const validate = () => {
     const e = {};
     if (!form.code) e.code = true;
-    if (!form.nameTH) e.nameTH = true;
-    if (!form.nameEN) e.nameEN = true;
+    if (!form.nameTH && !cwName) e.nameTH = true;
+    if (!form.nameEN && !cwName) e.nameEN = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1447,7 +1447,10 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
     if (!validate()) return;
     const cEx = parseFloat(form.costEx) || 0, sEx = parseFloat(form.sellEx) || 0;
     const saved = {
-      ...form, costEx: cEx, sellEx: sEx,
+      ...form,
+      nameTH: form.nameTH || cwName,
+      nameEN: form.nameEN || cwName,
+      costEx: cEx, sellEx: sEx,
       costInc: form.hasVat ? +(cEx * 1.07).toFixed(2) : cEx,
       sellInc: form.hasVat ? +(sEx * 1.07).toFixed(2) : sEx,
       profitEx: +(sEx - cEx).toFixed(2),
@@ -1494,14 +1497,25 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
           {errors.unit && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
         </div>
       </div>
+      {cwName && (
+        <div style={{marginBottom:12,padding:'9px 12px',background:'rgba(167,139,250,.07)',border:'1px solid rgba(167,139,250,.25)',borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:10,fontWeight:700,color:'#a78bfa',background:'rgba(167,139,250,.15)',borderRadius:5,padding:'2px 7px',whiteSpace:'nowrap',flexShrink:0}}>🔄 CW</span>
+          <span style={{fontSize:13,color:'#a78bfa',flex:1,wordBreak:'break-word'}}>{cwName}</span>
+          <span style={{fontSize:11,color:'var(--txt3)',whiteSpace:'nowrap'}}>{L('ชื่ออ้างอิง','Reference')}</span>
+        </div>
+      )}
       <div className="form-group">
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
-          <label className="label">{L('ชื่อภาษาไทย','Thai Name')}</label>
+          <label className="label">
+            {L('ชื่อภาษาไทย','Thai Name')}
+            {cwName && <span style={{fontSize:10,color:'var(--txt3)',fontWeight:400,marginLeft:5}}>{L('(ว่างไว้ = ใช้ชื่อ CW)','(blank = use CW name)')}</span>}
+          </label>
           <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toTH')} style={{fontSize:11}}>
             {xlating==='toTH'?'⏳':'🤖'} {L('แปลจาก EN','← from EN')}
           </button>
         </div>
         <input className={`input${errors.nameTH?' border-red':''}`} type="text" value={form.nameTH||''}
+          placeholder={cwName ? L('ว่างไว้ = ใช้ชื่อ CW อัตโนมัติ','Leave blank to use CW name') : ''}
           onChange={e=>set('nameTH',e.target.value)} onBlur={e=>checkSimilar(e.target.value)} />
         {errors.nameTH && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
         {matchWarn && (
@@ -1516,33 +1530,18 @@ function DrugForm({ drug, onSave, onClose, lang, L, suppliers, drugs: allDrugs =
       </div>
       <div className="form-group">
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:2}}>
-          <label className="label">{L('ชื่อภาษาอังกฤษ','English Name')}</label>
+          <label className="label">
+            {L('ชื่อภาษาอังกฤษ','English Name')}
+            {cwName && <span style={{fontSize:10,color:'var(--txt3)',fontWeight:400,marginLeft:5}}>{L('(ว่างไว้ = ใช้ชื่อ CW)','(blank = use CW name)')}</span>}
+          </label>
           <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={()=>doTranslate('toEN')} style={{fontSize:11}}>
             {xlating==='toEN'?'⏳':'🤖'} {L('แปลจาก TH','← from TH')}
           </button>
         </div>
         <input className={`input${errors.nameEN?' border-red':''}`} type="text" value={form.nameEN||''}
+          placeholder={cwName ? L('ว่างไว้ = ใช้ชื่อ CW อัตโนมัติ','Leave blank to use CW name') : ''}
           onChange={e=>set('nameEN',e.target.value)} />
         {errors.nameEN && <div style={{color:'var(--err)',fontSize:11,marginTop:2}}>จำเป็นต้องกรอก</div>}
-        {cwName && _nameSim(cwName, form.nameEN||'') < 0.85 && (
-          <div style={{marginTop:6,padding:'8px 12px',background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.35)',borderRadius:6,fontSize:12}}>
-            📦 {L('ชื่อใน CW Pharma','CW name')}: <strong>{cwName}</strong>
-            <div style={{marginTop:6,display:'flex',gap:6,flexWrap:'wrap'}}>
-              <button type="button" className="btn btn-xs btn-primary" onClick={()=>set('nameEN',cwName)}>
-                {L('ใช้ชื่อนี้','Use this name')}
-              </button>
-              <button type="button" className="btn btn-xs btn-ghost" disabled={!!xlating} onClick={async()=>{
-                set('nameEN',cwName);
-                setXlating('cwTH');
-                const r = await _gtranslate(cwName,'en','th');
-                if(r) set('nameTH',r);
-                setXlating('');
-              }}>
-                {xlating==='cwTH'?'⏳':'🤖'} {L('ใช้ชื่อนี้ + แปลเป็น TH','Use + translate → TH')}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       <div className="form-row">
         <div className="form-group">
@@ -8349,8 +8348,8 @@ function HelpPage({ lang, L, perm = { role: 'admin' }, supplierCount = 0, drugCo
       steps_th:['ดูยอดสั่งซื้อประจำเดือน, จำนวน PO รอ, สินค้าใกล้หมด','ดูกราฟยอดสั่งซื้อแยกสาขา และสัดส่วนตามหมวดหมู่','คลิก Card เพื่อไปหน้าอื่น หรือสร้าง PO ใหม่'],
       steps_en:['View monthly spend, pending POs, low stock alerts','See branch spending & category breakdown','Click cards to navigate or create new PO'] },
     { icon:'💊', th:'ฐานข้อมูลยา', en:'Drug Database', color:'var(--ok)',
-      steps_th:['ค้นหาด้วยรหัส/ชื่อยา กรองตามหมวดหมู่/VAT/สาขา (เลือกสาขา → เห็นเฉพาะยาที่มีสต็อกในสาขานั้น) — แถบค้นหาติดด้านบนตลอดขณะเลื่อนดูรายการ','ดูรายละเอียด: ต้นทุน รวม VAT (ด้านบน) / ไม่รวม VAT (รองลงมา), กำไร%, หน่วยบรรจุ, สต็อก','เพิ่มยาใหม่ หรือแก้ไข (กำไรแก้ได้→ราคาขายอัปเดต)','📦 Packaging ON เพื่อดูหน่วยบรรจุแบบเต็ม; หน่วยบรรจุแก้ไขได้ใน Edit form','🏷️ ปุ่ม "จัดการหมวดหมู่": เพิ่ม/แก้ไข/ลบ หมวดหลัก + หมวดย่อย (2 ภาษา) บันทึกแล้วแชร์ขึ้นคลาวด์','📝 หมายเหตุสินค้า: เลือกสาเหตุจาก Dropdown (8 ตัวเลือก เช่น สั่งเมื่อมีคำสั่งซื้อ / ความต้องการต่ำ / ราคาสูง ฯลฯ) + หมายเหตุเพิ่มเติม — แสดงเป็น badge สีเหลืองใต้ชื่อยาในรายการ','🏪 คอลัมน์ Stock CW แสดงสต็อกจาก CW Pharma แยก 3 สาขา (PTN/RAM/CNX) — สีเขียว>10, เหลือง>0, แดง=หมด; คลิกขยายดูต้นทุน/ราคาขายต่อสาขา (ต้นทุน = ราคารับล่าสุดจาก CW)','⟳ badge "CW วัน/เวลา" ด้านบนรายการ: คลิกเพื่อรีเฟรชข้อมูล CW ทันที (ไม่ต้องรอซิงค์รอบถัดไป)','🗄️ แท็บ "ไม่ใช้งาน": รายการสินค้า stock=0 ที่ซ่อนจากสถิติหลัก — กด "🔍 ตรวจหาไม่ใช้งาน" เพื่อจัดกลุ่มอัตโนมัติ; คลิกแถวเพื่อดูรายละเอียดสินค้า; กด "↩ คืนสภาพ" เพื่อนำกลับมาใช้งาน','📤 Admin/Manager: กดปุ่ม Export Excel เพื่อดาวน์โหลดข้อมูลยาทั้งหมด'],
-      steps_en:['Search by code/name; filter by category/VAT/branch (pick a branch → only drugs stocked there) — filter bar stays pinned while scrolling','View full details: cost incl. VAT (top) / excl. VAT (below), profit%, packaging, stock','Add new or edit drugs (profit editable → auto-update sell price)','Toggle Packaging ON to see packaging hierarchy; edit packaging units in Edit form','🏷️ "Categories" button: add/edit/delete main & sub-categories (bilingual), saved & shared to the cloud','📝 Product Remarks: select reason from dropdown (8 options e.g. On Demand / Low Demand / High Value / Short Shelf Life etc.) + free-text note — shows as amber badge under drug name in the list','🏪 Stock CW column shows live CW Pharma stock per branch (PTN/RAM/CNX) — green>10, yellow>0, red=out; expand row to see cost/sell per branch (cost = last received price from CW GR)','⟳ "CW date" badge above the list: click to force-refresh CW data instantly without waiting for the next scheduled sync','🗄️ "Inactive" tab: zero-stock items hidden from main stats — tap "🔍 Detect Inactive" to auto-archive; click any row to view full details; tap "↩ Restore" to reactivate','📤 Admin/Manager: tap Export Excel to download the full drug database as an Excel file'] },
+      steps_th:['✏ ฟอร์มแก้ไขชื่อยา: แถบม่วง 🔄 CW แสดงชื่ออ้างอิงจากระบบ CW — ฟิลด์ "ชื่อภาษาไทย" และ "ชื่อภาษาอังกฤษ" เป็นชื่อที่แอดมินกำหนดเอง (ว่างไว้ = ใช้ชื่อ CW อัตโนมัติ)','ค้นหาด้วยรหัส/ชื่อยา กรองตามหมวดหมู่/VAT/สาขา (เลือกสาขา → เห็นเฉพาะยาที่มีสต็อกในสาขานั้น) — แถบค้นหาติดด้านบนตลอดขณะเลื่อนดูรายการ','ดูรายละเอียด: ต้นทุน รวม VAT (ด้านบน) / ไม่รวม VAT (รองลงมา), กำไร%, หน่วยบรรจุ, สต็อก','เพิ่มยาใหม่ หรือแก้ไข (กำไรแก้ได้→ราคาขายอัปเดต)','📦 Packaging ON เพื่อดูหน่วยบรรจุแบบเต็ม; หน่วยบรรจุแก้ไขได้ใน Edit form','🏷️ ปุ่ม "จัดการหมวดหมู่": เพิ่ม/แก้ไข/ลบ หมวดหลัก + หมวดย่อย (2 ภาษา) บันทึกแล้วแชร์ขึ้นคลาวด์','📝 หมายเหตุสินค้า: เลือกสาเหตุจาก Dropdown (8 ตัวเลือก เช่น สั่งเมื่อมีคำสั่งซื้อ / ความต้องการต่ำ / ราคาสูง ฯลฯ) + หมายเหตุเพิ่มเติม — แสดงเป็น badge สีเหลืองใต้ชื่อยาในรายการ','🏪 คอลัมน์ Stock CW แสดงสต็อกจาก CW Pharma แยก 3 สาขา (PTN/RAM/CNX) — สีเขียว>10, เหลือง>0, แดง=หมด; คลิกขยายดูต้นทุน/ราคาขายต่อสาขา (ต้นทุน = ราคารับล่าสุดจาก GR report)','🏢 แท็บ "ซัพพลายเออร์" ในรายละเอียดสินค้า: การ์ด "ข้อมูลจาก CW" (ขอบสีม่วง) แสดงชื่อผู้จำหน่ายที่ CW บันทึกจาก GR — ใช้อ้างอิงก่อน map Supplier ในระบบ; ถ้ายังไม่ได้ map จะมีข้อความแนะนำให้กด แก้ไข','⟳ badge "CW วัน/เวลา" ด้านบนรายการ: คลิกเพื่อรีเฟรชข้อมูล CW ทันที (ไม่ต้องรอซิงค์รอบถัดไป)','🗄️ แท็บ "ไม่ใช้งาน": รายการสินค้า stock=0 ที่ซ่อนจากสถิติหลัก — กด "🔍 ตรวจหาไม่ใช้งาน" เพื่อจัดกลุ่มอัตโนมัติ; คลิกแถวเพื่อดูรายละเอียดสินค้า; กด "↩ คืนสภาพ" เพื่อนำกลับมาใช้งาน','📤 Admin/Manager: กดปุ่ม Export Excel เพื่อดาวน์โหลดข้อมูลยาทั้งหมด'],
+      steps_en:['✏ Drug name edit form: purple 🔄 CW bar shows the CW reference name — "Thai Name" and "English Name" fields are admin-customised names (leave blank to auto-use the CW name)','Search by code/name; filter by category/VAT/branch (pick a branch → only drugs stocked there) — filter bar stays pinned while scrolling','View full details: cost incl. VAT (top) / excl. VAT (below), profit%, packaging, stock','Add new or edit drugs (profit editable → auto-update sell price)','Toggle Packaging ON to see packaging hierarchy; edit packaging units in Edit form','🏷️ "Categories" button: add/edit/delete main & sub-categories (bilingual), saved & shared to the cloud','📝 Product Remarks: select reason from dropdown (8 options e.g. On Demand / Low Demand / High Value / Short Shelf Life etc.) + free-text note — shows as amber badge under drug name in the list','🏪 Stock CW column shows live CW Pharma stock per branch (PTN/RAM/CNX) — green>10, yellow>0, red=out; expand row to see cost/sell per branch (cost = last received price from CW GR reports)','🏢 "Supplier" tab in drug detail: a purple-bordered "From CW Records" card shows the distributor name recorded in CW GR — use as reference before linking to a system supplier; a hint appears if no supplier has been assigned yet','⟳ "CW date" badge above the list: click to force-refresh CW data instantly without waiting for the next scheduled sync','🗄️ "Inactive" tab: zero-stock items hidden from main stats — tap "🔍 Detect Inactive" to auto-archive; click any row to view full details; tap "↩ Restore" to reactivate','📤 Admin/Manager: tap Export Excel to download the full drug database as an Excel file'] },
     { icon:'📋', th:'การสั่งซื้อ', en:'Purchase Orders', color:'var(--info)',
       steps_th:['ดูรายการ PO ทั้งหมด กรองตามสาขา/สถานะ/เดือน','เปลี่ยนสถานะ: ส่ง → อนุมัติ → ยืนยันรับ','ดูเอกสาร A4 (ชื่อ Supplier & จำนวนเงินแปลเป็นคำ)', 'สร้าง PO ใหม่: เลือกสาขา+Supplier → เลือกสินค้า → เลือกผู้แทน → ดึงราคา','👤 ผู้แทน: ถ้า Supplier มีผู้แทน จะมีหน้าจอให้เลือก; ถ้ามีคนเดียวเลือกอัตโนมัติ — ชื่อ/Brand แสดงในเอกสาร PO','🤖 แนะนำผู้แทนอัตโนมัติ: ระบบนับว่าผู้แทนแต่ละคนดูแลสินค้ากี่รายการที่อยู่ใน PO — แนะนำผู้แทนที่ตรงที่สุด พร้อมแสดง "✓ ดูแล N รายการในใบสั่งนี้" ใต้การ์ด','⚠️ แจ้งเตือนราคา: ระบบเปรียบเทียบราคาที่กรอกกับประวัติ 90 วัน — เหลือง=สูงกว่าราคาดีที่สุด, เขียว=ต่ำกว่าค่าเฉลี่ย (ช่วยประหยัดงบ)','สถานที่จัดส่ง: เลือกสาขาจาก Dropdown → ที่อยู่เติมอัตโนมัติ (แก้ไขได้) พร้อมเวลาเปิด+เบอร์โทร','🎁 เลือกดีล Supplier: ระบุ ซื้อ/แถม/ของแถม/ส่วนลด% — ใช้ข้อมูลล่าสุดเสมอ','🏪 แถบ CW ใต้รายการยา: สต็อก 3 สาขาจาก CW + เปรียบเทียบราคา PO vs ต้นทุน CW','📤 Admin/Manager: Export Excel เพื่อดาวน์โหลดรายการ PO ทั้งหมด'],
       steps_en:['View all POs, filter by branch/status/month','Change status: submit → approve → confirm','View A4 document (supplier name & amount in words translated)','Create PO: select branch + supplier → add items → choose rep → finalise','👤 Rep selector: if the supplier has reps, a grid appears to choose one; auto-selected if only one — name/Brand printed on PO document','🤖 Auto-suggest rep: system counts how many drugs each rep manages that are already in the PO — suggests the best match and shows "✓ Manages N items in this PO" under their card','⚠️ Price alert: price field shows yellow if above 90-day best price, green if below average — helps avoid overpaying','Delivery: pick a branch from the dropdown → address auto-fills (editable) with open hours + phone','🎁 Supplier deal: specify Buy qty / Free qty / Bonus / Discount% — always uses latest data','🏪 CW strip below each item: stock per branch from CW Pharma + PO price vs CW cost comparison','📤 Admin/Manager: Export Excel to download all purchase order records'] },
@@ -8370,8 +8369,8 @@ function HelpPage({ lang, L, perm = { role: 'admin' }, supplierCount = 0, drugCo
       steps_th:['เลือกเดือน + สาขา ด้วย filter ด้านบน (ดูรวมทุกสาขาหรือแยกสาขาได้)','กราฟแนวโน้มยอดซื้อ: เปรียบเทียบเดือนต่อเดือน แยกสาขา + แยกหมวดหมู่','แท็บ Top 10: ยาที่สั่งซื้อสูงสุด 10 อันดับ','แท็บ ยาที่ไม่ได้สั่ง: ตรวจสอบยาที่ขาดการสั่ง (ช่วยวางแผนสต็อก)','แท็บ Supplier Analysis: ยอดซื้อแยกตาม Supplier + เปรียบเทียบราคา'],
       steps_en:['Select month + branch with top filters (view all branches or per branch)','Trend chart: month-over-month spend by branch + by category','Top 10 tab: most-ordered drugs this period','Rarely Ordered tab: drugs not recently purchased (helps stock planning)','Supplier Analysis tab: spend per supplier + price comparison'] },
     { icon:'🔄', th:'ซิงค์ข้อมูล', en:'Data Sync', color:'var(--info)',
-      steps_th:['Admin เท่านั้น — นำเข้ายา/ผู้จัดจำหน่าย/ออเดอร์ ผ่าน Excel หรือ Google Sheets','จับคู่คอลัมน์อัตโนมัติ → Preview → Import — 🔒 checkbox \"ป้องกันชื่อ/หมวดหมู่\" (ติ๊กไว้ตั้งแต่ต้น): import เฉพาะราคา/สต็อก ชื่อยา+หมวดหมู่เดิมไม่ถูกเขียนทับ; ⚠️ แจ้งเตือนรหัสที่ชื่อเปลี่ยน (อาจถูก Reassign)','📥 Template ยา (19 คอลัมน์): code / nameTH / nameEN / unit / catId / subId / hasVat / costEx / sellEx / stockPTN / stockRAM / stockCNX / minStock / supplierId / costPTN / costRAM / costCNX / remark (Dropdown 8 ตัวเลือก) / remarkNote','📥 Template Supplier (40 คอลัมน์): id / name / nameEN / contact / phone / email / taxId / creditTerm / deliveryDays / rating / address / category / minOrder / returnPolicy / returnPolicyEN + ดีล 5 slot (deal1_buyQty / deal1_freeQty / deal1_bonusItems / deal1_discount / deal1_note ... ถึง deal5)','SQL Sync: รัน SQL snippets เพื่ออัปเกรดตาราง (ทำครั้งแรกครั้งเดียว)','Startup Query: SQL ที่รันอัตโนมัติทุกครั้งที่เปิดแอป (warehouse sync)','ประวัติการ sync แสดงด้านล่าง — บันทึกวันเวลาและจำนวนรายการที่นำเข้า','CW Pharma Sync: อัปเดตสต็อกอัตโนมัติทุกวัน 10:00 + 18:00 ผ่าน GitHub Actions (กด Trigger CW Sync เพื่อ sync ทันที)'],
-      steps_en:['Admin only — import drugs/suppliers/orders via Excel or Google Sheets','Auto-map columns → preview → import — 🔒 \"Protect names & categories\" checkbox (on by default): imports only price/stock while preserving existing drug names and categories; ⚠️ warns when a code has a different name (possible CW code reassignment)','📥 Drug Template (19 columns): code / nameTH / nameEN / unit / catId / subId / hasVat / costEx / sellEx / stockPTN / stockRAM / stockCNX / minStock / supplierId / costPTN / costRAM / costCNX / remark (dropdown 8 codes) / remarkNote','📥 Supplier Template (40 columns): id / name / nameEN / contact / phone / email / taxId / creditTerm / deliveryDays / rating / address / category / minOrder / returnPolicy / returnPolicyEN + 5 deal slots (deal1_buyQty / deal1_freeQty / deal1_bonusItems / deal1_discount / deal1_note … through deal5)','SQL Sync: run SQL snippets to upgrade tables (one-time setup)','Startup Query: SQL that runs automatically every time the app opens','Import history shown below — logs date, time, and record counts','CW Pharma Sync: auto-updates stock daily at 10:00 + 18:00 via GitHub Actions (tap Trigger CW Sync to sync immediately)'] },
+      steps_th:['Admin เท่านั้น — นำเข้ายา/ผู้จัดจำหน่าย/ออเดอร์ ผ่าน Excel หรือ Google Sheets','จับคู่คอลัมน์อัตโนมัติ → Preview → Import — 🔒 checkbox \"ป้องกันชื่อ/หมวดหมู่\" (ติ๊กไว้ตั้งแต่ต้น): import เฉพาะราคา/สต็อก ชื่อยา+หมวดหมู่เดิมไม่ถูกเขียนทับ; ⚠️ แจ้งเตือนรหัสที่ชื่อเปลี่ยน (อาจถูก Reassign)','📥 Template ยา (19 คอลัมน์): code / nameTH / nameEN / unit / catId / subId / hasVat / costEx / sellEx / stockPTN / stockRAM / stockCNX / minStock / supplierId / costPTN / costRAM / costCNX / remark (Dropdown 8 ตัวเลือก) / remarkNote','📥 Template Supplier (40 คอลัมน์): id / name / nameEN / contact / phone / email / taxId / creditTerm / deliveryDays / rating / address / category / minOrder / returnPolicy / returnPolicyEN + ดีล 5 slot (deal1_buyQty / deal1_freeQty / deal1_bonusItems / deal1_discount / deal1_note ... ถึง deal5)','SQL Sync: รัน SQL snippets เพื่ออัปเกรดตาราง (ทำครั้งแรกครั้งเดียว)','Startup Query: SQL ที่รันอัตโนมัติทุกครั้งที่เปิดแอป (warehouse sync)','ประวัติการ sync แสดงด้านล่าง — บันทึกวันเวลาและจำนวนรายการที่นำเข้า','CW Pharma Sync: อัปเดตสต็อก + ต้นทุน (จาก GR report) + หน่วย + ชื่อผู้จำหน่าย CW อัตโนมัติทุกวัน 10:00 + 18:00 ผ่าน GitHub Actions — ยาใหม่จาก CW ที่ยังไม่มีในระบบถูกนำเข้าอัตโนมัติ (กด Trigger CW Sync เพื่อ sync ทันที)'],
+      steps_en:['Admin only — import drugs/suppliers/orders via Excel or Google Sheets','Auto-map columns → preview → import — 🔒 \"Protect names & categories\" checkbox (on by default): imports only price/stock while preserving existing drug names and categories; ⚠️ warns when a code has a different name (possible CW code reassignment)','📥 Drug Template (19 columns): code / nameTH / nameEN / unit / catId / subId / hasVat / costEx / sellEx / stockPTN / stockRAM / stockCNX / minStock / supplierId / costPTN / costRAM / costCNX / remark (dropdown 8 codes) / remarkNote','📥 Supplier Template (40 columns): id / name / nameEN / contact / phone / email / taxId / creditTerm / deliveryDays / rating / address / category / minOrder / returnPolicy / returnPolicyEN + 5 deal slots (deal1_buyQty / deal1_freeQty / deal1_bonusItems / deal1_discount / deal1_note … through deal5)','SQL Sync: run SQL snippets to upgrade tables (one-time setup)','Startup Query: SQL that runs automatically every time the app opens','Import history shown below — logs date, time, and record counts','CW Pharma Sync: auto-updates stock + cost (from GR reports) + unit + CW supplier name daily at 10:00 + 18:00 via GitHub Actions — new CW drugs not yet in the system are auto-imported; tap Trigger CW Sync to sync immediately'] },
   ];
 
   // 🎯 EDIT HERE: Update data requirements
@@ -8435,7 +8434,7 @@ function HelpPage({ lang, L, perm = { role: 'admin' }, supplierCount = 0, drugCo
       <div className="page-header">
         <div>
           <div className="page-title">📖 {L('คู่มือการใช้งาน', 'User Guide')}</div>
-          <div className="page-subtitle">UNIPHARMA Purchasing Management — {L('ปรับปรุงล่าสุด:', 'Last updated:')} Jul 2026</div>
+          <div className="page-subtitle">UNIPHARMA Purchasing Management — {L('ปรับปรุงล่าสุด:', 'Last updated:')} Aug 2026</div>
         </div>
       </div>
 
@@ -8473,6 +8472,8 @@ function HelpPage({ lang, L, perm = { role: 'admin' }, supplierCount = 0, drugCo
                 {icon:'📝',th:'หมายเหตุสินค้า (8 ตัวเลือก)',en:'Product Remarks (8 presets)'},
                 {icon:'📤',th:'Export Excel (ทุกหน้า)',en:'Export Excel (all pages)'},
                 {icon:'🗄️',th:'ซ่อนสินค้าไม่ใช้งาน (Archive Tab)',en:'Archive inactive items (zero stock)'},
+                {icon:'🔄',th:'นำเข้ายาใหม่จาก CW อัตโนมัติ',en:'Auto-import new CW drugs'},
+                {icon:'🏢',th:'แสดงซัพพลายเออร์ CW (GR) ในแท็บซัพพลายเออร์',en:'CW GR supplier shown in Supplier tab'},
               ].map((item,i)=>(
                 <div key={i} style={{background:'var(--bg3)',borderRadius:8,padding:12}}>
                   <div style={{fontSize:20,marginBottom:4}}>{item.icon}</div>
