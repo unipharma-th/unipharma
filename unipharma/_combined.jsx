@@ -2985,18 +2985,33 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
     return () => wrap.removeEventListener('scroll', sync);
   }, [activeTab]);
 
-  // Count items available per branch (stock > 0)
+  // Count items per branch: CW stock>0 OR CW sell>0 at branch (has pricing), fallback to system stock
   const branchCounts = useMemo(() => {
-    const counts = { '': drugs.length };
-    DB.BRANCHES.forEach(br => { counts[br.id] = drugs.filter(d => (d.stock?.[br.id] || 0) > 0).length; });
+    const hasCW = Object.keys(cwStock).length > 0;
+    const _sk = id => id === 'PTN' ? 'stock_00' : id === 'RAM' ? 'stock_01' : 'stock_02';
+    const _pk = id => id === 'PTN' ? 'sell_00' : id === 'RAM' ? 'sell_01' : 'sell_02';
+    const counts = { '': drugs.filter(d => !d.archived).length };
+    DB.BRANCHES.forEach(br => {
+      counts[br.id] = drugs.filter(d => {
+        if (d.archived) return false;
+        if (hasCW) {
+          const cw = cwStock[d.code];
+          return cw ? ((cw[_sk(br.id)] || 0) > 0 || (cw[_pk(br.id)] || 0) > 0) : ((d.stock?.[br.id] || 0) > 0);
+        }
+        return (d.stock?.[br.id] || 0) > 0;
+      }).length;
+    });
     return counts;
-  }, [drugs]);
+  }, [drugs, cwStock]);
 
   // Effective cost for a drug given the current branch filter
   const getCost = (d, br) => (br && d.costByBranch?.[br] != null) ? d.costByBranch[br] : d.costEx;
 
   const filtered = useMemo(() => {
     const q = search ? search.toLowerCase() : '';
+    // Pre-compute CW branch keys outside the per-drug loop
+    const bfSK = branchFilter === 'PTN' ? 'stock_00' : branchFilter === 'RAM' ? 'stock_01' : 'stock_02';
+    const bfPK = branchFilter === 'PTN' ? 'sell_00' : branchFilter === 'RAM' ? 'sell_01' : 'sell_02';
     // Single-pass filter instead of chained .filter() calls (avoids N intermediate arrays)
     const needFilter = q || catFilter || subFilter || vatFilter !== 'all' || branchFilter;
     let list = needFilter
@@ -3007,7 +3022,11 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
           if (subFilter && d.subId !== subFilter) return false;
           if (vatFilter === 'vat' && !d.hasVat) return false;
           if (vatFilter === 'novat' && d.hasVat) return false;
-          if (branchFilter && !((d.stock && d.stock[branchFilter]) || 0)) return false;
+          if (branchFilter) {
+            const cw = cwStock[d.code];
+            if (cw) { if (!(cw[bfSK] || 0) && !(cw[bfPK] || 0)) return false; }
+            else if (!((d.stock && d.stock[branchFilter]) || 0)) return false;
+          }
           return true;
         })
       : drugs.filter(d => !d.archived); // exclude archived
@@ -3019,7 +3038,7 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [drugs, search, catFilter, subFilter, vatFilter, branchFilter, sortCol, sortDir]);
+  }, [drugs, search, catFilter, subFilter, vatFilter, branchFilter, sortCol, sortDir, cwStock]);
 
   const pageData = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
