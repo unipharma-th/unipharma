@@ -2730,6 +2730,23 @@ function DrugDetailModal({ drug: d, lang, L, suppliers, cats, cwStock, cwHistory
                 <div style={{textAlign:'center',padding:16,color:'var(--txt3)',fontSize:13,marginBottom:12,background:'var(--bg3)',borderRadius:10,border:'1px solid var(--border)'}}>{L('ยังไม่ได้กำหนดซัพพลายเออร์หลัก','No main supplier assigned')}</div>
               )}
 
+              {/* ── CW GR Supplier (reference from CW purchase records) ── */}
+              {d.cwSupplier && (
+                <div style={{...CARD, marginBottom:12, borderLeft:'3px solid var(--acc)', opacity: supplier ? 0.75 : 1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+                    <span style={{fontSize:11,fontWeight:700,letterSpacing:1,color:'var(--acc)',textTransform:'uppercase'}}>{L('ข้อมูลจาก CW','From CW Records')}</span>
+                    <span style={{fontSize:10,padding:'2px 7px',background:'var(--acc-bg,rgba(99,102,241,.12))',color:'var(--acc)',borderRadius:99,fontWeight:600}}>GR</span>
+                  </div>
+                  <div style={{fontSize:13,color:'var(--txt2)',marginBottom:4}}>{L('บริษัทที่รับสินค้าจาก CW','Distributor recorded in CW GR')}</div>
+                  <div style={{fontSize:15,fontWeight:700,color:'var(--txt)'}}>{d.cwSupplier}</div>
+                  {!supplier && (
+                    <div style={{fontSize:11,color:'var(--txt3)',marginTop:6,padding:'6px 10px',background:'var(--bg3)',borderRadius:7}}>
+                      {L('ยังไม่ได้ map กับซัพพลายเออร์ในระบบ — กด แก้ไข เพื่อกำหนด','Not yet linked to a system supplier — click Edit to assign')}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── Last purchased from ── */}
               {lastPO && (
                 <div style={{...CARD, marginBottom:12, borderLeft:'3px solid var(--acc2)'}}>
