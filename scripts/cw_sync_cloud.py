@@ -278,7 +278,7 @@ def _gr_date_key(date_str):
 def parse_gr_report(files):
     """
     Parse รายงานการรับ-คืนสินค้า Excel.
-    Returns {product_code: {'date': 'dd/mm/yyyy', 'cost': float}}
+    Returns {product_code: {'date': 'dd/mm/yyyy', 'cost': float, 'supplier': str}}
     keeping only the most recent receipt per product.
     """
     result = {}
@@ -287,15 +287,26 @@ def parse_gr_report(files):
     for path in files:
         df = pd.read_excel(path, header=None, dtype=str)
         current_date = None
+        current_supplier = ''
 
         for _, row in df.iterrows():
             cells = [str(v).strip() if pd.notna(v) else '' for v in row]
+            joined = ' '.join(cells)
 
             # GR header row contains an exact dd/mm/yyyy date cell
             for c in cells:
                 if re.match(r'^\d{2}/\d{2}/\d{4}$', c):
                     current_date = c
                     break
+
+            # Supplier group header: contains "(NN รายการ)" pattern, no P-XXXXX code
+            sup_match = re.search(r'\((\d+)\s*รายการ\)', joined)
+            if sup_match and not any(re.match(r'^P-\d+$', c) for c in cells):
+                # First non-empty text cell is the supplier name
+                sup_name = next((c for c in cells if c and not re.match(r'^\d', c)
+                                 and 'รายการ' not in c and c != ''), '')
+                if sup_name:
+                    current_supplier = sup_name.strip()
 
             # Product row: any cell matches P-NNNN
             code = next((c for c in cells if re.match(r'^P-\d+$', c)), None)
@@ -334,11 +345,12 @@ def parse_gr_report(files):
                 continue
 
             if code not in result or _gr_date_key(current_date) > _gr_date_key(result[code]['date']):
-                result[code] = {'date': current_date, 'cost': cost}
+                result[code] = {'date': current_date, 'cost': cost, 'supplier': current_supplier}
 
     print(f'[GR] {len(result)} products with last received cost')
     for c, v in list(result.items())[:5]:
-        print(f'  {c}: {v["cost"]:.2f} ฿ ({v["date"]})')
+        sup = v.get('supplier', '')
+        print(f'  {c}: {v["cost"]:.2f} ฿ ({v["date"]}) [{sup}]')
     return result
 
 
@@ -365,6 +377,10 @@ def _apply_gr_costs(products, gr_costs, branch):
             }
             added += 1
         products[code][key] = gr['cost']
+        # store supplier name for the primary branch (00=PTN) or if not yet set
+        sup = gr.get('supplier', '')
+        if sup and (branch == '00' or not products[code].get('gr_supplier')):
+            products[code]['gr_supplier'] = sup
         applied += 1
     print(f'[GR] cost_{branch}: applied to {applied} products ({added} new stubs added)')
     return products
@@ -684,8 +700,9 @@ def upload_to_supabase(products, batch=500):
     for r in rows:
         r['synced_at'] = now
         r.pop('stock_total', None)
-        r.pop('last_cost', None)   # internal field — already pre-filled into cost_XX
-        r.pop('last_sell', None)   # internal field — already pre-filled into sell_XX
+        r.pop('last_cost', None)    # internal field — already pre-filled into cost_XX
+        r.pop('last_sell', None)    # internal field — already pre-filled into sell_XX
+        r.pop('gr_supplier', None)  # handled separately via sync_cw_stock_to_drugs()
         # If CW has no sell data (0), omit the field so Supabase keeps any
         # manually-set retail price (e.g. products priced per box, not per unit).
         for col in ('sell_00', 'sell_01', 'sell_02'):
@@ -717,18 +734,19 @@ def upload_price_history(products, batch=500):
     rows = []
     for p in products.values():
         rows.append({
-            'code':     p['code'],
-            'sync_date': today,
-            'stock_00': p.get('stock_00', 0),
-            'stock_01': p.get('stock_01', 0),
-            'stock_02': p.get('stock_02', 0),
-            'cost_00':  p.get('cost_00', 0.0),
-            'cost_01':  p.get('cost_01', 0.0),
-            'cost_02':  p.get('cost_02', 0.0),
-            'sell_00':  p.get('sell_00', 0.0),
-            'sell_01':  p.get('sell_01', 0.0),
-            'sell_02':  p.get('sell_02', 0.0),
-            'qty_sold': p.get('qty_sold', 0),
+            'code':        p['code'],
+            'sync_date':   today,
+            'stock_00':    p.get('stock_00', 0),
+            'stock_01':    p.get('stock_01', 0),
+            'stock_02':    p.get('stock_02', 0),
+            'cost_00':     p.get('cost_00', 0.0),
+            'cost_01':     p.get('cost_01', 0.0),
+            'cost_02':     p.get('cost_02', 0.0),
+            'sell_00':     p.get('sell_00', 0.0),
+            'sell_01':     p.get('sell_01', 0.0),
+            'sell_02':     p.get('sell_02', 0.0),
+            'qty_sold':    p.get('qty_sold', 0),
+            'gr_supplier': p.get('gr_supplier', '') or '',
         })
     headers = {
         'apikey':        SUPABASE_KEY,
@@ -889,6 +907,18 @@ BEGIN
   ) h ON h.code = c.code
   WHERE NOT EXISTS (SELECT 1 FROM drugs d WHERE d.code = c.code)
   ON CONFLICT (code) DO NOTHING;
+
+  -- Step 5: store CW GR supplier name in drug data (shown in app when no supplierId set)
+  UPDATE drugs d
+  SET data = data || jsonb_build_object('cwSupplier', h.gr_supplier)
+  FROM (
+    SELECT DISTINCT ON (code) code, gr_supplier
+    FROM cw_price_history
+    WHERE gr_supplier IS NOT NULL AND gr_supplier <> ''
+    ORDER BY code, sync_date DESC
+  ) h
+  WHERE d.code = h.code
+    AND (d.data->>'cwSupplier' IS DISTINCT FROM h.gr_supplier);
 
   RETURN json_build_object(
     'stock_updated', n_stock,
