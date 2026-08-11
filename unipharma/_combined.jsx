@@ -8685,6 +8685,23 @@ function HelpPage({ lang, L, perm = { role: 'admin' }, supplierCount = 0, drugCo
             <Step n={3} th="Drag & Drop หรือเลือกไฟล์" en="Drag & drop or select file" />
             <Step n={4} th="จับคู่คอลัมน์ → Preview → Import" en="Map columns → preview → import" />
           </Card>
+          <Card title={L('🔤 จัดการชื่อยา (ชื่อ CW vs ชื่อที่แอดมินกำหนด)','🔤 Drug Name Management (CW name vs admin name)')}>
+            <div style={{fontSize:13,color:'var(--txt3)',lineHeight:1.7,marginBottom:12}}>
+              {L(
+                'ชื่อยาในระบบแบ่งเป็น 2 แบบ: ชื่อจาก CW Pharma (อ้างอิง) และชื่อที่แอดมินกำหนดเอง',
+                'Drug names are in 2 types: CW Pharma name (reference) and admin-customised name'
+              )}
+            </div>
+            <Step n={1}
+              th="ชื่อ CW (แถบม่วง 🔄): ดึงอัตโนมัติจาก CW Pharma — แสดงเป็นอ้างอิงในฟอร์มแก้ไขยา ไม่สามารถแก้ไขได้"
+              en="CW name (purple bar 🔄): auto-pulled from CW Pharma — shown as read-only reference in drug edit form" />
+            <Step n={2}
+              th='ชื่อที่แอดมินกำหนด: กรอกในช่อง "ชื่อภาษาไทย / ชื่อภาษาอังกฤษ" — ถ้าเว้นว่าง ระบบใช้ชื่อ CW แทน; sync อัตโนมัติจะไม่เขียนทับชื่อที่แอดมินกรอกไว้'
+              en='Admin name: type in "Thai Name / English Name" fields — leave blank to fall back to CW name; auto-sync will never overwrite admin-entered names' />
+            <Step n={3}
+              th="รีเซ็ตชื่อทั้งหมดกลับเป็นชื่อ CW (ทำใน Supabase SQL Editor): UPDATE drugs d SET name_th=c.name, name_en=c.name, data=d.data||jsonb_build_object('nameTH',c.name,'nameEN',c.name) FROM cwpharma_stock_test c WHERE c.code=d.code"
+              en="Reset all names to CW names (run in Supabase SQL Editor): UPDATE drugs d SET name_th=c.name, name_en=c.name, data=d.data||jsonb_build_object('nameTH',c.name,'nameEN',c.name) FROM cwpharma_stock_test c WHERE c.code=d.code" />
+          </Card>
         </div>
       )}
 
