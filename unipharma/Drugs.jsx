@@ -1071,29 +1071,80 @@ function DrugsPage({ lang, L, drugs, setDrugs, suppliers, orders, categories, se
                           : <span className="badge" style={{ background: 'var(--bg4)', color: 'var(--txt3)' }}>-</span>}
                       </td>
                       <td className="tbl-num">
-                        {d.hasVat ? (
-                          <>
-                            <div style={{ fontWeight: 600 }}>{UTILS.fmt(d.costInc)} ฿</div>
-                            <div style={{ fontSize: 10, color: 'var(--txt3)' }}>ไม่รวม VAT {UTILS.fmt(getCost(d, branchFilter))} ฿</div>
-                          </>
-                        ) : (
-                          <>
-                            <div style={{ fontWeight: 600 }}>{UTILS.fmt(getCost(d, branchFilter))} ฿</div>
-                            {branchFilter && d.costByBranch?.[branchFilter] != null && (
-                              <div style={{ fontSize: 10, color: 'var(--acc2)' }}>≠ {UTILS.fmt(d.costEx)} ฿</div>
-                            )}
-                          </>
-                        )}
+                        {(() => {
+                          const cw = cwStock[d.code];
+                          const cwCK = !branchFilter||branchFilter==='PTN' ? 'cost_00' : branchFilter==='RAM' ? 'cost_01' : 'cost_02';
+                          const adminCost = getCost(d, branchFilter);
+                          const cwCost = cw ? (branchFilter ? (cw[cwCK]||0) : (cw.cost_00||cw.cost_01||cw.cost_02||0)) : 0;
+                          const useCW = !adminCost && cwCost > 0;
+                          return d.hasVat ? (
+                            <>
+                              <div style={{ fontWeight:600, color:useCW?'var(--txt3)':'' }}>
+                                {UTILS.fmt(useCW ? cwCost : d.costInc)} ฿
+                                {useCW && <span style={{fontSize:9,marginLeft:3,color:'var(--acc)',fontWeight:700}}>CW</span>}
+                              </div>
+                              <div style={{ fontSize:10, color:'var(--txt3)' }}>ไม่รวม VAT {UTILS.fmt(useCW ? cwCost : adminCost)} ฿</div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontWeight:600, color:useCW?'var(--txt3)':'' }}>
+                                {UTILS.fmt(useCW ? cwCost : adminCost)} ฿
+                                {useCW && <span style={{fontSize:9,marginLeft:3,color:'var(--acc)',fontWeight:700}}>CW</span>}
+                              </div>
+                              {!useCW && branchFilter && d.costByBranch?.[branchFilter] != null && (
+                                <div style={{ fontSize:10, color:'var(--acc2)' }}>≠ {UTILS.fmt(d.costEx)} ฿</div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
                       <td className="tbl-num">
-                        {d.hasVat
-                          ? <><div style={{ fontWeight: 600 }}>{UTILS.fmt(d.sellInc)} ฿</div><div style={{ fontSize: 10, color: 'var(--txt3)' }}>ไม่รวม VAT {UTILS.fmt(d.sellEx)} ฿</div></>
-                          : <div style={{ fontWeight: 600 }}>{UTILS.fmt(d.sellEx)} ฿</div>
-                        }
+                        {(() => {
+                          const cw = cwStock[d.code];
+                          const cwSK = !branchFilter||branchFilter==='PTN' ? 'sell_00' : branchFilter==='RAM' ? 'sell_01' : 'sell_02';
+                          const cwSell = cw ? (branchFilter ? (cw[cwSK]||0) : (cw.sell_00||cw.sell_01||cw.sell_02||0)) : 0;
+                          const useCW = !d.sellEx && cwSell > 0;
+                          return d.hasVat ? (
+                            <>
+                              <div style={{ fontWeight:600, color:useCW?'var(--txt3)':'' }}>
+                                {UTILS.fmt(useCW ? cwSell : d.sellInc)} ฿
+                                {useCW && <span style={{fontSize:9,marginLeft:3,color:'var(--acc)',fontWeight:700}}>CW</span>}
+                              </div>
+                              <div style={{ fontSize:10, color:'var(--txt3)' }}>ไม่รวม VAT {UTILS.fmt(useCW ? cwSell : d.sellEx)} ฿</div>
+                            </>
+                          ) : (
+                            <div style={{ fontWeight:600, color:useCW?'var(--txt3)':'' }}>
+                              {UTILS.fmt(useCW ? cwSell : d.sellEx)} ฿
+                              {useCW && <span style={{fontSize:9,marginLeft:3,color:'var(--acc)',fontWeight:700}}>CW</span>}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="tbl-num">
-                        <div style={{ fontWeight: 700, color: 'var(--ok)' }}>{UTILS.fmt(d.profitEx)} ฿</div>
-                        <div style={{ fontSize: 10, color: 'var(--txt3)' }}>{d.profitMargin}%</div>
+                        {(() => {
+                          const cw = cwStock[d.code];
+                          const cwCK = !branchFilter||branchFilter==='PTN' ? 'cost_00' : branchFilter==='RAM' ? 'cost_01' : 'cost_02';
+                          const cwSK = !branchFilter||branchFilter==='PTN' ? 'sell_00' : branchFilter==='RAM' ? 'sell_01' : 'sell_02';
+                          const cwCost = cw ? (branchFilter ? (cw[cwCK]||0) : (cw.cost_00||cw.cost_01||cw.cost_02||0)) : 0;
+                          const cwSell = cw ? (branchFilter ? (cw[cwSK]||0) : (cw.sell_00||cw.sell_01||cw.sell_02||0)) : 0;
+                          const useCW = !d.profitEx && cwCost > 0 && cwSell > 0;
+                          const cwProfit = useCW ? Math.round((cwSell - cwCost) * 100) / 100 : 0;
+                          const cwMargin = useCW && cwSell > 0 ? Math.round((cwSell - cwCost) / cwSell * 1000) / 10 : 0;
+                          return useCW ? (
+                            <>
+                              <div style={{ fontWeight:700, color:'var(--ok)' }}>
+                                {UTILS.fmt(cwProfit)} ฿
+                                <span style={{fontSize:9,marginLeft:3,color:'var(--acc)',fontWeight:700}}>CW</span>
+                              </div>
+                              <div style={{ fontSize:10, color:'var(--txt3)' }}>{cwMargin}%</div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontWeight:700, color:'var(--ok)' }}>{UTILS.fmt(d.profitEx)} ฿</div>
+                              <div style={{ fontSize:10, color:'var(--txt3)' }}>{d.profitMargin}%</div>
+                            </>
+                          );
+                        })()}
                       </td>
                       <td>
                         {(() => {
