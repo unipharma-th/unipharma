@@ -416,8 +416,10 @@ def _download_brnstock_part(page, part_idx, cw_url=None, dl_dir=None):
     print(f"    Found BrnStock report frame: {rep_frame.url}")
 
     btn_id = f'#MainContent_cDlPager_cBtnRepData_{part_idx}'
-    if not rep_frame.evaluate(f"!!document.querySelector('{btn_id}')"):
-        print(f"    Button {btn_id} not found – no more parts")
+    try:
+        rep_frame.wait_for_selector(btn_id, state='attached', timeout=60000)
+    except Exception:
+        print(f"    Button {btn_id} not found after 60s – no more parts")
         return None
 
     rep_frame.evaluate(f"document.querySelector('{btn_id}').click()")
@@ -528,8 +530,10 @@ def _download_brnsale_part(page, part_idx, cw_url=None, dl_dir=None):
         return None
 
     btn_id = f'#MainContent_cDlPager_cBtnRepData_IsReadPage_{part_idx}'
-    if not sale_rep.evaluate(f"!!document.querySelector('{btn_id}')"):
-        print(f"    Button {btn_id} not found – no more parts")
+    try:
+        sale_rep.wait_for_selector(btn_id, state='attached', timeout=60000)
+    except Exception:
+        print(f"    Button {btn_id} not found after 60s – no more parts")
         return None
 
     sale_rep.evaluate(f"document.querySelector('{btn_id}').click()")
