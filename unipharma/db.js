@@ -441,7 +441,7 @@
     async loadOutOfStockAll() {
       if (!enabled) return null;
       try {
-        var res = await client.from("out_of_stock").select("*").order("created_at", { ascending: false });
+        var res = await client.from("out_of_stock").select("*").order("created_at", { ascending: false }).limit(500);
         if (res.error) throw res.error;
         return (res.data || []).map(oosFromRow);
       } catch (e) { console.warn("[UNI_DB] loadOutOfStockAll:", e); return null; }
