@@ -130,7 +130,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     try {
       if (cloudOn && window.UNI_DB.loadOutOfStockAll) {
         const all = await window.UNI_DB.loadOutOfStockAll();
-        if (all) { setAllHistory(all); setHistoryLoaded(true); return; }
+        if (all && all.length > 0) { setAllHistory(all); setHistoryLoaded(true); return; }
       }
       const data = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
       setAllHistory([...data].sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
