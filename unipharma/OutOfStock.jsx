@@ -125,16 +125,17 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     } catch (e) { console.warn('loadReports:', e); }
   };
 
-  const loadHistory = async () => {
-    if (historyLoaded) return;
+  const loadHistory = async (force = false) => {
+    if (!force && historyLoaded) return;
+    setHistoryLoaded(false);
     try {
       if (cloudOn && window.UNI_DB.loadOutOfStockAll) {
         const all = await window.UNI_DB.loadOutOfStockAll();
         if (all && all.length > 0) { setAllHistory(all); setHistoryLoaded(true); return; }
       }
       const data = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
-      setAllHistory([...data].sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
-    } catch (e) {}
+      setAllHistory([...data].sort((a, b) => (a.createdAt||'').localeCompare(b.createdAt||'')));
+    } catch (e) { console.warn('loadHistory:', e); }
     setHistoryLoaded(true);
   };
 
@@ -805,7 +806,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
             </span>
           )}
         </button>
-        <button style={tabSt(tab === 'history')} onClick={() => { setTab('history'); loadHistory(); }}>
+        <button style={tabSt(tab === 'history')} onClick={() => { setTab('history'); loadHistory(true); }}>
           📊 {L('สถิติ/ประวัติ', 'Statistics')}
         </button>
       </div>
