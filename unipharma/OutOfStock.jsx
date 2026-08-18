@@ -77,7 +77,9 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     try {
       if (cloudOn && window.UNI_DB.loadOutOfStockAll) {
         const cloud = await window.UNI_DB.loadOutOfStockAll();
-        if (cloud) { setReports(cloud); return; }
+        // Only use cloud result if it has data; fall through to localStorage when cloud returns empty
+        // (empty array can mean: table has no rows, OR table is missing status/data columns and all saves failed)
+        if (cloud && cloud.length > 0) { setReports(cloud); return; }
       }
       // offline fallback: show last 60 days so old unresolved items stay visible
       const since = new Date(); since.setDate(since.getDate() - 60);
@@ -139,6 +141,11 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     };
     setReports(prev => [...prev, r]);
     setSelectedDrug(null); setDrugSearch(''); setRemainingQty(''); setFormNotes(''); setImagePreview(null);
+    // Always save to localStorage first as backup — so data isn't lost even if cloud save fails
+    try {
+      const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
+      localStorage.setItem('uni_out_of_stock', JSON.stringify([...stored, r]));
+    } catch(e) {}
     try {
       if (cloudOn && window.UNI_DB.saveOutOfStock) {
         const ok = await window.UNI_DB.saveOutOfStock(r);
@@ -147,12 +154,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       } else {
         notify(L('บันทึกแล้ว ✓', 'Saved ✓'), 'ok');
       }
-      // Always keep localStorage in sync (fallback stays current after refresh)
-      try {
-        const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
-        localStorage.setItem('uni_out_of_stock', JSON.stringify([...stored, r]));
-      } catch(e) {}
-    } catch (e) { notify(L('บันทึกไม่สำเร็จ', 'Save failed'), 'err'); loadReports(); }
+    } catch (e) { notify(L('บันทึกไม่สำเร็จ — บันทึกสำรองในเครื่องแล้ว', 'Save failed — backed up locally'), 'warn'); loadReports(); }
   };
 
   // ── manage: start editing ──
