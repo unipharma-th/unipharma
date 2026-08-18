@@ -22,6 +22,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const [selectedDrug, setSelectedDrug] = useState(null);
   const [showDrop, setShowDrop] = useState(false);
   const [remainingQty, setRemainingQty] = useState('');
+  const [remainingUnit, setRemainingUnit] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -114,6 +115,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
 
   const selectDrug = (drug) => {
     setSelectedDrug(drug);
+    setRemainingUnit(drug.unit || '');
     setDrugSearch('');
     setShowDrop(false);
   };
@@ -131,6 +133,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       productCode: code,
       productName: name,
       remainingQty: remainingQty || '',
+      remainingUnit: remainingUnit || '',
       notes: formNotes.trim(),
       image: imagePreview || null,
       reportedBy: perm.role || 'viewer',
@@ -140,7 +143,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       status: 'pending',
     };
     setReports(prev => [...prev, r]);
-    setSelectedDrug(null); setDrugSearch(''); setRemainingQty(''); setFormNotes(''); setImagePreview(null);
+    setSelectedDrug(null); setDrugSearch(''); setRemainingQty(''); setRemainingUnit(''); setFormNotes(''); setImagePreview(null);
     // Always save to localStorage first as backup — so data isn't lost even if cloud save fails
     try {
       const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
@@ -351,7 +354,16 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
               value={remainingQty}
               onChange={e => setRemainingQty(e.target.value)}
             />
-            <span style={{ fontSize: '13px', color: 'var(--txt3)' }}>{selectedDrug?.unit || L('หน่วย', 'units')}</span>
+            <select
+              value={remainingUnit}
+              onChange={e => setRemainingUnit(e.target.value)}
+              style={{ ...S.inp, width: 'auto', minWidth: '90px', padding: '6px 8px', fontSize: '13px' }}
+            >
+              <option value="">{L('-- หน่วย --', '-- unit --')}</option>
+              {['เม็ด','แคปซูล','ขวด','กล่อง','ซอง','หลอด','แผง','ถุง','ชิ้น','อัน','มล.','กรัม'].map(u =>
+                <option key={u} value={u}>{u}</option>
+              )}
+            </select>
           </div>
         </div>
 
@@ -414,7 +426,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--txt3)' }}>
                   {r.remainingQty !== '' && r.remainingQty != null && (
-                    <span style={{ marginRight: '10px' }}>{L('คงเหลือ', 'Remaining')}: <strong>{r.remainingQty}</strong></span>
+                    <span style={{ marginRight: '10px' }}>{L('คงเหลือ', 'Remaining')}: <strong>{r.remainingQty}{r.remainingUnit ? ' ' + r.remainingUnit : ''}</strong></span>
                   )}
                   {L('แจ้งโดย', 'By')}: {r.reportedBy} • {new Date(r.createdAt).toLocaleDateString('th-TH')} {r.timestamp}
                 </div>
@@ -510,7 +522,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
                     {badge(r.status)}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--txt3)' }}>
-                    {r.remainingQty !== '' && r.remainingQty != null && <span style={{ marginRight: '10px' }}>{L('คงเหลือ', 'Remaining')}: <strong style={{ color: 'var(--err)' }}>{r.remainingQty}</strong></span>}
+                    {r.remainingQty !== '' && r.remainingQty != null && <span style={{ marginRight: '10px' }}>{L('คงเหลือ', 'Remaining')}: <strong style={{ color: 'var(--err)' }}>{r.remainingQty}{r.remainingUnit ? ' ' + r.remainingUnit : ''}</strong></span>}
                     {L('แจ้งโดย', 'By')}: {r.reportedBy} • {new Date(r.createdAt).toLocaleDateString('th-TH')} {r.timestamp}
                   </div>
                   {r.notes && <div style={{ fontSize: '12px', color: 'var(--txt4)', marginTop: '3px' }}>📝 {r.notes}</div>}
