@@ -405,7 +405,7 @@
     async loadOutOfStock(sinceISO) {
       if (!enabled) return null;
       try {
-        var q = client.from("out_of_stock").select("*").order("created_at", { ascending: true });
+        var q = client.from("out_of_stock").select("*").order("created_at", { ascending: true }).limit(500);
         if (sinceISO) q = q.gte("created_at", sinceISO);
         var res = await q;
         if (res.error) throw res.error;
