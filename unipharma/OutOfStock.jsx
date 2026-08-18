@@ -9,6 +9,40 @@ const OOS_STATUS = {
   arrived:     { th: 'ของมาแล้ว ✓', en: 'Arrived ✓',    color: 'var(--ok)',    bg: 'rgba(22,163,74,.10)',  border: 'rgba(22,163,74,.35)'  },
 };
 
+const OOS_UNITS = [
+  { cat: 'หน่วยเม็ดยา (Dosage Forms)', items: [
+    {code:'TAB',  th:'เม็ด'},{code:'CAP',  th:'แคปซูล'},{code:'SGC',  th:'ซอฟต์เจล'},
+    {code:'ECT',  th:'เม็ดเคลือบลำไส้'},{code:'FCT',  th:'เม็ดเคลือบฟิล์ม'},
+    {code:'CHEW', th:'เม็ดเคี้ยว'},{code:'ODT',  th:'เม็ดละลายในปาก'},
+    {code:'LOZ',  th:'ยาอม'},{code:'PAST', th:'ยาอมชนิดเม็ด'},
+    {code:'POW',  th:'ผงยา'},{code:'GRAN', th:'เม็ดแกรนูล'},
+    {code:'SACH', th:'ซอง'},{code:'SUPP', th:'ยาเหน็บ'},{code:'PESS', th:'ยาเหน็บช่องคลอด'},
+  ]},
+  { cat: 'ของเหลว (Liquid Forms)', items: [
+    {code:'ML',        th:'มิลลิลิตร'},{code:'L',         th:'ลิตร'},{code:'CC',        th:'ซีซี'},
+    {code:'DROP',      th:'หยด'},{code:'SPRAY',     th:'สเปรย์'},{code:'SYRUP',     th:'ยาน้ำเชื่อม'},
+    {code:'SOL',       th:'สารละลาย'},{code:'SUSP',      th:'ยาแขวนตะกอน'},{code:'EMUL',      th:'อิมัลชัน'},
+    {code:'GARGLE',    th:'น้ำยากลั้วคอ'},{code:'MOUTHWASH', th:'น้ำยาบ้วนปาก'},
+  ]},
+  { cat: 'ทางการแพทย์ (Medical Units)', items: [
+    {code:'AMP',     th:'หลอดยา'},{code:'VIAL',    th:'ไวอัล'},{code:'PFS',     th:'กระบอกฉีดยาพร้อมใช้'},
+    {code:'SYR',     th:'กระบอกฉีดยา'},{code:'NEEDLE',  th:'เข็ม'},{code:'KIT',     th:'ชุดตรวจ/ชุดอุปกรณ์'},
+    {code:'TEST',    th:'ชุดทดสอบ'},{code:'DOSE',    th:'โดส'},{code:'IU',      th:'หน่วยสากล'},
+    {code:'UNIT',    th:'หน่วย'},{code:'PATCH',   th:'แผ่นแปะยา'},{code:'INHALER', th:'เครื่องพ่นยา'},
+    {code:'PEN',     th:'ปากกาฉีดยา'},
+  ]},
+  { cat: 'บรรจุ/ขาย (Packaging & Sales)', items: [
+    {code:'EA',      th:'ชิ้น'},{code:'PC',      th:'ชิ้น'},{code:'PCS',     th:'หลายชิ้น'},
+    {code:'BOX',     th:'กล่อง'},{code:'CTN',     th:'ลัง'},{code:'CASE',    th:'ลังใหญ่'},
+    {code:'PK',      th:'แพ็ก'},{code:'SET',     th:'ชุด'},{code:'BAG',     th:'ถุง'},
+    {code:'POUCH',   th:'ซอง'},{code:'BTL',     th:'ขวด'},{code:'JAR',     th:'กระปุก'},
+    {code:'CAN',     th:'กระป๋อง'},{code:'TUBE',    th:'หลอด'},{code:'ROLL',    th:'ม้วน'},
+    {code:'REAM',    th:'รีม'},{code:'PAIR',    th:'คู่'},{code:'DOZ',     th:'โหล'},
+    {code:'INNER',   th:'แพ็กใน'},{code:'SHRINK',  th:'แพ็กหด'},{code:'DISPLAY', th:'กล่องโชว์'},
+    {code:'PALLET',  th:'พาเลท'},
+  ]},
+];
+
 const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
@@ -23,6 +57,8 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const [showDrop, setShowDrop] = useState(false);
   const [remainingQty, setRemainingQty] = useState('');
   const [remainingUnit, setRemainingUnit] = useState('');
+  const [unitInputVal, setUnitInputVal] = useState('');
+  const [showUnitDrop, setShowUnitDrop] = useState(false);
   const [formNotes, setFormNotes] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -115,7 +151,10 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
 
   const selectDrug = (drug) => {
     setSelectedDrug(drug);
-    setRemainingUnit(drug.unit || '');
+    const u = drug.unit || '';
+    const match = OOS_UNITS.flatMap(g => g.items).find(it => it.th === u || it.code === u);
+    setRemainingUnit(match ? match.th : u);
+    setUnitInputVal(match ? match.code + ' – ' + match.th : u);
     setDrugSearch('');
     setShowDrop(false);
   };
@@ -143,7 +182,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       status: 'pending',
     };
     setReports(prev => [...prev, r]);
-    setSelectedDrug(null); setDrugSearch(''); setRemainingQty(''); setRemainingUnit(''); setFormNotes(''); setImagePreview(null);
+    setSelectedDrug(null); setDrugSearch(''); setRemainingQty(''); setRemainingUnit(''); setUnitInputVal(''); setShowUnitDrop(false); setFormNotes(''); setImagePreview(null);
     // Always save to localStorage first as backup — so data isn't lost even if cloud save fails
     try {
       const stored = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
@@ -354,16 +393,50 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
               value={remainingQty}
               onChange={e => setRemainingQty(e.target.value)}
             />
-            <select
-              value={remainingUnit}
-              onChange={e => setRemainingUnit(e.target.value)}
-              style={{ ...S.inp, width: 'auto', minWidth: '90px', padding: '6px 8px', fontSize: '13px' }}
-            >
-              <option value="">{L('-- หน่วย --', '-- unit --')}</option>
-              {['เม็ด','แคปซูล','ขวด','กล่อง','ซอง','หลอด','แผง','ถุง','ชิ้น','อัน','มล.','กรัม'].map(u =>
-                <option key={u} value={u}>{u}</option>
+            <div style={{ position: 'relative', minWidth: '170px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: showUnitDrop ? '6px 6px 0 0' : '6px', background: 'var(--bg1)', overflow: 'hidden', ...(showUnitDrop ? { borderColor: 'var(--acc)' } : {}) }}>
+                <input
+                  type="text"
+                  placeholder={L('-- หน่วย --', '-- unit --')}
+                  value={unitInputVal}
+                  onChange={e => { const v = e.target.value; setUnitInputVal(v); setRemainingUnit(v); setShowUnitDrop(true); }}
+                  onFocus={() => setShowUnitDrop(true)}
+                  onBlur={() => setTimeout(() => setShowUnitDrop(false), 160)}
+                  style={{ flex: 1, border: 'none', background: 'transparent', padding: '7px 10px', fontSize: '13px', color: 'var(--txt)', outline: 'none', minWidth: 0 }}
+                />
+                <button type="button"
+                  onMouseDown={e => { e.preventDefault(); setShowUnitDrop(v => !v); }}
+                  style={{ background: 'none', border: 'none', padding: '0 8px', color: 'var(--txt3)', cursor: 'pointer', fontSize: '11px', lineHeight: 1 }}>▾</button>
+              </div>
+              {showUnitDrop && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg2)', border: '1px solid var(--acc)', borderTop: 'none', borderRadius: '0 0 6px 6px', maxHeight: '220px', overflowY: 'auto', zIndex: 300 }}>
+                  {(() => {
+                    const q = unitInputVal.toLowerCase().trim();
+                    const groups = OOS_UNITS.map(g => ({
+                      cat: g.cat,
+                      items: g.items.filter(it => !q || it.code.toLowerCase().includes(q) || it.th.includes(q))
+                    })).filter(g => g.items.length > 0);
+                    if (!groups.length) return <div style={{ padding: '10px', fontSize: '13px', color: 'var(--txt3)', textAlign: 'center' }}>ไม่พบหน่วยที่ค้นหา</div>;
+                    return groups.map(g => (
+                      <div key={g.cat}>
+                        <div style={{ fontSize: '11px', color: 'var(--txt3)', padding: '6px 10px 3px', background: 'var(--bg3)', position: 'sticky', top: 0, letterSpacing: '0.03em' }}>{g.cat}</div>
+                        {g.items.map(it => (
+                          <div key={it.code}
+                            onMouseDown={e => { e.preventDefault(); setUnitInputVal(it.code + ' – ' + it.th); setRemainingUnit(it.th); setShowUnitDrop(false); }}
+                            style={{ padding: '7px 10px', cursor: 'pointer', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'baseline' }}
+                            onMouseOver={e => e.currentTarget.style.background = 'var(--bg3)'}
+                            onMouseOut={e => e.currentTarget.style.background = ''}
+                          >
+                            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--txt3)', minWidth: '58px', flexShrink: 0 }}>{it.code}</span>
+                            <span>{it.th}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ));
+                  })()}
+                </div>
               )}
-            </select>
+            </div>
           </div>
         </div>
 
