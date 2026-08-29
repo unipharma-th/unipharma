@@ -100,7 +100,10 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     if (cloudOn && window.UNI_DB.onOutOfStockChange) unsub = window.UNI_DB.onOutOfStockChange(loadReports);
     // Auto-poll every 60 s as fallback when realtime subscription is not available
     const poll = cloudOn ? setInterval(loadReports, 60000) : null;
-    return () => { unsub(); if (poll) clearInterval(poll); };
+    // Reload when user returns to this tab/window
+    const onFocus = () => { if (cloudOn) loadReports(); };
+    window.addEventListener('focus', onFocus);
+    return () => { unsub(); if (poll) clearInterval(poll); window.removeEventListener('focus', onFocus); };
   }, []);
 
   // close dropdown on outside click
