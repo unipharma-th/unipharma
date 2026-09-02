@@ -441,10 +441,32 @@
     async loadOutOfStockAll() {
       if (!enabled) return null;
       try {
-        var res = await client.from("out_of_stock").select("*").order("created_at", { ascending: false }).limit(500);
-        if (res.error) throw res.error;
-        return (res.data || []).map(oosFromRow);
+        var all = [], from = 0, pageSize = 500;
+        while (true) {
+          var res = await client.from("out_of_stock").select("*")
+            .order("created_at", { ascending: false })
+            .range(from, from + pageSize - 1);
+          if (res.error) throw res.error;
+          var rows = res.data || [];
+          all = all.concat(rows);
+          if (rows.length < pageSize) break;
+          from += pageSize;
+        }
+        return all.map(oosFromRow);
       } catch (e) { console.warn("[UNI_DB] loadOutOfStockAll:", e); return null; }
+    },
+    async syncManyToCloud(reports) {
+      if (!enabled || !reports || !reports.length) return { ok: 0, err: 0 };
+      var ok = 0, err = 0;
+      var rows = reports.filter(r => r && r.id).map(oosRow);
+      for (var c of chunk(rows, 100)) {
+        try {
+          var res = await client.from("out_of_stock").upsert(c, { onConflict: 'id' });
+          if (res.error) { err += c.length; console.warn("[UNI_DB] syncManyToCloud chunk:", res.error); }
+          else ok += c.length;
+        } catch(e) { err += c.length; console.warn("[UNI_DB] syncManyToCloud:", e); }
+      }
+      return { ok, err };
     },
     // ---- Drug categories (shared master list) ----
     async loadCategories() {

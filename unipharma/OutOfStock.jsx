@@ -73,6 +73,7 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
   const [allHistory, setAllHistory] = useState([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
   // ── manage filter ──
   const [filterStatus, setFilterStatus] = useState(null);
@@ -140,6 +141,31 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
       setAllHistory([...data].sort((a, b) => (a.createdAt||'').localeCompare(b.createdAt||'')));
     } catch (e) { console.warn('loadHistory:', e); }
     setHistoryLoaded(true);
+  };
+
+  const syncLocalToCloud = async () => {
+    if (!cloudOn || syncing) return;
+    setSyncing(true);
+    try {
+      const local = JSON.parse(localStorage.getItem('uni_out_of_stock') || '[]');
+      if (!local.length) {
+        notify(L('ไม่มีข้อมูลในเครื่องนี้', 'No local data on this device'), 'warn');
+        setSyncing(false);
+        return;
+      }
+      const result = await window.UNI_DB.syncManyToCloud(local);
+      if (result.ok > 0) {
+        notify(L(`อัปโหลดสำเร็จ ${result.ok} รายการ${result.err ? ` (ล้มเหลว ${result.err})` : ''}`, `Uploaded ${result.ok} records${result.err ? ` (${result.err} failed)` : ''}`), 'ok');
+        await loadHistory(true);
+        await loadReports();
+      } else {
+        notify(L('อัปโหลดล้มเหลว ลองใหม่อีกครั้ง', 'Upload failed, please try again'), 'err');
+      }
+    } catch(e) {
+      notify(L('เกิดข้อผิดพลาด', 'Error occurred'), 'err');
+      console.error('syncLocalToCloud:', e);
+    }
+    setSyncing(false);
   };
 
   // ── drug suggestions ──
@@ -713,14 +739,20 @@ const OutOfStockPage = ({ lang, L, perm, notify, drugs }) => {
     const statusKeys = Object.keys(OOS_STATUS);
     return (
       <div>
-        {historyLoaded && allHistory.length > 0 && canManage && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          {cloudOn && (
+            <button onClick={syncLocalToCloud} disabled={syncing}
+              style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--border2)', background: syncing ? 'var(--bg4)' : 'var(--bg2)', color: 'var(--txt2)', cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.7 : 1 }}>
+              {syncing ? L('กำลังอัปโหลด…', 'Uploading…') : L('☁️ อัปโหลดข้อมูลเครื่องนี้', '☁️ Upload This Device\'s Data')}
+            </button>
+          )}
+          {historyLoaded && allHistory.length > 0 && canManage && (
             <button onClick={() => exportOOS(allHistory, 'history')}
               style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--border2)', background: 'var(--bg2)', color: 'var(--txt2)', cursor: 'pointer' }}>
               📥 {L('Export ประวัติทั้งหมด', 'Export All History')}
             </button>
-          </div>
-        )}
+          )}
+        </div>
         {!historyLoaded ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--txt4)' }}>
             {L('กำลังโหลด…', 'Loading…')}
